@@ -26,7 +26,7 @@ if (!files.length) {
     const compile = spawnSync(process.execPath, [
       resolve(root, 'node_modules/typescript/bin/tsc'), '--strict', '--target', 'ES2022',
       '--lib', 'ES2022,DOM,DOM.Iterable', '--module', 'CommonJS', '--moduleResolution', 'Node',
-      '--esModuleInterop', '--skipLibCheck', '--types', 'node', '--rootDir', root,
+      '--esModuleInterop', '--resolveJsonModule', '--skipLibCheck', '--types', 'node', '--rootDir', root,
       '--outDir', temporary, ...files.sort(),
     ], {cwd: root, stdio: 'inherit'});
     if (compile.error) throw compile.error;

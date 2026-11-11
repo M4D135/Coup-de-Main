@@ -1,10 +1,10 @@
 # Coup de Main
 
-**Version 3.0.0 · Un crayon. Trois mondes. Douze compagnons à guider.**
+**Version 3.1.0 · Un crayon. Trois mondes. Douze compagnons à guider.**
 
 [Sources et versions publiques](https://github.com/M4D135/Coup-de-Main)
 
-Coup de Main est un jeu de réflexion en français. Les compagnons avancent seuls ; le joueur dessine leurs passages, oriente les groupes et actionne les mécanismes. Chaque monde est désormais **une grande carte continue de 16 000 × 900 unités**, à explorer avec la caméra. Le même voyage traverse **dix secteurs et cinq réseaux de mécanismes reliés** jusqu’au refuge.
+Coup de Main est un jeu de réflexion en français. Les compagnons avancent seuls ; le joueur dessine leurs passages, oriente les groupes et actionne les mécanismes. Chaque monde est un long voyage de **cinq tableaux illustrés complets**, avec plusieurs énigmes reliées et un refuge final. La même troupe continue d’une page à l’autre, en gardant ses dessins, ses groupes et les réglages des mécanismes. Les trois mondes réunissent **quinze compositions** : les trois premières scènes d’origine et douze nouvelles illustrations.
 
 | Monde | Voyage | Matière et ambiance |
 | --- | --- | --- |
@@ -12,19 +12,21 @@ Coup de Main est un jeu de réflexion en français. Les compagnons avancent seul
 | **Petits Plis** | Le pays des vents | Origamis, souffles, moulins et passages de papier ; flûte et cordes pincées |
 | **Les Veilleurs** | La longue veille | Atelier de bois et de laiton, transports et balanciers ; célesta et harmonies nocturnes |
 
-Les trois mondes sont accessibles dès l’accueil. Chacun commence avec **12 compagnons** et se termine à son refuge, au bout de la carte. Les réseaux associent des actions locales à des effets plus loin sur le parcours : observer la troupe et explorer le décor fait partie du jeu.
+Les trois mondes sont accessibles dès l’accueil. Chacun commence avec **12 compagnons** et se termine au refuge du cinquième tableau. Les réseaux associent des actions locales à des effets plus loin sur le parcours : observer la troupe et explorer le décor fait partie du jeu.
 
 ## Les gestes
 
 - **Toucher un mécanisme** pour agir. Son état, ses mouvements et ses repères dans le décor montrent le résultat. Certains relais sont activés automatiquement par l’arrivée des compagnons.
 - **Tracer depuis un appui** jusqu’à son partenaire pour construire un passage. Le dessin peut commencer des deux côtés ; sa géométrie devient le chemin parcouru.
-- **Glisser le décor** pour explorer la carte. Pincer avec deux doigts ou utiliser la molette pour zoomer. La petite carte permet aussi de changer de région ; le bouton de recentrage retrouve la troupe.
+- **Glisser le décor** pour explorer le tableau. Pincer avec deux doigts ou utiliser la molette pour zoomer. Les flèches et les cinq petits repères tournent les pages ; un glissement prolongé au bord fait de même.
+- **Retrouver les compagnons** grâce aux petites pastilles latérales signalant les groupes en attente hors champ, ou au bouton de recentrage.
+- **Toucher un compagnon** pour lui faire faire un coucou. Ses petites réactions ne modifient pas la solution du puzzle.
 - **Mettre en pause** pour réfléchir et préparer les dessins. La vitesse ×2 accélère les déplacements.
-- **Activer la Gomme**, puis toucher un trait libre pour récupérer son encre. Un passage occupé reste protégé.
+- **Activer la Gomme**, puis toucher un trait libre pour récupérer son encre. Un passage occupé ou nécessaire à un retour déjà engagé reste protégé.
 
 Les compagnons attendent lorsqu’un passage manque ou qu’un mécanisme n’est pas prêt. Modifier un aiguillage peut faire revenir les groupes bloqués vers un autre chemin. Le jeu conserve les positions réelles de la troupe.
 
-Le monde dispose d’une réserve de **4 400 unités d’encre**. Effacer les passages déjà quittés permet de réutiliser cette réserve plus loin. La limite propre à chaque trait et son corridor de construction restent indiqués par les appuis. Un dessin refusé conserve le passage valide précédent. **Annuler** revient sur le dernier dessin ou réglage, sans rembobiner la troupe.
+Le monde dispose d’une réserve d’encre commune, visible sur la jauge du crayon. Effacer les passages déjà quittés permet de réutiliser cette réserve plus loin. La limite propre à chaque trait et son corridor de construction restent indiqués par les appuis. Un dessin refusé conserve le passage valide précédent. **Annuler** revient sur le dernier dessin ou réglage, sans rembobiner la troupe.
 
 | Action | Clavier |
 | --- | --- |
@@ -34,13 +36,16 @@ Le monde dispose d’une réserve de **4 400 unités d’encre**. Effacer les pa
 | Alterner vitesse ×1 / ×2 | F |
 | Retrouver un groupe | R |
 | Déplacer la caméra | Flèches |
+| Tableau précédent / suivant | Page précédente / Page suivante |
 | Ouvrir ou fermer la pause | Échap |
 
 ## Souvenirs et progression
 
-Le parcours reste continu. Lorsque tous les survivants ont franchi un repère de fin de réseau, le jeu conserve automatiquement un **souvenir**. Le menu de pause permet de revenir à ce point avec l’état de la troupe, des dessins et des mécanismes qui y a été enregistré.
+Tourner une page conserve la troupe et l’état du voyage. Le titre montre le tableau courant sur cinq ; le compteur **Au refuge** apparaît à la dernière page ou dès qu’un compagnon est sauvé. Lorsque tous les survivants ont franchi un repère de fin de réseau, le jeu conserve automatiquement un **souvenir**. Le menu de pause permet de revenir à ce point avec l’état de la troupe, des dessins et des mécanismes qui y a été enregistré.
 
-**Recommencer** repart au début du monde avec les douze compagnons, après confirmation. Le meilleur résultat reste conservé. Une partie retrouvée dans ce navigateur reprend au calme ; les anciennes parties V2, construites sur d’autres parcours, ne sont pas appliquées aux nouvelles cartes et repartent du début avec un message explicatif.
+**Recommencer** repart au début du monde avec les douze compagnons, après confirmation. Le meilleur résultat reste conservé. Une partie retrouvée dans ce navigateur reprend au calme. Les parties 3.0 compatibles sont recalées sur les nouvelles illustrations en conservant les mêmes chemins, compagnons, dessins et réglages. Les anciennes parties V1/V2, construites sur d’autres parcours, repartent du début avec un message explicatif.
+
+Un taquet qui a déjà soutenu le passage de la troupe reste engagé : une annulation ne peut plus couper cet appui derrière un groupe déjà avancé. La reprise d’une partie concernée rétablit seulement les appuis dont l’utilisation avait été enregistrée, sans résoudre les mécanismes encore intacts.
 
 Les étoiles dépendent uniquement du nombre de compagnons arrivés au refuge :
 
@@ -64,7 +69,11 @@ La pause propose **trois volumes indépendants : Musique, Bruitages et Voix**, a
 
 ## Les trois directions artistiques
 
-Les artworks de référence, les atlas de personnages à **huit poses**, la main et les accessoires sont conservés. Les grandes cartes sont composées pour le jeu à partir de ces ressources et du rendu des chemins et mécanismes. Les fichiers de référence gardent les pixels des images fournies ; les scènes interactives restent des adaptations animées.
+Les trois premières scènes complètes sont rétablies : la vallée d’encre des Boucles, le théâtre de papier des Petits Plis et l’atelier nocturne des Veilleurs. Leurs PNG sont conservés intacts, tout comme les artworks de référence, les atlas de personnages à **huit poses** et les accessoires. Quatre nouvelles illustrations complètes prolongent chaque monde, dans sa matière et son ambiance.
+
+Chaque tableau est une planche de **3 200 × 1 800 unités logiques** ; les cinq tableaux forment le parcours de **16 000 × 1 800 unités**. Les chemins sont placés sur leurs sols et la caméra reste dans une seule image à la fois. Elle remplit l’écran, avec du glissement et du zoom pour explorer les cadrages plus étroits.
+
+Les compagnons marchent, attendent, se saluent et réagissent aux mécanismes proches en utilisant les poses et les visages d’origine. La préférence de réduction des animations est disponible dans la pause. Les prompts des nouveaux tableaux et les empreintes des médias accompagnent les sources.
 
 Voir [CREDITS.md](CREDITS.md) pour les ressources et la création sonore, [CHANGELOG.md](CHANGELOG.md) pour l’historique des versions.
 
@@ -104,15 +113,16 @@ Le fichier hors ligne embarque le code, les styles, les illustrations, les atlas
 | --- | --- |
 | `app/page.tsx` / `app/globals.css` | Interface française, menus, vue et interactions |
 | `components/worlds/` | Choix des mondes et version affichée |
-| `lib/worlds/` | Cartes continues, simulation, dessin, rendu, audio et sauvegarde |
-| `public/worlds/` | Artworks, scènes, atlas, accessoires et manifeste de provenance |
+| `lib/worlds/` | Parcours, tableaux, simulation, dessin, rendu, audio et sauvegarde |
+| `public/worlds/` | Artworks et scènes d’origine PNG, douze tableaux WebP, atlas, accessoires et manifeste de provenance |
+| `docs/art-*-prompts.json` | Prompts et références de génération des nouveaux tableaux |
 | `public/drawing-hand-hd.webp` | Main générée utilisée pour le dessin |
 | `tests/worlds-*.test.ts` | Parcours, réseaux, souvenirs, caméra et cycle de vie audio |
 | `scripts/public-*` | Entrée autonome, compilation et tests |
 | `PUBLIC-MANIFEST.json` | Version du jeu, fichiers exportés, tailles et empreintes SHA-256 |
 | `CHANGELOG.md` | Changements de chaque version, repris dans les releases |
 
-Le paquet public contient uniquement le code actif des trois mondes et leurs tests. Les contrôles de simulation sont complétés par les tests de caméra et de placement des étiquettes : accès aux appuis, repères dans la zone visible, priorité des mécanismes et sélection cohérente avec leur rendu. Les anciens modules, tests, médias audio et archives documentaires restent dans le projet historique ; ils ne sont pas copiés dans ce dépôt.
+Le paquet public contient le code actif des trois mondes, leurs tests et les fixtures nécessaires à la compatibilité des sauvegardes. Les contrôles de simulation sont complétés par les tests de caméra et de sélection : accès aux appuis, repères dans la zone visible, priorité des mécanismes et coordonnées des interactions. Des scénarios de mauvais réglages, d’annulation et de reprise complètent les parcours idéaux. Les résultats d’une livraison doivent distinguer ces contrôles automatisés des interactions réellement essayées dans un navigateur. Les anciens modules, tests, médias audio et archives documentaires restent dans le projet historique ; ils ne sont pas copiés dans ce dépôt.
 
 Le workflow **Vérification du jeu** exécute les types, tests et build. Le workflow **Versions publiques — Coup de Main** compile et crée une release après un push sur `main` qui modifie `package.json` ou ce workflow, ou lors d’un lancement manuel. Il publie le HTML autonome, le ZIP web et leurs empreintes SHA-256 pour la version déclarée, avec l’entrée correspondante de [CHANGELOG.md](CHANGELOG.md). Une release déjà présente est conservée sans écrasement. Le build et l’export locaux ne déclenchent pas cette publication à eux seuls.
 

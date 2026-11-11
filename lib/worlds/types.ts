@@ -116,12 +116,18 @@ export interface WorldLevel {
   objectives?:WorldObjective[];
   sectors?:WorldSector[];
   revision?:number;
+  /** Previous coordinates retained only to carry an existing expedition into
+   * a newly authored scene without resetting its decisions or companions. */
+  previousGeometry?:WorldGeometry;
   acts?:WorldAct[];
   /** Present on a resolved act, so helpers never resolve it a second time. */
   actKey?:string;
   actNumber?:number;
   journeyActCount?:number;
 }
+
+export type WorldGeometry=Pick<WorldLevel,'width'|'height'|'creatureHeight'|'nodes'|'edges'|'devices'|'drawings'|'inkBudget'>
+  &Partial<Pick<WorldLevel,'pace'>>&{revision:number};
 
 export interface WorldSector {id:string;x:number;width:number;name:string;style?:WorldId}
 export interface StageProgress {
@@ -214,6 +220,11 @@ export type EditSnapshot = {
 
 export interface RunSnapshot {
   version:3;
+  /** Missing in the original continuous-world saves, whose geometry is 3. */
+  geometryRevision?:number;
+  /** Keeps already drawn spans if reprojection exceeds the new ink budget.
+   * This never increases the ink available for a new gesture. */
+  migratedInkLimit?:number;
   autoCheckpointId:string|null;
   checkpoint?:RunSnapshot|null;
   levelId:WorldId;

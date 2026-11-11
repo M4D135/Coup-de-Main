@@ -1,4 +1,5 @@
 import type {DeviceDefinition,Gate,Point,RouteEdge,RouteNode,WorldId,WorldLevel} from './types';
+import {applyTableauGeometry} from './tableaux';
 
 const point=(x:number,y:number):Point=>({x,y});
 const on=(deviceId:string):Gate=>({deviceId,mode:1,minProgress:.98});
@@ -201,6 +202,7 @@ function buildWorld(id:WorldId):Builder {
   }
   for(let i=1;i<b.networks.length;i++)edge(b,`link:${i}`,b.networks[i-1].end,b.networks[i].start);
   node(b,'refuge',15900,650,{kind:'goal'});edge(b,'home',b.networks.at(-1)!.end,'refuge');
+  applyTableauGeometry(b.level);
   return b;
 }
 const built=(['boucles','plis','veilleurs'] as const).map(buildWorld);

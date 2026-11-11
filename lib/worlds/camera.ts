@@ -9,6 +9,12 @@ export interface WorldView {
   height:number;
   overflowX:number;
   overflowY:number;
+  /** Complete illustration currently framed; absent for legacy continuous views. */
+  tableauIndex?:number;
+  tableauWidth?:number;
+  worldWidth?:number;
+  panMinX?:number;
+  panMaxX?:number;
 }
 
 export interface WorldPan {panX:number;panY:number}
@@ -38,13 +44,28 @@ export function getWorldView(
   };
 }
 
-/** Continuous expeditions frame one landscape, never shrink the whole map. */
+/** Each illustrated tableau fills the viewport and owns its camera bounds.
+ * The optional width keeps the legacy continuous view available to old saves
+ * and utilities. Global pan coordinates still address the entire journey. */
 export function getExpeditionView(
   worldWidth:number,worldHeight:number,viewportWidth:number,viewportHeight:number,
-  zoom:number,panX:number,panY:number,
+  zoom:number,panX:number,panY:number,tableauWidth=0,
 ):WorldView {
   const sceneWidth=dimension(worldWidth),sceneHeight=dimension(worldHeight);
   const width=dimension(viewportWidth),height=dimension(viewportHeight);
+  if(Number.isFinite(tableauWidth)&&tableauWidth>0){
+    const board=Math.min(sceneWidth,tableauWidth),magnification=Number.isFinite(zoom)?clamp(zoom,1,3.4):1;
+    // Cover the display with one whole composition: portrait crops horizontally,
+    // wide landscape crops vertically. Neither axis exposes a flat letterbox.
+    const scale=Math.max(width/board,height/sceneHeight)*magnification;
+    const overflowX=Math.max(0,sceneWidth*scale-width),overflowY=Math.max(0,sceneHeight*scale-height);
+    const requestedLeft=overflowX*pan(panX),centre=(requestedLeft+width/2)/scale;
+    const tableauIndex=clamp(Math.floor(centre/board),0,Math.ceil(sceneWidth/board)-1);
+    const minimum=tableauIndex*board*scale,maximum=Math.max(minimum,Math.min(sceneWidth,(tableauIndex+1)*board)*scale-width);
+    return {scale,x:-clamp(requestedLeft,minimum,maximum),y:overflowY>0?-overflowY*pan(panY):0,
+      width,height,overflowX,overflowY,tableauIndex,tableauWidth:board,worldWidth:sceneWidth,
+      panMinX:overflowX?minimum/overflowX:0,panMaxX:overflowX?maximum/overflowX:0};
+  }
   const magnification=Number.isFinite(zoom)?clamp(zoom,.65,3.4):1;
   const scale=Math.min(width/Math.min(sceneWidth,1400),height/sceneHeight)*magnification;
   const overflowX=Math.max(0,sceneWidth*scale-width),overflowY=Math.max(0,sceneHeight*scale-height);
@@ -55,8 +76,17 @@ export function getExpeditionView(
 
 /** Keep a world point beneath a finger while changing magnification. */
 export function panAroundPoint(view:WorldView,worldPoint:Point,screenPoint:Point):WorldPan {
+  let left=worldPoint.x*view.scale-screenPoint.x;
+  if(view.tableauWidth&&view.worldWidth){
+    // Select the point's own page before clamping. A companion near an edge
+    // must not disappear because the requested screen offset selected its neighbour.
+    const index=clamp(Math.floor(worldPoint.x/view.tableauWidth),0,Math.ceil(view.worldWidth/view.tableauWidth)-1);
+    const minimum=index*view.tableauWidth*view.scale;
+    const maximum=Math.max(minimum,Math.min(view.worldWidth,(index+1)*view.tableauWidth)*view.scale-view.width);
+    left=clamp(left,minimum,maximum);
+  }
   return {
-    panX:view.overflowX>0?clamp((worldPoint.x*view.scale-screenPoint.x)/view.overflowX,0,1):.5,
+    panX:view.overflowX>0?clamp(left/view.overflowX,0,1):.5,
     panY:view.overflowY>0?clamp((worldPoint.y*view.scale-screenPoint.y)/view.overflowY,0,1):.5,
   };
 }
@@ -84,7 +114,7 @@ export function autoPanWorldView(
   const overflowY=Number.isFinite(view.overflowY)&&view.overflowY>0?view.overflowY:0;
   if(elapsed===0)return {panX:initialX,panY:initialY};
   return {
-    panX:overflowX>0?clamp(initialX+edgeVelocity(pointerLocal.x,view.width)*elapsed/overflowX,0,1):initialX,
+    panX:overflowX>0?clamp(initialX+edgeVelocity(pointerLocal.x,view.width)*elapsed/overflowX,view.panMinX??0,view.panMaxX??1):initialX,
     panY:overflowY>0?clamp(initialY+edgeVelocity(pointerLocal.y,view.height)*elapsed/overflowY,0,1):initialY,
   };
 }

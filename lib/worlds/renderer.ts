@@ -3,8 +3,9 @@ import type {GuidanceInsets,GuidanceViewport} from './renderer-guidance';
 import {drawAtmosphere,drawLandscape,drawPortal,visiblePoint,visibleWorld} from './renderer-landscape';
 import {drawCompanions} from './renderer-characters';
 import {deviceBody,drawMechanicalConnections,drawMechanisms} from './renderer-mechanisms';
-import {bridge,clamp,prop} from './renderer-primitives';
+import {bridge,clamp} from './renderer-primitives';
 import type {ActiveStroke,Point,WorldId,WorldLevel,WorldRun} from './types';
+import {tableauAsset,TABLEAU_WIDTH,TABLEAU_HEIGHT} from './tableaux';
 
 type Cell={x:number;y:number;width:number;height:number;centerX:number;baseline:number;bodyHeight:number;bodyWidth:number};
 type Atlas={image:HTMLImageElement;cells:Cell[];referenceHeight:number};
@@ -13,6 +14,7 @@ type HandState={opacity:number;tip:Point|null;angle:number;lastTime:number};
 export interface WorldAssets {
   id:WorldId;
   scene:HTMLImageElement;
+  tableaux:HTMLImageElement[];
   sprites:Atlas;
   props:Atlas|null;
   hand:HTMLImageElement|null;
@@ -67,9 +69,9 @@ function atlas(image:HTMLImageElement,columns:number,rows:number):Atlas {
 export function loadWorldAssets(id:WorldId):Promise<WorldAssets> {
   const previous=caches.get(id);if(previous)return previous;
   const loading=Promise.all([
-    loadImage(`worlds/${id}-scene.png`),loadImage(`worlds/${id}-sprites.png`),
+    Promise.all(Array.from({length:5},(_,index)=>loadImage(tableauAsset(id,index)))),loadImage(`worlds/${id}-sprites.png`),
     loadImage(`worlds/${id}-props.png`).catch(()=>null),loadImage('drawing-hand-hd.webp').catch(()=>null),
-  ]).then(([scene,sprites,props,hand])=>({id,scene,sprites:atlas(sprites,4,2),props:props?atlas(props,2,2):null,hand,
+  ]).then(([tableaux,sprites,props,hand])=>({id,scene:tableaux[0],tableaux,sprites:atlas(sprites,4,2),props:props?atlas(props,2,2):null,hand,
     handState:{opacity:0,tip:null,angle:0,lastTime:0}}));
   caches.set(id,loading);loading.catch(()=>caches.delete(id));return loading;
 }
@@ -172,13 +174,11 @@ export function renderWorld(context:CanvasRenderingContext2D,level:WorldLevel,ru
   const time=options.elapsed??run.time,reduced=options.reducedMotion??false,bounds=visibleWorld(level,options);
   const dt=clamp(options.dt??(time-assets.handState.lastTime),0,.05)||1/60;assets.handState.lastTime=time;frameScales.set(run,bounds.scale);
   context.save();context.imageSmoothingEnabled=true;context.imageSmoothingQuality='high';
+  context.beginPath();context.rect((bounds.tableau??0)*TABLEAU_WIDTH,0,TABLEAU_WIDTH,TABLEAU_HEIGHT);context.clip();
   drawLandscape(context,level,assets,bounds);
   drawAtmosphere(context,level,bounds,time,reduced);
   drawMechanicalConnections(context,level,run,bounds,time,reduced);
-  const source=level.nodes.find(node=>node.id===level.spawn),goal=level.nodes.find(node=>node.id===level.goal);
-  if(source&&visiblePoint(source,bounds,200)){
-    if(level.id==='boucles')prop(context,assets,3,source.x-34,source.y+4,145);else drawPortal(context,level,assets,{x:source.x-42,y:source.y},false,time);
-  }
+  const goal=level.nodes.find(node=>node.id===level.goal);
   if(goal&&visiblePoint(goal,bounds,200))drawPortal(context,level,assets,goal,true,time);
   drawMechanisms(context,level,run,assets,bounds,time,options);
   for(const drawing of Object.values(run.drawings)){

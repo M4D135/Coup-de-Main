@@ -3,6 +3,7 @@ import type {WorldAssets,RenderOptions} from './renderer';
 import type {DeviceDefinition,Point,WorldLevel,WorldRun} from './types';
 import {visiblePoint,type WorldBounds} from './renderer-landscape';
 import {brass,clamp,mix,pointAt,prop,rope,trace} from './renderer-primitives';
+import {authoredCounterweight,authoredLift,authoredWind} from './renderer-authored';
 
 const fanMotion=new WeakMap<WorldRun,Map<string,{angle:number;speed:number;time:number}>>();
 
@@ -20,6 +21,7 @@ function loadCentre(level:WorldLevel,device:DeviceDefinition):Point {
 }
 
 export function deviceBody(level:WorldLevel,run:WorldRun,device:DeviceDefinition):{point:Point;width:number;height:number} {
+  if(level.id==='plis'&&device.id==='s0:wind')return {point:{x:1100,y:720},width:260,height:440};
   if(device.kind==='lift'&&device.low&&device.high)return {point:pointAt(device.low,device.high,run.devices[device.id]?.progress??0),width:device.width??144,height:110};
   if(device.kind==='counterweight')return {point:loadCentre(level,device),width:device.width??240,height:65};
   if(device.kind==='wind')return {point:{x:device.x,y:device.y+75},width:device.width??170,height:170};
@@ -60,41 +62,20 @@ function pips(context:CanvasRenderingContext2D,point:Point,total:number,filled:n
   context.restore();
 }
 
-/** All dependencies are actual engine data; a cable joins the controlling
- * object and the gate/platform it powers. Long cables remain behind the action. */
-export function drawMechanicalConnections(context:CanvasRenderingContext2D,level:WorldLevel,run:WorldRun,bounds:WorldBounds,time:number,reduced:boolean) {
-  const links:{from:Point;to:Point;active:boolean;key:string}[]=[],keys=new Set<string>();
-  const add=(from:Point,to:Point,active:boolean,key:string)=>{
-    if(keys.has(key)||Math.hypot(from.x-to.x,from.y-to.y)<48)return;
-    if(Math.max(from.x,to.x)<bounds.left||Math.min(from.x,to.x)>bounds.right)return;
-    keys.add(key);links.push({from,to,active,key});
-  };
+/** Short physical cords stay inside their illustrated room. Distant
+ * dependencies are represented by the matching latched objects, never wires
+ * running across the sky or across a page boundary. */
+export function drawMechanicalConnections(context:CanvasRenderingContext2D,level:WorldLevel,run:WorldRun,bounds:WorldBounds,_time:number,_reduced:boolean) {
+  context.save();context.lineCap='round';
   for(const device of level.devices){
-    for(const id of [device.powerDeviceId,device.lockDeviceId,device.holdOpenDeviceId,...(device.gates??[]).map(gate=>gate.deviceId)]){
-      if(!id)continue;const controller=level.devices.find(item=>item.id===id);if(controller)add(controller,device,(run.devices[id]?.progress??0)>.9,[id,device.id].sort().join(':'));
-    }
-    if(device.activationNodeId){const node=level.nodes.find(item=>item.id===device.activationNodeId);if(node)add(node,device,(run.devices[device.id]?.progress??0)>.9,`relay:${device.id}`);}
-  }
-  for(const edge of level.edges)for(const gate of edge.gates??[]){
-    const controller=level.devices.find(device=>device.id===gate.deviceId),target=edge.path[0];
-    if(controller&&target)add(controller,target,gateSatisfied(run,gate),`${gate.deviceId}:${target.x}:${target.y}`);
-  }
-  context.save();context.lineJoin='round';context.lineCap='round';
-  for(const link of links){
-    const long=Math.abs(link.to.x-link.from.x)>900;
-    const y=long?112+Math.abs(link.from.x%3)*7:Math.min(link.from.y,link.to.y)-64;
-    const points=[link.from,{x:link.from.x,y},{x:link.to.x,y},link.to];
-    trace(context,points);context.strokeStyle=level.id==='boucles'?'#344965':level.id==='plis'?'#927b5d':'#714e35';context.globalAlpha=long?.24:.4;context.lineWidth=3;context.stroke();
-    context.strokeStyle=link.active?level.palette.accent:level.id==='veilleurs'?'#ac8659':'#c6b28d';context.globalAlpha=link.active?.7:.46;context.lineWidth=1.2;context.stroke();
-    if(link.active&&!reduced){
-      const span=Math.abs(link.to.x-link.from.x),direction=Math.sign(link.to.x-link.from.x)||1;
-      for(let index=0;index<Math.ceil(span/400);index++){
-        const travelled=(time*44+index*400)%Math.max(1,span),x=link.from.x+direction*travelled;if(x<bounds.left||x>bounds.right)continue;
-        context.globalAlpha=.66;context.fillStyle=level.palette.accent;context.beginPath();context.arc(x,y,2.4,0,Math.PI*2);context.fill();
-      }
-    }
-    context.globalAlpha=.65;context.fillStyle=level.palette.accent;
-    for(const point of [link.from,link.to]){context.beginPath();context.arc(point.x,point.y,3.3,0,Math.PI*2);context.fill();}
+    if(device.id.startsWith('s0:')||!visiblePoint(device,bounds,100))continue;
+    if(device.kind!=='latch'||!device.powerDeviceId)continue;
+    const source=level.devices.find(d=>d.id===device.powerDeviceId);if(!source||!visiblePoint(source,bounds,100))continue;
+    if(Math.abs(source.x-device.x)>650)continue;
+    const midpoint=(source.x+device.x)/2;
+    context.beginPath();context.moveTo(source.x,source.y+35);context.quadraticCurveTo(midpoint,Math.max(source.y,device.y)+75,device.x,device.y);
+    context.strokeStyle=level.id==='veilleurs'?'#6f4b2c':level.id==='boucles'?'#243956':'#bba078';context.lineWidth=4;context.globalAlpha=.8;context.stroke();
+    context.strokeStyle='#e5c58f';context.lineWidth=1.5;context.stroke();
   }
   context.restore();
 }
@@ -134,47 +115,14 @@ function fan(context:CanvasRenderingContext2D,level:WorldLevel,assets:WorldAsset
   context.restore();
 }
 
-function counterweight(context:CanvasRenderingContext2D,level:WorldLevel,run:WorldRun,assets:WorldAssets,device:DeviceDefinition) {
-  const center=loadCentre(level,device),width=device.width??240,progress=run.devices[device.id]?.progress??0;
-  const pivot=device.pivot??{x:center.x,y:center.y-210},secondary={x:center.x+width*.8,y:center.y-75-progress*95};
-  timber(context,{x:center.x-width*.68,y:center.y+32},{x:center.x-width*.68,y:pivot.y},15,level);
-  timber(context,{x:center.x-width*.68,y:pivot.y},{x:secondary.x+24,y:pivot.y},17,level);
-  for(const side of [-1,1])rope(context,{x:center.x+side*width*.23,y:pivot.y+8},{x:center.x+side*width*.43,y:center.y-9},level.id,2.5);
-  if(level.id==='plis'){
-    context.fillStyle='#e5cfaa';context.strokeStyle='#80633e';context.lineWidth=2;context.beginPath();context.moveTo(center.x-width/2,center.y);context.lineTo(center.x+width/2,center.y);context.lineTo(center.x+width*.42,center.y+27);context.lineTo(center.x-width*.42,center.y+27);context.closePath();context.fill();context.stroke();
-  }else if(!prop(context,assets,0,center.x,center.y,width,0,level.id==='veilleurs'?.28:.37)){
-    context.fillStyle='#d0a454';context.fillRect(center.x-width/2,center.y,width,22);
-  }
-  rope(context,{x:secondary.x,y:pivot.y+7},{x:secondary.x,y:secondary.y-55},level.id);
-  if(level.id==='boucles')prop(context,assets,1,secondary.x,secondary.y,80,0,.84);
-  else if(level.id==='veilleurs')prop(context,assets,0,secondary.x,secondary.y,80,0,.28);
-  else {context.fillStyle='#ba9165';context.strokeStyle='#73583e';context.lineWidth=2;context.fillRect(secondary.x-25,secondary.y-40,50,40);context.strokeRect(secondary.x-25,secondary.y-40,50,40);}
-  brass(context,secondary.x,pivot.y,17,level.id);
-}
-
-function lift(context:CanvasRenderingContext2D,level:WorldLevel,run:WorldRun,assets:WorldAssets,device:DeviceDefinition) {
-  if(!device.low||!device.high)return;
-  const progress=run.devices[device.id]?.progress??0,position=pointAt(device.low,device.high,progress),width=device.width??144;
-  const pivot=device.pivot??{x:device.high.x,y:device.high.y-145};
-  const bottom=Math.max(device.low.y,device.high.y);
-  for(const side of [-1,1]){
-    const a={x:pivot.x+side*(width*.62),y:pivot.y},b={x:device.low.x+side*(width*.62),y:bottom+35};
-    timber(context,a,b,10,level);
-  }
-  timber(context,{x:pivot.x-width*.68,y:pivot.y},{x:pivot.x+width*.68,y:pivot.y},14,level);
-  rope(context,pivot,{x:position.x,y:position.y-72},level.id,3);
-  brass(context,pivot.x,pivot.y,18,level.id);
-  if(!prop(context,assets,level.id==='veilleurs'?2:1,position.x,position.y,width,0,level.id==='veilleurs'?.8:.84)){
-    context.fillStyle='#c19a69';context.fillRect(position.x-width/2,position.y,width,20);
-  }
-}
-
 function pendulum(context:CanvasRenderingContext2D,level:WorldLevel,run:WorldRun,assets:WorldAssets,device:DeviceDefinition) {
   const pivot=device.pivot??device,motion=getPendulumPosition(device,run.time,run),length=device.length??190;
   if(level.id==='veilleurs'&&assets.props){
-    const sheet=assets.props,cell=sheet.cells[1],height=cell.bodyHeight,pivotOffset=height*.085,bobOffset=height*.80,scale=length/(bobOffset-pivotOffset);
+    const sheet=assets.props,cell=sheet.cells[1],radius=(device.radius??75)*1.12;
     context.save();context.translate(pivot.x,pivot.y);context.rotate(-motion.angle);
-    context.drawImage(sheet.image,cell.x,cell.y,cell.width,cell.height,-cell.centerX*scale,-(cell.baseline-height+pivotOffset)*scale,cell.width*scale,cell.height*scale);context.restore();
+    timber(context,{x:0,y:0},{x:0,y:length-radius*.5},17,level);
+    context.drawImage(sheet.image,cell.x+165,cell.y+360,280,260,-radius,length-radius*.92,radius*2,radius*1.86);
+    brass(context,0,0,22,level.id);context.restore();
   }else{
     rope(context,pivot,motion,level.id,8);context.save();context.translate(motion.x,motion.y);context.rotate(-motion.angle);
     context.fillStyle=level.palette.accent;context.strokeStyle=level.palette.ink;context.lineWidth=3;context.beginPath();context.roundRect(-30,-25,60,60,18);context.fill();context.stroke();context.restore();brass(context,pivot.x,pivot.y,18,level.id);
@@ -228,9 +176,12 @@ export function drawMechanisms(context:CanvasRenderingContext2D,level:WorldLevel
   for(const device of level.devices){
     const state=run.devices[device.id];if(!state)continue;
     const body=deviceBody(level,run,device),near=visiblePoint(device,bounds,380)||visiblePoint(body.point,bounds,380);if(!near)continue;
-    if(device.kind==='counterweight')counterweight(context,level,run,assets,device);
-    else if(device.kind==='lift')lift(context,level,run,assets,device);
-    else if(device.kind==='wind')fan(context,level,assets,device,state.mode===1?state.progress:0,fanAngle(run,device,reduced),time,reduced);
+    if(device.kind==='counterweight')authoredCounterweight(context,level,run,assets,device);
+    else if(device.kind==='lift')authoredLift(context,level,run,assets,device);
+    else if(device.kind==='wind'){
+      const angle=fanAngle(run,device,reduced);
+      if(!authoredWind(context,level,run,assets,device,angle,time,reduced))fan(context,level,assets,device,state.mode===1?state.progress:0,angle,time,reduced);
+    }
     else if(device.kind==='pendulum')pendulum(context,level,run,assets,device);
     control(context,level,run,assets,device,time,reduced);
     const status=getDeviceStatus(run,level,device.id);

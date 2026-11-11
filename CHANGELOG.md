@@ -2,6 +2,37 @@
 
 Les sources et les fichiers prêts à jouer sont publiés dans le [dépôt Coup de Main](https://github.com/M4D135/Coup-de-Main).
 
+## [3.1.0]
+
+### Retrouver les trois mondes illustrés
+
+- Les trois premières scènes complètes d’origine sont rétablies. Les arbres, falaises, ateliers et maisons ne sont plus prélevés en morceaux pour composer un décor générique.
+- Douze nouvelles illustrations complètes prolongent ces scènes : cinq tableaux par monde, quinze au total. Chaque tableau possède sa propre composition, dans la matière de sa famille : encre et papier crème, origamis, ou bois et laiton éclairés à la lampe.
+- Les chemins et les points d’interaction sont recalés sur ces compositions. Le parcours logique mesure 16 000 × 1 800 unités ; la troupe, les dessins et les mécanismes persistent entre les cinq tableaux.
+- Les PNG d’origine sont conservés. Les nouveaux tableaux sont distribués en WebP ; leur provenance et leurs prompts sont documentés.
+
+### Une caméra qui laisse vivre l’illustration
+
+- Une seule planche occupe l’écran à la fois. La vue reste dans son cadre, avec un bref voile de papier lors du passage au tableau suivant.
+- Glisser explore le tableau, pincer ou utiliser la molette ajuste le zoom, et les flèches ou les cinq repères permettent de tourner les pages. Un glissement prolongé au bord change également de tableau.
+- Une petite pastille signale les compagnons qui attendent à gauche ou à droite hors du champ. La toucher retrouve leur groupe.
+- Le titre montre l’avancée dans les cinq tableaux. Les arrivées au refuge sont distinguées de cette progression locale.
+
+### Des compagnons auxquels donner un coup de main
+
+- Toucher un compagnon lui fait répondre par un coucou et une petite voix.
+- Des tempéraments différents rythment les attentes : curiosité, enthousiasme, bâillement, timidité et petite révérence. Un voisin peut répondre, avec des pauses entre ces échanges.
+- Les compagnons proches d’un mécanisme réagissent à son mouvement. Une attente qui se termine déclenche un petit bond de soulagement.
+- La marche suit la distance et la taille des personnages. Les visages restent ceux des atlas approuvés ; la réduction des animations est respectée.
+
+### Reprises et blocages
+
+- Un taquet ayant déjà soutenu le passage de la troupe reste engagé. Une commande ou une annulation ne peut plus couper à distance un appui déjà utilisé, notamment avant « Le courant contraire ».
+- Les sauvegardes concernées rétablissent uniquement les appuis dont l’utilisation est prouvée par les passages enregistrés ; les énigmes encore non résolues restent à résoudre.
+- Les chemins réservés à un retour sont protégés contre l’effacement. Une ancienne partie ayant perdu un tel chemin attend sur sa rive, au lieu de marcher dans le vide.
+- La migration de géométrie conserve les identités, la progression relative sur les chemins, les mécanismes, les dessins et les souvenirs compatibles lors du recalage sur les illustrations.
+- Le jeu affiche la raison réelle d’un refus d’action, au lieu d’un message générique.
+
 ## [3.0.0]
 
 ### Trois grandes cartes continues

@@ -30,9 +30,10 @@ export function getActiveAct(level:WorldLevel,run:Pick<WorldRun,'actIndex'>):Wor
 }
 const copyActResults=(results:ActResult[]):ActResult[]=>results.map(result=>({...result,lostIds:[...result.lostIds]}));
 const copyVisits=(visits:Record<string,number[]>):Record<string,number[]>=>Object.fromEntries(Object.entries(visits).map(([id,units])=>[id,[...units]]));
+const geometryScale=(level:WorldLevel):number=>level.height/900;
 const stationPosition=(level:WorldLevel,unit:Creature):Point=>{
   const node=nodeFor(level,unit.nodeId),capacity=node.capacity??3;
-  return {x:node.x+((unit.formationSlot??unit.id%capacity)-(capacity-1)/2)*46,y:node.y};
+  return {x:node.x+((unit.formationSlot??unit.id%capacity)-(capacity-1)/2)*46*geometryScale(level),y:node.y};
 };
 
 export const pathLength=(points:Point[]):number=>points.slice(1).reduce((sum,point,index)=>sum+distance(points[index],point),0);
@@ -74,7 +75,7 @@ function createActRun(world:WorldLevel,actIndex:number,actResults:ActResult[]):W
   const previous=actResults.find(result=>result.index===actIndex-1);
   const lostIds=new Set(previous?.lostIds??[]);
   return {
-    version:3,autoCheckpointId:null,levelId:level.id,actIndex,actResults:copyActResults(actResults),phase:'ready',time:0,speed:1,
+    version:3,geometryRevision:level.revision??3,autoCheckpointId:null,levelId:level.id,actIndex,actResults:copyActResults(actResults),phase:'ready',time:0,speed:1,
     units:Array.from({length:level.total},(_,id)=>({id,x:source.x,y:lostIds.has(id)?level.height+300:source.y,state:lostIds.has(id)?'lost':'queued',direction:1,nodeId:source.id,edgeId:null,distance:0,walkTime:0,waitTime:0,savedAt:null,lostAt:lostIds.has(id)?0:null,fallVelocity:0,returning:false,returnEdges:[],formationSlot:null,variant:(id*7)%5})),
     devices:Object.fromEntries(level.devices.map(device=>[device.id,{mode:device.initialMode,progress:0,load:0}])),
     drawings:{},spawned:lostIds.size,saved:0,lost:lostIds.size,nextSpawn:0,accumulator:0,edits:0,retries:0,visits:{},passages:{},
@@ -96,8 +97,20 @@ const remember=(run:WorldRun)=>{run.history.push(editSnapshot(run));if(run.histo
 const result=(run:WorldRun,ok:boolean,message:string,extra:Partial<ActionResult>={}):ActionResult=>{run.message=message;return {ok,message,...extra};};
 const emit=(run:WorldRun,event:GameEvent)=>{run.events.push(event);if(run.events.length>80)run.events.shift();};
 
+/** A cleat is a retaining knot, not a remote on/off switch. Once its supported
+ * route has carried someone, releasing it would strand later groups several
+ * screens away. The passage ledger proves that the player already solved and
+ * used this mechanism; it does not open an unused route for them.
+ */
+function committedCleat(run:WorldRun,level:WorldLevel,definition:DeviceDefinition):boolean {
+  return definition.kind==='latch'&&level.edges.some(edge=>(run.passages[edge.id]?.length??0)>0
+    &&edge.gates?.some(gate=>gate.deviceId===definition.id&&(gate.mode===1||(gate.minProgress??0)>0)));
+}
+
 function activeOnDrawing(run:WorldRun,level:WorldLevel,id:string):boolean {
-  return run.units.some(unit=>!['queued','saved','lost'].includes(unit.state)&&edgeFor(level,unit.edgeId)?.drawingId===id);
+  if(!run.drawings[id])return false;
+  return run.units.some(unit=>!['queued','saved','lost'].includes(unit.state)
+    &&(edgeFor(level,unit.edgeId)?.drawingId===id||(unit.returning&&(unit.returnEdges??[]).some(edgeId=>edgeFor(level,edgeId)?.drawingId===id))));
 }
 
 export function applyAction(run:WorldRun,level:WorldLevel,action:GameAction):ActionResult {
@@ -165,7 +178,7 @@ export function applyAction(run:WorldRun,level:WorldLevel,action:GameAction):Act
         &&run.units.some(unit=>unit.state==='riding'&&edgeFor(level,unit.edgeId)?.deviceId===definition.id)){
         return result(run,false,'Laisse l’ascenseur déposer ses passagers avant d’annuler.');
       }
-      if(definition.kind==='counterweight'&&previous.modes[definition.id]===0&&run.devices[definition.id].mode===1){
+      if((definition.kind==='counterweight'||definition.kind==='latch')&&previous.modes[definition.id]===0&&run.devices[definition.id].mode===1){
         const reason=deviceActionReason(run,level,definition,0);
         if(reason)return result(run,false,reason);
       }
@@ -294,7 +307,7 @@ export function getPendulumPosition(definition:DeviceDefinition,time:number,run?
 function updateDevices(run:WorldRun,level:WorldLevel,dt:number):void {
   for(const definition of level.devices){
     const state=run.devices[definition.id];
-    state.load=definition.weightNodes?run.units.filter(unit=>definition.weightNodes!.includes(unit.nodeId)&&unit.edgeId===null&&unit.state==='waiting'&&distance(unit,stationPosition(level,unit))<=1).length
+    state.load=definition.weightNodes?run.units.filter(unit=>definition.weightNodes!.includes(unit.nodeId)&&unit.edgeId===null&&unit.state==='waiting'&&distance(unit,stationPosition(level,unit))<=geometryScale(level)).length
       :definition.kind==='lift'?run.units.filter(unit=>unit.state==='riding'&&edgeFor(level,unit.edgeId)?.deviceId===definition.id).length:0;
     let target=state.mode>0?1:0;
     if(definition.kind==='counterweight')target=state.mode===1||state.load>=(definition.requiredLoad??1)?1:0;
@@ -326,7 +339,7 @@ function canEnter(run:WorldRun,level:WorldLevel,edge:RouteEdge,unit:Creature):bo
     const state=run.devices[edge.deviceId!];
     if(!state||state.progress>.018||state.mode!==0)return false;
     if(run.units.filter(other=>other.edgeId===edge.id&&other.state==='riding').length>=(edge.capacity??3))return false;
-  }else if(run.units.some(other=>other.id!==unit.id&&other.edgeId===edge.id&&!other.returning&&!['lost','saved'].includes(other.state)&&other.distance<SPACING))return false;
+  }else if(run.units.some(other=>other.id!==unit.id&&other.edgeId===edge.id&&!other.returning&&!['lost','saved'].includes(other.state)&&other.distance<SPACING*geometryScale(level)))return false;
   return true;
 }
 
@@ -364,13 +377,14 @@ function depart(run:WorldRun,level:WorldLevel,unit:Creature,nodeId:string):boole
 /** Find a real walk back to a junction whose selected route has changed.
  * Lift shafts, hazards and latched weight stations are never invented shortcuts.
  */
-function returnPath(run:WorldRun,level:WorldLevel,nodeId:string,incomingId:string|null):string[]|null {
+function returnPath(run:WorldRun,level:WorldLevel,nodeId:string,incomingId:string|null,unitId:number):string[]|null {
   const pending=[{nodeId,edges:[] as string[]}],visited=new Set<string>();
   while(pending.length){
     const current=pending.shift()!;
     if(visited.has(current.nodeId))continue;
     visited.add(current.nodeId);
     const node=nodeFor(level,current.nodeId);
+    if(node.kind==='checkpoint')continue;
     if(node.kind==='weight'){
       const definition=deviceFor(level,node.deviceId!)!,state=run.devices[node.deviceId!];
       const approaching=run.units.filter(unit=>!unit.returning&&!['queued','saved','lost'].includes(unit.state)
@@ -379,6 +393,7 @@ function returnPath(run:WorldRun,level:WorldLevel,nodeId:string,incomingId:strin
     }
     for(const edge of level.edges.filter(candidate=>candidate.to===current.nodeId)){
       if(current.edges.length===0&&incomingId&&edge.id!==incomingId)continue;
+      if(!run.passages[edge.id]?.includes(unitId))continue;
       if(!['ground','drawn'].includes(edge.kind)||(edge.drawingId&&!run.drawings[edge.drawingId]))continue;
       const edges=[...current.edges,edge.id];
       if(edge.route){
@@ -392,21 +407,26 @@ function returnPath(run:WorldRun,level:WorldLevel,nodeId:string,incomingId:strin
 }
 
 function recallStranded(run:WorldRun,level:WorldLevel,unit:Creature,nodeId:string):boolean {
+  // At an actual junction a full scout/porter quota is a local queue, not a
+  // reason to search backwards through completed chapters for an old fork.
+  if(level.edges.some(edge=>edge.from===nodeId&&edge.route))return false;
   // A prepared exit with a queue or a travelling lift is not a dead end.
   // Recalling at a merge would otherwise send a companion along a branch it
   // never used simply because that other branch's selector has changed.
   if(level.edges.some(edge=>edge.from===nodeId&&routePrepared(run,edge,unit)))return false;
   const incoming=edgeFor(level,unit.edgeId);
-  const edges=returnPath(run,level,nodeId,incoming?.to===nodeId?incoming.id:null);
+  const edges=returnPath(run,level,nodeId,incoming?.to===nodeId?incoming.id:null,unit.id);
   if(!edges?.length)return false;
   const first=edgeFor(level,edges[0])!,length=pathLength(getEdgePath(run,level,first));
   // The companions queued on this same path turn together; their spacing and
   // their feet remain where they were rather than jumping back to the junction.
   for(const companion of run.units){
     if(companion!==unit&&(companion.edgeId!==first.id||companion.returning||['queued','saved','lost','riding'].includes(companion.state)))continue;
+    const ownEdges=companion===unit?edges:returnPath(run,level,nodeId,first.id,companion.id);
+    if(!ownEdges?.length||ownEdges[0]!==first.id)continue;
     const oldDistance=companion.edgeId===first.id?companion.distance:length;
     companion.nodeId=first.to;companion.edgeId=first.id;companion.distance=Math.max(0,length-oldDistance);
-    companion.returning=true;companion.returnEdges=[...edges];companion.state='walking';companion.waitTime=0;
+    companion.returning=true;companion.returnEdges=[...ownEdges];companion.state='walking';companion.waitTime=0;
     companion.formationSlot=null;
   }
   run.message='L’aiguillage a changé : les compagnons bloqués reviennent à pied choisir l’autre chemin.';
@@ -421,6 +441,8 @@ function arrive(run:WorldRun,level:WorldLevel,unit:Creature,edge:RouteEdge):void
     if(edge.maxPassages!==undefined)run.passages[edge.id]=(run.passages[edge.id]??[]).filter(id=>id!==unit.id);
     const remaining=(unit.returnEdges??[]).slice(1),nodeId=edge.from;
     if(remaining.length){
+      const next=edgeFor(level,remaining[0])!;
+      if(next.drawingId&&!run.drawings[next.drawingId]){unit.state='waiting';return;}
       unit.nodeId=nodeId;unit.edgeId=remaining[0];unit.distance=0;
       unit.returnEdges=remaining;unit.state='walking';unit.waitTime=0;
     }else if(!depart(run,level,unit,nodeId)){
@@ -479,7 +501,7 @@ function simulateStep(run:WorldRun,level:WorldLevel,dt:number):void {
       const node=nodeFor(level,unit.nodeId);
       if(node.kind==='weight'&&run.devices[node.deviceId!]?.mode===0){
         const target=stationPosition(level,unit),gap=distance(unit,target),step=Math.min(gap,level.pace*dt);
-        if(gap>1){
+        if(gap>geometryScale(level)){
           unit.direction=target.x>=unit.x?1:-1;unit.x+=(target.x-unit.x)*step/gap;unit.y+=(target.y-unit.y)*step/gap;
           unit.walkTime+=step/level.pace;unit.waitTime=0;continue;
         }
@@ -489,11 +511,14 @@ function simulateStep(run:WorldRun,level:WorldLevel,dt:number):void {
       continue;
     }
     const edge=edgeFor(level,unit.edgeId)!;
+    if(unit.returning&&edge.drawingId&&!run.drawings[edge.drawingId]){
+      unit.state='waiting';unit.waitTime+=dt;continue;
+    }
     if(edge.kind==='lift'){
       const definition=deviceFor(level,edge.deviceId!)!,state=run.devices[definition.id];
       const slot=unit.formationSlot??unit.id%3;
       const low=definition.low??edge.path[0],high=definition.high??edge.path[edge.path.length-1];
-      const slotX=low.x+(high.x-low.x)*state.progress+(slot-((edge.capacity??3)-1)/2)*36;
+      const slotX=low.x+(high.x-low.x)*state.progress+(slot-((edge.capacity??3)-1)/2)*36*geometryScale(level);
       const platformY=low.y+(high.y-low.y)*state.progress;
       if(state.progress<=.018&&unit.distance<1){
         const gap=slotX-unit.x,step=level.pace*dt;
@@ -524,7 +549,7 @@ function simulateStep(run:WorldRun,level:WorldLevel,dt:number):void {
     let target=Math.min(length,unit.distance+pace*dt);
     for(const other of run.units){
       if(other.id===unit.id||other.edgeId!==edge.id||!!other.returning!==!!unit.returning||['lost','saved','queued'].includes(other.state))continue;
-      if(other.distance>unit.distance+.01||(Math.abs(other.distance-unit.distance)<.01&&other.id<unit.id))target=Math.min(target,Math.max(unit.distance,other.distance-SPACING));
+      if(other.distance>unit.distance+.01||(Math.abs(other.distance-unit.distance)<.01&&other.id<unit.id))target=Math.min(target,Math.max(unit.distance,other.distance-SPACING*geometryScale(level)));
     }
     const moved=target-unit.distance;
     unit.distance=target;
@@ -565,7 +590,7 @@ export function updateRun(run:WorldRun,level:WorldLevel,dt:number):GameEvent[] {
 
 /** A checkpoint is a flat snapshot: never recursively embed earlier checkpoints. */
 function snapshotCore(run:RunSnapshot):RunSnapshot {
-  return {version:3,autoCheckpointId:run.autoCheckpointId??null,levelId:run.levelId,actIndex:run.actIndex??0,actResults:copyActResults(run.actResults??[]),phase:run.phase,time:run.time,speed:run.speed,
+  return {version:3,geometryRevision:run.geometryRevision??3,migratedInkLimit:run.migratedInkLimit,autoCheckpointId:run.autoCheckpointId??null,levelId:run.levelId,actIndex:run.actIndex??0,actResults:copyActResults(run.actResults??[]),phase:run.phase,time:run.time,speed:run.speed,
     units:run.units.map(unit=>({...unit,returning:unit.returning===true,returnEdges:[...(unit.returnEdges??[])]})),devices:Object.fromEntries(Object.entries(run.devices).map(([id,state])=>[id,{...state}])),
     drawings:copyDrawings(run.drawings),spawned:run.spawned,saved:run.saved,lost:run.lost,nextSpawn:run.nextSpawn,accumulator:run.accumulator,edits:run.edits,retries:run.retries,
     visits:copyVisits(run.visits??{}),passages:copyVisits(run.passages??{}),checkpoint:null};
@@ -578,7 +603,7 @@ function updatePhysicalCheckpoint(run:WorldRun,level:WorldLevel):void {
   const previous=level.nodes.find(node=>node.id===run.autoCheckpointId)?.x??-1;
   const survivors=run.units.filter(unit=>unit.state!=='lost');
   const candidate=level.nodes.filter(node=>node.kind==='checkpoint'&&node.x>previous
-    &&survivors.every(unit=>(run.visits[node.id]??[]).includes(unit.id)))
+    &&survivors.every(unit=>(run.visits[node.id]??[]).includes(unit.id)&&unit.x>=node.x-.05&&!unit.returning))
     .sort((a,b)=>b.x-a.x)[0];
   if(!candidate)return;
   run.autoCheckpointId=candidate.id;run.checkpoint=snapshotCore(run);
@@ -590,6 +615,99 @@ export function saveRun(run:WorldRun):RunSnapshot {
 }
 
 const isRecord=(value:unknown):value is Record<string,unknown>=>!!value&&typeof value==='object'&&!Array.isArray(value);
+
+/** Used only while migrating geometry: keep an originally safe crossing from
+ * becoming a surprise collision solely because its illustration moved. */
+function remainingHazardCollides(run:WorldRun,level:WorldLevel,unit:Creature):boolean {
+  const edge=edgeFor(level,unit.edgeId);
+  if(edge?.kind!=='hazard'||!edge.deviceId||unit.returning)return false;
+  const definition=deviceFor(level,edge.deviceId)!,path=getEdgePath(run,level,edge);
+  const pace=level.pace*(.94+(unit.id%5)*.025)*1.45,duration=Math.max(0,pathLength(path)-unit.distance)/pace;
+  const lock=definition.lockDeviceId?run.devices[definition.lockDeviceId]:undefined;
+  const lockDefinition=definition.lockDeviceId?deviceFor(level,definition.lockDeviceId):undefined;
+  const projected=lock?{...run,devices:{...run.devices,[definition.lockDeviceId!]:{...lock}}}:run;
+  for(let tick=0;tick<=Math.ceil(duration/FIXED_STEP);tick++){
+    const elapsed=Math.min(duration,tick*FIXED_STEP),point=pointAlongPath(path,unit.distance+pace*elapsed);
+    if(lock?.mode===1)projected.devices[definition.lockDeviceId!].progress=Math.min(1,lock.progress+elapsed/(lockDefinition?.duration??.35));
+    const bob=getPendulumPosition(definition,run.time+elapsed,projected);
+    if(distance({x:point.x,y:point.y-level.creatureHeight*.4},bob)<(definition.radius??40)+level.creatureHeight*.22)return true;
+  }
+  return false;
+}
+
+/** Reproject a validated earlier journey onto authored artwork. The topology
+ * and identities stay intact; only distances and physical locations change.
+ */
+function migrateGeometry(raw:Record<string,unknown>,level:WorldLevel):Record<string,unknown>|null {
+  const previous=level.previousGeometry;
+  if(!previous)return null;
+  const oldLevel:WorldLevel={...level,...previous,pace:previous.pace??96,previousGeometry:undefined};
+  const oldRun=restoreRun({...raw,checkpoint:null},oldLevel,false);
+  if(!oldRun)return null;
+  const migrated:WorldRun={...oldRun,geometryRevision:level.revision??3,drawings:{},units:[],
+    devices:Object.fromEntries(Object.entries(oldRun.devices).map(([id,state])=>[id,{...state}]))};
+  for(const [id,route] of Object.entries(oldRun.drawings)){
+    const oldDrawing=oldLevel.drawings.find(drawing=>drawing.id===id),drawing=level.drawings.find(candidate=>candidate.id===id);
+    if(!oldDrawing||!drawing)return null;
+    const ox=oldDrawing.to.x-oldDrawing.from.x,oy=oldDrawing.to.y-oldDrawing.from.y,oldReach=Math.hypot(ox,oy);
+    const nx=drawing.to.x-drawing.from.x,ny=drawing.to.y-drawing.from.y,reach=Math.hypot(nx,ny);
+    if(oldReach<1||reach<1)return null;
+    const perpendicularScale=Math.min(drawing.corridor/oldDrawing.corridor,reach/oldReach);
+    const points=route.points.map(point=>{
+      const px=point.x-oldDrawing.from.x,py=point.y-oldDrawing.from.y;
+      const along=(px*ox+py*oy)/(oldReach*oldReach),across=(ox*py-oy*px)/oldReach*perpendicularScale;
+      return {x:clamp(drawing.from.x+nx*along-ny/reach*across,0,level.width),
+        y:clamp(drawing.from.y+ny*along+nx/reach*across,0,level.height)};
+    });
+    points[0]={...drawing.from};points[points.length-1]={...drawing.to};
+    migrated.drawings[id]={...route,points,inkLength:pathLength(points)};
+  }
+  const resize=level.height/oldLevel.height;
+  migrated.units=oldRun.units.map(unit=>{
+    const next={...unit,returnEdges:[...unit.returnEdges]};
+    if(unit.state==='lost'){next.x=clamp(unit.x/oldLevel.width*level.width,0,level.width);next.y=level.height+300;return next;}
+    if(unit.state==='saved'||unit.state==='queued'){
+      const node=nodeFor(level,unit.state==='saved'?level.goal:level.spawn);next.x=node.x;next.y=node.y;return next;
+    }
+    const oldEdge=edgeFor(oldLevel,unit.edgeId),edge=edgeFor(level,unit.edgeId);
+    if(oldEdge&&edge){
+      if(unit.state==='riding'&&edge.kind==='lift'){
+        const definition=deviceFor(level,edge.deviceId!)!,state=migrated.devices[definition.id];
+        const low=definition.low??edge.path[0],high=definition.high??edge.path.at(-1)!;
+        next.x=low.x+(high.x-low.x)*state.progress+((unit.formationSlot??unit.id%3)-((edge.capacity??3)-1)/2)*36*geometryScale(level);
+        next.y=low.y+(high.y-low.y)*state.progress;
+      }else{
+        const oldPath=getEdgePath(oldRun,oldLevel,oldEdge),path=getEdgePath(migrated,level,edge);
+        const fraction=clamp(unit.distance/Math.max(1,pathLength(oldPath)),0,1);
+        next.distance=fraction*pathLength(path);
+        const oriented=unit.returning?[...path].reverse():path;
+        Object.assign(next,pointAlongPath(oriented,next.distance));
+        const oldStart=unit.returning?oldPath.at(-1)!:oldPath[0];
+        if(unit.distance===0&&distance(unit,oldStart)>1){
+          next.x=oriented[0].x+(unit.x-oldStart.x)*resize;next.y=oriented[0].y+(unit.y-oldStart.y)*resize;
+        }
+      }
+    }else{
+      const oldNode=nodeFor(oldLevel,unit.nodeId),node=nodeFor(level,unit.nodeId);
+      next.x=node.x+(unit.x-oldNode.x)*resize;next.y=node.y+(unit.y-oldNode.y)*resize;
+    }
+    return next;
+  });
+  for(const unit of migrated.units){
+    if(['queued','saved','lost'].includes(unit.state)||!remainingHazardCollides(migrated,level,unit)
+      ||remainingHazardCollides(oldRun,oldLevel,oldRun.units[unit.id]))continue;
+    const edge=edgeFor(level,unit.edgeId)!,bank=nodeFor(level,edge.from);
+    Object.assign(unit,{nodeId:bank.id,edgeId:null,distance:0,x:bank.x,y:bank.y,state:'waiting',returning:false,returnEdges:[],formationSlot:null,waitTime:0});
+    for(const gate of edge.gates??[]){
+      const definition=deviceFor(level,gate.deviceId);
+      if(definition?.kind==='gate'&&definition.playerControlled!==false)Object.assign(migrated.devices[gate.deviceId],{mode:0,progress:0,released:0});
+    }
+  }
+  const used=Object.values(migrated.drawings).reduce((sum,drawing)=>sum+drawing.inkLength,0);
+  if(level.inkBudget!==undefined&&used>level.inkBudget)migrated.migratedInkLimit=used;
+  return {...snapshotCore(migrated),checkpoint:raw.checkpoint};
+}
+
 export function restoreRun(raw:unknown,level:WorldLevel,restoreCheckpoint=true):WorldRun|null {
   const world=canonicalWorld(level);
   if(!isRecord(raw)||raw.levelId!==world.id||!Array.isArray(raw.units)||raw.units.length!==world.total)return null;
@@ -601,6 +719,12 @@ export function restoreRun(raw:unknown,level:WorldLevel,restoreCheckpoint=true):
   if(raw.version!==3||!Number.isInteger(raw.actIndex)||finite(raw.actIndex)<0||finite(raw.actIndex)>=getActCount(world))return null;
   const actIndex=finite(raw.actIndex);
   level=getActiveAct(world,{actIndex});
+  const revision=raw.geometryRevision??3;
+  if(revision!==(level.revision??3)){
+    if(revision!==level.previousGeometry?.revision)return null;
+    const migrated=migrateGeometry(raw,level);if(!migrated)return null;raw=migrated;
+  }
+  if(!isRecord(raw)||!Array.isArray(raw.units))return null;
   if(!Array.isArray(raw.actResults)||raw.actResults.length<actIndex||raw.actResults.length>actIndex+1)return null;
   const actResults:ActResult[]=[];
   for(let index=0;index<raw.actResults.length;index++){
@@ -631,7 +755,9 @@ export function restoreRun(raw:unknown,level:WorldLevel,restoreCheckpoint=true):
       ||points.some(point=>pointSegmentDistance(point,definition.from,definition.to)>definition.corridor))continue;
     run.drawings[definition.id]={points,inkLength:pathLength(points),createdAt:Math.max(0,finite(candidate.createdAt))};
   }
-  if(level.inkBudget!==undefined&&Object.values(run.drawings).reduce((sum,route)=>sum+route.inkLength,0)>level.inkBudget+.01)return null;
+  const carriedInk=finite(raw.migratedInkLimit),maximumInk=level.drawings.reduce((sum,drawing)=>sum+drawing.inkLimit,0);
+  if(carriedInk>0&&carriedInk<=maximumInk)run.migratedInkLimit=carriedInk;
+  if(level.inkBudget!==undefined&&Object.values(run.drawings).reduce((sum,route)=>sum+route.inkLength,0)>Math.max(level.inkBudget,run.migratedInkLimit??0)+.01)return null;
   for(const field of ['visits','passages'] as const){
     if(!isRecord(raw[field]))return null;
     for(const [id,ids] of Object.entries(raw[field])){
@@ -647,14 +773,14 @@ export function restoreRun(raw:unknown,level:WorldLevel,restoreCheckpoint=true):
     const edgeId=unit.edgeId===null?null:typeof unit.edgeId==='string'&&edgeFor(level,unit.edgeId)?unit.edgeId:null;
     if(unit.edgeId!==null&&edgeId===null)return null;
     const edge=edgeFor(level,edgeId);
-    if(edge?.drawingId&&!run.drawings[edge.drawingId])return null;
+    if(edge?.drawingId&&!run.drawings[edge.drawingId]&&unit.returning!==true)return null;
     if(['walking','riding'].includes(unit.state)&&!edge)return null;
     if(unit.state==='riding'&&edge?.kind!=='lift')return null;
     const returning=unit.returning===true;
     const returnEdges=Array.isArray(unit.returnEdges)&&unit.returnEdges.every(id=>typeof id==='string'&&edgeFor(level,id))?unit.returnEdges as string[]:[];
     if(returning&&(!edge||returnEdges[0]!==edge.id||returnEdges.some((id,index)=>{
       const part=edgeFor(level,id)!;
-      return !['ground','drawn'].includes(part.kind)||(part.drawingId&&!run.drawings[part.drawingId])
+      return !['ground','drawn'].includes(part.kind)
         ||(index>0&&edgeFor(level,returnEdges[index-1])!.from!==part.to);
     })))return null;
     const x=finite(unit.x,NaN),y=finite(unit.y,NaN);
@@ -665,6 +791,12 @@ export function restoreRun(raw:unknown,level:WorldLevel,restoreCheckpoint=true):
       direction:unit.direction===-1?-1:1,walkTime:Math.max(0,finite(unit.walkTime)),waitTime:Math.max(0,finite(unit.waitTime)),
       savedAt:typeof unit.savedAt==='number'&&Number.isFinite(unit.savedAt)?Math.max(0,unit.savedAt):null,
       lostAt:typeof unit.lostAt==='number'&&Number.isFinite(unit.lostAt)?Math.max(0,unit.lostAt):null,fallVelocity:clamp(finite(unit.fallVelocity),-500,2000)};
+    // Older versions could erase a later bridge in an already committed
+    // return walk. Keep the journey; wait at that bridge's real bank instead
+    // of rejecting the save or allowing a walk across invisible ground.
+    if(returning&&edge?.drawingId&&!run.drawings[edge.drawingId]){
+      const bank=nodeFor(level,edge.to);Object.assign(run.units[index],{x:bank.x,y:bank.y,distance:0,state:'waiting'});
+    }
   }
   run.saved=run.units.filter(unit=>unit.state==='saved').length;run.lost=run.units.filter(unit=>unit.state==='lost').length;
   run.spawned=run.units.filter(unit=>unit.state!=='queued').length;
@@ -678,7 +810,16 @@ export function restoreRun(raw:unknown,level:WorldLevel,restoreCheckpoint=true):
   run.edits=Math.max(0,Math.floor(finite(raw.edits)));run.retries=Math.max(0,Math.floor(finite(raw.retries)));
   run.accumulator=clamp(finite(raw.accumulator),0,FIXED_STEP);
   run.phase=run.saved+run.lost===level.total?(run.saved>=level.rescueTarget?'won':'lost'):raw.phase==='ready'&&run.spawned===previousLost.size?'ready':'paused';
+  if(level.sectors&&run.lost>level.total-level.rescueTarget)run.phase='lost';
   if(run.phase!=='won'&&actResults.some(result=>result.index===actIndex))return null;
+  // Earlier saves allowed Undo to unfasten a cleat after the troupe had used
+  // its bridge. Restore only that already-earned support, preserving every
+  // position, drawing, selector and unsolved mechanism in the saved journey.
+  for(const definition of level.devices)if(committedCleat(run,level,definition)){
+    const state=run.devices[definition.id];state.mode=1;state.progress=1;
+    const power=definition.powerDeviceId?deviceFor(level,definition.powerDeviceId):undefined;
+    if(power?.kind==='wind'&&power.lockDeviceId===definition.id)run.devices[power.id].progress=1;
+  }
   updateDevices(run,level,0);if(run.phase==='won')recordAct(run,level);
   if(raw.autoCheckpointId!==null&&raw.autoCheckpointId!==undefined
     &&(typeof raw.autoCheckpointId!=='string'||!level.nodes.some(node=>node.id===raw.autoCheckpointId&&node.kind==='checkpoint')))return null;
@@ -711,6 +852,7 @@ function deviceActionReason(run:WorldRun,level:WorldLevel,definition:DeviceDefin
   }
   if(definition.modes.length<2)return definition.description;
   if(next===state.mode)return '';
+  if(next===0&&committedCleat(run,level,definition))return 'Le taquet maintient le passage emprunté par la troupe. Son cran reste engagé.';
   if(definition.kind==='counterweight'&&next===1&&state.load<(definition.requiredLoad??1))return `${state.load}/${definition.requiredLoad??1} porteurs. Envoie les compagnons manquants avant de verrouiller.`;
   if(definition.kind==='counterweight'&&next===0&&state.load<(definition.requiredLoad??1)
     &&level.edges.some(edge=>edge.maxPassages!==undefined&&(definition.weightNodes??[]).includes(edge.to)&&(run.passages[edge.id]?.length??0)>=edge.maxPassages)){

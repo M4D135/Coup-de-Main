@@ -5,6 +5,7 @@ import {ArrowLeft,ArrowRight,Eraser,Flag,Hand,Home,LocateFixed,Maximize2,Music2,
 import {WORLD_LEVELS} from '../lib/worlds/levels';
 import {createRun,updateRun,applyAction,beginStroke,appendStroke,finishStroke,cancelStroke,saveRun,restoreRun,getRunSummary,getJourneySummary,getDeviceStatus,getStageProgress,isJourneyComplete} from '../lib/worlds/engine';
 import {loadWorldAssets,renderWorld,hitTestWorld,hitTestDrawing,type WorldAssets,type WorldHit} from '../lib/worlds/renderer';
+import {reactCompanion} from '../lib/worlds/renderer-characters';
 import {WorldAudio,type WorldSound} from '../lib/worlds/audio';
 import {getWorldAsset} from '../lib/worlds/assets';
 import {getExpeditionView,autoPanWorldView,panAroundPoint,type WorldView} from '../lib/worlds/camera';
@@ -13,6 +14,7 @@ import type {GameAction,GameEvent,Point,WorldRun,WorldLevel} from '../lib/worlds
 import {WorldGate,type WorldRecords} from '../components/worlds/world-gate';
 
 const clamp=(v:number,a=0,b=1)=>Math.max(a,Math.min(b,v));
+const TABLEAU_WIDTH=3200;
 const timeLabel=(seconds:number)=>`${Math.floor(seconds/60)}:${String(Math.floor(seconds)%60).padStart(2,'0')}`;
 const emptySession=()=>({runs:{} as Record<string,unknown>,records:{} as WorldRecords,muted:false,music:38,effects:65,voices:52,reduced:false,learned:false});
 type Session=ReturnType<typeof emptySession>;
@@ -32,12 +34,12 @@ function mergeSessionPatch(stored:unknown,fallback:Session,patch:Partial<Session
   return merged;
 }
 type Panel='pause'|'sound'|'restart'|null;
-type Gesture={id:number;kind:'pending'|'pan'|'draw'|'pinch';start:Point;panX:number;panY:number;hit:WorldHit;eraseId?:string|null;distance?:number;zoom?:number;anchor?:Point};
+type Gesture={id:number;kind:'pending'|'pan'|'draw'|'pinch';start:Point;panX:number;panY:number;hit:WorldHit;eraseId?:string|null;companionId?:number;distance?:number;zoom?:number;anchor?:Point;pagePull?:number};
 const audioEvents:Partial<Record<GameEvent['type'],WorldSound>>={spawn:'start',step:'step',wait:'wait',draw:'draw-end',device:'device',saved:'save',lost:'loss',win:'win',retry:'undo',undo:'undo'};
 const makeView=(run:WorldRun,level:WorldLevel)=>({
   phase:run.phase,saved:run.saved,lost:run.lost,time:run.time,speed:run.speed,undo:run.history.length,
   ink:getRunSummary(run,level).inkUsed,summary:getJourneySummary(run,level),progress:getStageProgress(run,level),
-  units:run.units.filter(u=>u.state!=='queued'&&u.state!=='lost').map(u=>({id:u.id,x:u.x,y:u.y,saved:u.state==='saved'})),
+  units:run.units.filter(u=>u.state!=='queued'&&u.state!=='lost').map(u=>({id:u.id,x:u.x,y:u.y,saved:u.state==='saved',waiting:u.state==='waiting'})),
   stroke:run.activeStroke?{used:run.activeStroke.points.reduce((sum,p,i,points)=>sum+(i?Math.hypot(p.x-points[i-1].x,p.y-points[i-1].y):0),0),
     limit:Math.min(level.drawings.find(d=>d.id===run.activeStroke!.drawingId)?.inkLimit??0,Math.max(0,(level.inkBudget??Infinity)-getRunSummary(run,level).inkUsed+(run.drawings[run.activeStroke.drawingId]?.inkLength??0)))}:null,
 });
@@ -67,6 +69,7 @@ export default function HomePage(){
   const persistedRunsRef=useRef<Record<string,string>>({});
   const checkpointRef=useRef<string|null>(null),toastTimerRef=useRef<ReturnType<typeof setTimeout>|null>(null),focusTimerRef=useRef<ReturnType<typeof setTimeout>|null>(null);
   const groupRef=useRef(-1),arrowKeysRef=useRef(new Set<string>());
+  const tableauRef=useRef({index:-1,changedAt:-1000});
   const latest=useRef({screen,worldIndex,panel,intro,loading,erasing,zoom,panX,panY,following,selected,reduced:reduced||systemReduced});
   latest.current={screen,worldIndex,panel,intro,loading,erasing,zoom,panX,panY,following,selected,reduced:reduced||systemReduced};
   const level=WORLD_LEVELS[worldIndex],finished=view.phase==='won'||view.phase==='lost';
@@ -96,12 +99,26 @@ export default function HomePage(){
   },[]);
   const setPosition=useCallback((x:number,y:number)=>{latest.current.panX=clamp(x);latest.current.panY=clamp(y);setPanX(clamp(x));setPanY(clamp(y));},[]);
   const focusPoint=useCallback((point:Point)=>{const frame=cameraRef.current;const pos=panAroundPoint(frame,point,{x:frame.width*.43,y:frame.height*.53});setPosition(pos.panX,pos.panY);},[setPosition]);
+  const goToTableau=useCallback((index:number)=>{
+    releaseGesture();setFollowing(false);
+    const world=WORLD_LEVELS[latest.current.worldIndex],c=cameraRef.current,count=Math.ceil(world.width/TABLEAU_WIDTH);
+    const page=clamp(index,0,count-1),point={x:(page+.5)*TABLEAU_WIDTH,y:world.height*.5};
+    const pos=panAroundPoint(c,point,{x:c.width*.5,y:c.height*.5});setPosition(pos.panX,pos.panY);
+  },[releaseGesture,setPosition]);
+  const findWaitingGroup=useCallback((side:'left'|'right')=>{
+    releaseGesture();setFollowing(false);const c=cameraRef.current;
+    const waiting=runRef.current.units.filter(u=>u.state==='waiting'&&(side==='left'?u.x*c.scale+c.x<24:u.x*c.scale+c.x>c.width-24))
+      .sort((a,b)=>side==='left'?b.x-a.x:a.x-b.x);
+    const nearest=waiting[0];if(!nearest)return;
+    const group=waiting.filter(u=>Math.abs(u.x-nearest.x)<450&&Math.abs(u.y-nearest.y)<180);
+    focusPoint({x:group.reduce((sum,u)=>sum+u.x,0)/group.length,y:group.reduce((sum,u)=>sum+u.y,0)/group.length});
+  },[releaseGesture,focusPoint]);
   const takeAction=useCallback((action:GameAction)=>{
     unlock();if(['pause','undo','erase','restart','retry'].includes(action.type))releaseGesture();
     runRef.current.events.length=0;
     const result=applyAction(runRef.current,WORLD_LEVELS[latest.current.worldIndex],action);
     playGestureEvents();
-    if(!result.ok)flash(action.type==='device'?'Le mécanisme résiste.':result.message);
+    if(!result.ok)flash(result.message);
     else if(action.type==='device'){
       setSelected(action.id);if(focusTimerRef.current)clearTimeout(focusTimerRef.current);focusTimerRef.current=setTimeout(()=>setSelected(null),900);
     }
@@ -116,15 +133,15 @@ export default function HomePage(){
     const resumed=restored&&!isJourneyComplete(next,restored)?restored:null;
     runRef.current=resumed??createRun(next);if(runRef.current.phase==='playing')applyAction(runRef.current,next,{type:'pause',paused:true});
     const migrated=!!raw&&typeof raw==='object'&&'version'in raw&&raw.version!==3;
-    assetsRef.current=null;wonRef.current=false;renderFailedRef.current=false;groupRef.current=-1;checkpointRef.current=getStageProgress(runRef.current,next).checkpoint?.id??null;
+    assetsRef.current=null;wonRef.current=false;renderFailedRef.current=false;groupRef.current=-1;tableauRef.current={index:-1,changedAt:-1000};checkpointRef.current=getStageProgress(runRef.current,next).checkpoint?.id??null;
     setWorldIndex(index);setScreen('play');setPanel(null);setLoading(true);setLoadError('');setIntro(!sessionRef.current.learned);setMigration(migrated&&!fresh);
     setView(makeView(runRef.current,next));setErasing(false);setToast('');setSelected(null);setFollowing(true);
-    const portrait=window.innerHeight>window.innerWidth,newZoom=portrait?2.6:window.innerHeight<550?1.8:1;
+    const portrait=window.innerHeight>window.innerWidth,newZoom=!portrait&&window.innerHeight<550?1.2:1;
     setZoom(newZoom);setPosition(0,.5);audioRef.current?.setWorld(next.id);
     try{const assets=await loadWorldAssets(next.id);if(request!==requestRef.current)return;assetsRef.current=assets;setLoading(false);
       const source=next.nodes.find(node=>node.id===next.spawn)!;
       const first=resumed?.units.filter(unit=>unit.state!=='lost'&&unit.state!=='saved'&&unit.state!=='queued').sort((a,b)=>a.x-b.x)[0];
-      const position=first??source,c=getExpeditionView(next.width,next.height,window.innerWidth,window.innerHeight,newZoom,0,.5);
+      const position=first??source,c=getExpeditionView(next.width,next.height,window.innerWidth,window.innerHeight,newZoom,0,.5,TABLEAU_WIDTH);
       const pos=panAroundPoint(c,position,{x:c.width*.4,y:c.height*.54});setPosition(pos.panX,pos.panY);
     }catch(error){if(request===requestRef.current){setLoading(false);setLoadError(error instanceof Error?error.message:'Le décor ne répond pas.');}}
   },[persist,releaseGesture,unlock,setPosition,flush]);
@@ -174,16 +191,23 @@ export default function HomePage(){
       const rect=canvas.getBoundingClientRect(),ratio=Math.min(window.devicePixelRatio||1,2),w=Math.round(rect.width*ratio),h=Math.round(rect.height*ratio);
       if(canvas.width!==w||canvas.height!==h){canvas.width=w;canvas.height=h;}
       const context=canvas.getContext('2d');if(!context)return;
-      let c=getExpeditionView(world.width,world.height,rect.width,rect.height,state.zoom,state.panX,state.panY);
-      if(!blocked&&gestureRef.current?.kind==='draw'&&pointerRef.current){const pos=autoPanWorldView(c,pointerRef.current,dt,state.panX,state.panY);if(pos.panX!==state.panX||pos.panY!==state.panY){setPosition(pos.panX,pos.panY);c=getExpeditionView(world.width,world.height,rect.width,rect.height,state.zoom,pos.panX,pos.panY);const point={x:(pointerRef.current.x-c.x)/c.scale,y:(pointerRef.current.y-c.y)/c.scale};appendStroke(run,world,point);handRef.current=run.activeStroke?.points.at(-1)??point;}}
+      let c=getExpeditionView(world.width,world.height,rect.width,rect.height,state.zoom,state.panX,state.panY,TABLEAU_WIDTH);
+      if(!blocked&&gestureRef.current?.kind==='draw'&&pointerRef.current){const pos=autoPanWorldView(c,pointerRef.current,dt,state.panX,state.panY);if(pos.panX!==state.panX||pos.panY!==state.panY){setPosition(pos.panX,pos.panY);c=getExpeditionView(world.width,world.height,rect.width,rect.height,state.zoom,pos.panX,pos.panY,TABLEAU_WIDTH);const point={x:(pointerRef.current.x-c.x)/c.scale,y:(pointerRef.current.y-c.y)/c.scale};appendStroke(run,world,point);handRef.current=run.activeStroke?.points.at(-1)??point;}}
       if(!blocked&&!gestureRef.current&&arrowKeysRef.current.size){const dx=(arrowKeysRef.current.has('ArrowRight')?1:0)-(arrowKeysRef.current.has('ArrowLeft')?1:0),dy=(arrowKeysRef.current.has('ArrowDown')?1:0)-(arrowKeysRef.current.has('ArrowUp')?1:0);if(dx||dy){setFollowing(false);setPosition(state.panX+(c.overflowX?dx*dt*420/c.overflowX:0),state.panY+(c.overflowY?dy*dt*420/c.overflowY:0));}}
       if(!blocked&&state.following&&!gestureRef.current&&run.phase==='playing'){
         const active=run.units.filter(u=>u.state==='walking'||u.state==='waiting'||u.state==='riding'),lead=active.reduce<typeof active[number]|null>((a,b)=>!a||b.x>a.x?b:a,null);
-        if(lead){const desired=panAroundPoint(c,lead,{x:c.width*.43,y:c.height*.57}),t=1-Math.exp(-dt*2.1);setPosition(state.panX+(desired.panX-state.panX)*t,state.panY+(desired.panY-state.panY)*t);c=getExpeditionView(world.width,world.height,rect.width,rect.height,state.zoom,latest.current.panX,latest.current.panY);}
+        if(lead){const desired=panAroundPoint(c,lead,{x:c.width*.43,y:c.height*.57}),nextPage=clamp(Math.floor(lead.x/TABLEAU_WIDTH),0,Math.ceil(world.width/TABLEAU_WIDTH)-1),t=nextPage!==c.tableauIndex?1:1-Math.exp(-dt*2.1);setPosition(state.panX+(desired.panX-state.panX)*t,state.panY+(desired.panY-state.panY)*t);c=getExpeditionView(world.width,world.height,rect.width,rect.height,state.zoom,latest.current.panX,latest.current.panY,TABLEAU_WIDTH);}
       }
+      if(tableauRef.current.index!==c.tableauIndex){const previous=tableauRef.current.index;tableauRef.current={index:c.tableauIndex??0,changedAt:previous<0?-1000:at};setCamera({...c});}
       cameraRef.current=c;audioRef.current?.setListener({x:(c.width/2-c.x)/c.scale,y:(c.height/2-c.y)/c.scale,width:c.width/c.scale,height:c.height/c.scale});
       context.setTransform(ratio,0,0,ratio,0,0);context.clearRect(0,0,rect.width,rect.height);context.translate(c.x,c.y);context.scale(c.scale,c.scale);
+      context.save();context.beginPath();context.rect((c.tableauIndex??0)*TABLEAU_WIDTH,0,TABLEAU_WIDTH,world.height);context.clip();
       try{renderWorld(context,world,run,assets,{elapsed,dt:blocked?0:dt,reducedMotion:state.reduced,activeStroke:run.activeStroke,handTip:tactileRef.current?null:handRef.current,hover:hoverRef.current,drawAnchors:!state.erasing,selectedDevice:state.selected,viewScale:c.scale,viewport:c,hudInsets:{top:74,bottom:120,left:8,right:8}});}catch(error){if(!renderFailedRef.current){renderFailedRef.current=true;setLoadError(error instanceof Error?error.message:'Le paysage ne peut pas être affiché.');}}
+      context.restore();
+      // A brief paper veil reveals the next complete illustration. The two
+      // pictures are never stretched, blended together or shown as a seam.
+      const pageAge=at-tableauRef.current.changedAt;
+      if(!state.reduced&&pageAge>=0&&pageAge<180){context.save();context.setTransform(ratio,0,0,ratio,0,0);context.globalAlpha=1-pageAge/180;context.fillStyle=world.palette.paper;context.fillRect(0,0,rect.width,rect.height);context.restore();}
       if(at-lastUi>110){setView(makeView(run,world));setCamera({...c});lastUi=at;const checkpoint=getStageProgress(run,world).checkpoint?.id??null;if(checkpoint&&checkpoint!==checkpointRef.current){checkpointRef.current=checkpoint;flash('Un souvenir conservé.');persist();}}
       if(isJourneyComplete(world,run)&&!wonRef.current){wonRef.current=true;const s=getJourneySummary(run,world),record={rescued:s.saved,time:s.time,stars:s.stars,completed:true,revision:3};flush({records:{[world.id]:record}});setRecords({...sessionRef.current.records});persist();}
     };id=requestAnimationFrame(frame);return()=>cancelAnimationFrame(id);
@@ -191,7 +215,7 @@ export default function HomePage(){
 
   const localPoint=(event:ReactPointerEvent<HTMLCanvasElement>):Point=>{const bounds=event.currentTarget.getBoundingClientRect();return {x:event.clientX-bounds.left,y:event.clientY-bounds.top};};
   const worldPoint=(p:Point):Point=>{const c=cameraRef.current;return {x:(p.x-c.x)/c.scale,y:(p.y-c.y)/c.scale};};
-  const changeZoom=(value:number,screenPoint?:Point,anchor?:Point)=>{const c=cameraRef.current,z=clamp(value,.65,3.4),point=screenPoint??{x:c.width/2,y:c.height/2},world=anchor??worldPoint(point);const next=getExpeditionView(level.width,level.height,c.width,c.height,z,panX,panY),pos=panAroundPoint(next,world,point);latest.current.zoom=z;setZoom(z);setPosition(pos.panX,pos.panY);};
+  const changeZoom=(value:number,screenPoint?:Point,anchor?:Point)=>{const c=cameraRef.current,z=clamp(value,1,3.4),point=screenPoint??{x:c.width/2,y:c.height/2},world=anchor??worldPoint(point);const next=getExpeditionView(level.width,level.height,c.width,c.height,z,panX,panY,TABLEAU_WIDTH),pos=panAroundPoint(next,world,point);latest.current.zoom=z;setZoom(z);setPosition(pos.panX,pos.panY);};
   const pointerDown=(event:ReactPointerEvent<HTMLCanvasElement>)=>{
     if(event.button!==0||panel||intro||loading||loadError||finished)return;event.preventDefault();unlock();event.currentTarget.focus({preventScroll:true});event.currentTarget.setPointerCapture(event.pointerId);
     tactileRef.current=event.pointerType==='touch'||event.pointerType==='pen';
@@ -199,7 +223,11 @@ export default function HomePage(){
     if(pointersRef.current.size===2){cancelStroke(runRef.current);audioRef.current?.endPencil();setDrawing(false);handRef.current=null;pointerRef.current=null;const [a,b]=[...pointersRef.current.values()],mid={x:(a.x+b.x)/2,y:(a.y+b.y)/2};gestureRef.current={id:event.pointerId,kind:'pinch',start:mid,panX:latest.current.panX,panY:latest.current.panY,hit:null,distance:Math.max(1,Math.hypot(a.x-b.x,a.y-b.y)),zoom:latest.current.zoom,anchor:worldPoint(mid)};setPanning(true);return;}
     if(pointersRef.current.size>2)return;
     const wp=worldPoint(p),run=runRef.current,hit=hitTestWorld(level,run,wp,24/cameraRef.current.scale);
-    const gesture:Gesture={id:event.pointerId,kind:'pending',start:p,panX:latest.current.panX,panY:latest.current.panY,hit,eraseId:erasing?hitTestDrawing(level,run,wp,24/cameraRef.current.scale):null};gestureRef.current=gesture;
+    const c=cameraRef.current,radius=24/c.scale;
+    const companion=!hit&&!erasing?run.units.filter(u=>u.state!=='queued'&&u.state!=='saved'&&u.state!=='lost')
+      .map(u=>({id:u.id,distance:Math.hypot(wp.x-u.x,wp.y-(u.y-level.creatureHeight*.5))}))
+      .filter(u=>u.distance<=Math.max(radius,level.creatureHeight*.5)).sort((a,b)=>a.distance-b.distance)[0]:undefined;
+    const gesture:Gesture={id:event.pointerId,kind:'pending',start:p,panX:c.overflowX?-c.x/c.overflowX:0,panY:latest.current.panY,hit,companionId:companion?.id,eraseId:erasing?hitTestDrawing(level,run,wp,radius):null};gestureRef.current=gesture;
     if(!erasing&&hit?.kind==='drawing'){const d=level.drawings.find(item=>item.id===hit.id),endpoint=d?.[hit.end];if(endpoint&&beginStroke(run,level,endpoint).ok){gesture.kind='draw';pointerRef.current=p;setDrawing(true);handRef.current=endpoint;lastStrokeRef.current={point:endpoint,at:performance.now()};audioRef.current?.beginPencil();}}
   };
   const pointerMove=(event:ReactPointerEvent<HTMLCanvasElement>)=>{
@@ -207,18 +235,33 @@ export default function HomePage(){
     if(g.kind==='pinch'){const [a,b]=[...pointersRef.current.values()];if(a&&b)changeZoom((g.zoom??1)*Math.hypot(a.x-b.x,a.y-b.y)/(g.distance??1),{x:(a.x+b.x)/2,y:(a.y+b.y)/2},g.anchor);return;}
     if(g.id!==event.pointerId)return;
     if(g.kind==='pending'&&Math.hypot(p.x-g.start.x,p.y-g.start.y)>8){g.kind='pan';setPanning(true);}
-    if(g.kind==='pan'){const c=cameraRef.current;setPosition(g.panX-(c.overflowX?(p.x-g.start.x)/c.overflowX:0),g.panY-(c.overflowY?(p.y-g.start.y)/c.overflowY:0));return;}
+    if(g.kind==='pan'){const c=cameraRef.current,raw=g.panX-(c.overflowX?(p.x-g.start.x)/c.overflowX:0),bounded=clamp(raw,c.panMinX??0,c.panMaxX??1);g.pagePull=(raw-bounded)*c.overflowX;setPosition(bounded,g.panY-(c.overflowY?(p.y-g.start.y)/c.overflowY:0));return;}
     if(g.kind==='draw'){pointerRef.current=p;appendStroke(runRef.current,level,wp);handRef.current=runRef.current.activeStroke?.points.at(-1)??wp;const prev=lastStrokeRef.current,at=performance.now();if(prev)audioRef.current?.updatePencil(Math.hypot(wp.x-prev.point.x,wp.y-prev.point.y)/Math.max(.001,(at-prev.at)/1000));lastStrokeRef.current={point:wp,at};}
   };
   const pointerUp=(event:ReactPointerEvent<HTMLCanvasElement>)=>{
     const g=gestureRef.current;pointersRef.current.delete(event.pointerId);if(!g)return;
-    if(g.kind==='pinch'){const remaining=pointersRef.current.entries().next().value as [number,Point]|undefined;if(remaining){gestureRef.current={id:remaining[0],kind:'pan',start:remaining[1],panX:latest.current.panX,panY:latest.current.panY,hit:null};}else releaseGesture();return;}
+    if(g.kind==='pinch'){const remaining=pointersRef.current.entries().next().value as [number,Point]|undefined;if(remaining){const c=cameraRef.current;gestureRef.current={id:remaining[0],kind:'pan',start:remaining[1],panX:c.overflowX?-c.x/c.overflowX:0,panY:latest.current.panY,hit:null};}else releaseGesture();return;}
     if(g.id!==event.pointerId)return;
-    if(g.kind==='draw'){appendStroke(runRef.current,level,worldPoint(localPoint(event)));runRef.current.events.length=0;const result=finishStroke(runRef.current,level);playGestureEvents();if(!result.ok)flash(result.message);refresh();persist();releaseGesture(false);return;}
+    if(g.kind==='draw'){
+      const local=localPoint(event),point=worldPoint(local);
+      if(Math.hypot(local.x-g.start.x,local.y-g.start.y)<8){
+        // A tap on a loaded pan operates its crank; dragging its rim draws a
+        // bridge. Touch users do not need to hit a tiny handle beside an anchor.
+        const device=level.devices.find(d=>{
+          if(d.kind!=='counterweight'&&d.kind!=='lift')return false;
+          const low=d.low??d,high=d.high??low,t=d.kind==='lift'?(runRef.current.devices[d.id]?.progress??0):0;
+          return Math.hypot(point.x-low.x-(high.x-low.x)*t,point.y-low.y-(high.y-low.y)*t)<26/cameraRef.current.scale;
+        });
+        releaseGesture();if(device)takeAction({type:'device',id:device.id});return;
+      }
+      appendStroke(runRef.current,level,point);runRef.current.events.length=0;const result=finishStroke(runRef.current,level);playGestureEvents();if(!result.ok)flash(result.message);refresh();persist();releaseGesture(false);return;
+    }
     if(g.kind==='pending'){
       if(erasing){if(g.eraseId){const result=takeAction({type:'erase',id:g.eraseId});if(result.ok)setErasing(false);}else flash('Touche un trait libre pour l’effacer.');}
       else if(g.hit?.kind==='device')takeAction({type:'device',id:g.hit.id});
+      else if(g.companionId!==undefined&&reactCompanion(runRef.current,g.companionId)){const unit=runRef.current.units.find(u=>u.id===g.companionId);audioRef.current?.play('wait',{unitId:g.companionId,x:unit?.x,y:unit?.y});}
     }releaseGesture();
+    if(g.kind==='pan'&&Math.abs(g.pagePull??0)>Math.min(72,cameraRef.current.width*.16))goToTableau((cameraRef.current.tableauIndex??0)+((g.pagePull??0)>0?1:-1));
   };
   const retry=()=>{wonRef.current=false;const result=takeAction({type:'retry'});if(result.ok){setPanel(null);setFollowing(true);const progress=getStageProgress(runRef.current,level);focusPoint(progress.checkpoint??{x:progress.rearmostX,y:500});}};
   const startAdventure=()=>{unlock();flush({learned:true});setIntro(false);setMigration(false);takeAction({type:'start'});setFollowing(true);};
@@ -227,22 +270,28 @@ export default function HomePage(){
     const down=(event:KeyboardEvent)=>{if(event.metaKey||event.ctrlKey||event.altKey||(event.target as HTMLElement)?.matches('input,select,textarea,button'))return;
       if(event.key==='Escape'){event.preventDefault();if(latest.current.panel)setPanel(null);else if(latest.current.screen==='play')openPause();return;}
       if(latest.current.screen!=='play'||latest.current.panel||latest.current.intro)return;
+      if(event.key==='PageDown'||event.key==='PageUp'){event.preventDefault();if(!event.repeat)goToTableau((cameraRef.current.tableauIndex??0)+(event.key==='PageDown'?1:-1));return;}
       if(event.key.startsWith('Arrow')){event.preventDefault();arrowKeysRef.current.add(event.key);return;}
       if(event.repeat)return;if([' ','p'].includes(event.key)){event.preventDefault();playPause();}else if(['z','Backspace'].includes(event.key)){event.preventDefault();takeAction({type:'undo'});}else if(event.key==='e'){releaseGesture();setErasing(v=>!v);}else if(event.key==='f')takeAction({type:'speed'});else if(event.key==='r')findGroup();
     };const up=(event:KeyboardEvent)=>arrowKeysRef.current.delete(event.key),blur=()=>arrowKeysRef.current.clear();window.addEventListener('keydown',down);window.addEventListener('keyup',up);window.addEventListener('blur',blur);return()=>{window.removeEventListener('keydown',down);window.removeEventListener('keyup',up);window.removeEventListener('blur',blur);};
-  },[playPause,takeAction,releaseGesture,findGroup,openPause]);
-  const mapPan=(event:ReactPointerEvent<HTMLDivElement>)=>{const bounds=event.currentTarget.getBoundingClientRect();setFollowing(false);const x=clamp((event.clientX-bounds.left)/bounds.width)*level.width,c=cameraRef.current;setPosition(c.overflowX>0?clamp((x*c.scale-c.width/2)/c.overflowX):0,latest.current.panY);};
-  const mapLeft=clamp(-camera.x/camera.scale/level.width)*100,mapWidth=Math.min(100,camera.width/camera.scale/level.width*100);
-  const areaIndex=clamp(Math.floor((camera.width*.5-camera.x)/camera.scale/1600),0,9),areaName=level.sectors?.[areaIndex]?.name??level.stageName;
+  },[playPause,takeAction,releaseGesture,findGroup,openPause,goToTableau]);
+  const tableauIndex=camera.tableauIndex??0,tableauCount=Math.ceil(level.width/TABLEAU_WIDTH);
+  const areaName=level.sectors?.[tableauIndex*2]?.name??level.stageName;
+  const waitingLeft=view.units.filter(u=>u.waiting&&u.x*camera.scale+camera.x<24).length;
+  const waitingRight=view.units.filter(u=>u.waiting&&u.x*camera.scale+camera.x>camera.width-24).length;
   const inkLeft=clamp(1-view.ink/(level.inkBudget??1)),resumeAt:Record<string,number>={};
   if(screen==='gate')for(const world of WORLD_LEVELS){const raw=sessionRef.current.runs[world.id];if(raw&&typeof raw==='object'&&'version'in raw&&raw.version===3&&'phase'in raw&&raw.phase!=='won'){const restored=restoreRun(raw,world);if(restored)resumeAt[world.id]=getStageProgress(restored,world).progress*100;}}
 
   return <main ref={shellRef} className={`universe-shell world-${screen==='gate'?'boucles':level.id}`}>
     {screen==='gate'?<WorldGate onEnter={i=>void enterWorld(i)} onSettings={()=>{unlock();setPanel('sound');}} records={records} muted={muted} onMute={toggleMute} resumeAt={resumeAt}/>:<section className={`expedition ${erasing?'erasing':''}`} aria-label={`${level.name} — ${level.stageName}`}>
       <canvas ref={canvasRef} role="application" tabIndex={0} aria-label={`${level.name}. Touche un mécanisme pour agir. Trace depuis un appui. Glisse le décor pour explorer. Pince pour zoomer.`} className={drawing?'drawing':panning?'panning':''} onPointerDown={pointerDown} onPointerMove={pointerMove} onPointerUp={pointerUp} onPointerCancel={()=>releaseGesture()} onLostPointerCapture={event=>{if(pointersRef.current.has(event.pointerId))releaseGesture();}} onPointerLeave={()=>{if(!gestureRef.current)hoverRef.current=null;}} onWheel={event=>{if(panel||intro)return;setFollowing(false);changeZoom(latest.current.zoom*(event.deltaY>0?.92:1.08),{x:event.clientX-event.currentTarget.getBoundingClientRect().left,y:event.clientY-event.currentTarget.getBoundingClientRect().top});}}/>
-      <header className="play-header"><button className="game-icon home-icon" onClick={goHome} aria-label="Revenir aux mondes"><ArrowLeft size={21}/></button><div className="place-name"><small>{level.name}</small><h1>{areaName}</h1></div><div className="play-count" aria-label={`${view.saved} compagnons à l’abri sur 12`}><Users size={20}/><span>{view.saved}<small>/12</small></span></div><button className="game-icon" onClick={openPause} aria-label="Pause et son"><Settings2 size={20}/></button></header>
+      <header className="play-header"><button className="game-icon home-icon" onClick={goHome} aria-label="Revenir aux mondes"><ArrowLeft size={21}/></button><div className="place-name"><small>{level.name}<span className="place-page">{tableauIndex+1}/{tableauCount}</span></small><h1>{areaName}</h1></div>{(tableauIndex===tableauCount-1||view.saved>0)&&<div className="play-count" aria-label={`${view.saved} compagnons arrivés au refuge sur 12`}><Users size={20}/><span><em>Au refuge</em>{view.saved}<small>/12</small></span></div>}<button className="game-icon" onClick={openPause} aria-label="Pause et son"><Settings2 size={20}/></button></header>
       {view.phase==='paused'&&!panel&&!intro&&<div className="time-still"><Pause size={11}/>Pause</div>}
       {!loading&&!intro&&!finished&&<>
+        {tableauIndex>0&&<button className="page-arrow page-arrow-left" onClick={()=>goToTableau(tableauIndex-1)} aria-label="Tableau précédent"><ArrowLeft size={21}/></button>}
+        {tableauIndex<tableauCount-1&&<button className="page-arrow page-arrow-right" onClick={()=>goToTableau(tableauIndex+1)} aria-label="Tableau suivant"><ArrowRight size={21}/></button>}
+        {waitingLeft>0&&<button className="waiting-group waiting-group-left" onClick={()=>findWaitingGroup('left')} aria-label={`${waitingLeft} compagnons attendent à gauche, les retrouver`}><ArrowLeft size={14}/><Users size={16}/><b>{waitingLeft}</b></button>}
+        {waitingRight>0&&<button className="waiting-group waiting-group-right" onClick={()=>findWaitingGroup('right')} aria-label={`${waitingRight} compagnons attendent à droite, les retrouver`}><b>{waitingRight}</b><Users size={16}/><ArrowRight size={14}/></button>}
         <div className="ink-ribbon" aria-label={`${Math.round(inkLeft*100)} pour cent d’encre disponible`}><Pencil size={15}/><span><i style={{width:`${inkLeft*100}%`}}/></span></div>
         <div className="game-tools" role="toolbar" aria-label="Commandes du jeu">
           <button className="game-icon" onClick={()=>takeAction({type:'undo'})} disabled={!view.undo} aria-label="Annuler le dernier geste" title="Annuler"><Undo2 size={22}/></button>
@@ -251,11 +300,10 @@ export default function HomePage(){
           <button className={`game-icon ${following?'following':''}`} onClick={findGroup} aria-label="Retrouver un groupe de compagnons" title="La troupe"><LocateFixed size={23}/></button>
           <button className="game-icon speed-button" onClick={()=>takeAction({type:'speed'})} aria-label={`Vitesse ${view.speed}, changer`} title="Vitesse">{view.speed}×</button>
         </div>
-        <div className="trail-map" role="slider" tabIndex={0} aria-label="Explorer la grande carte" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(latest.current.panX*100)} onPointerDown={event=>{event.currentTarget.setPointerCapture(event.pointerId);mapPan(event);}} onPointerMove={event=>{if(event.currentTarget.hasPointerCapture(event.pointerId))mapPan(event);}} onPointerUp={event=>event.currentTarget.releasePointerCapture(event.pointerId)} onKeyDown={event=>{if(event.key==='ArrowRight'||event.key==='ArrowLeft'){event.preventDefault();setFollowing(false);setPosition(latest.current.panX+(event.key==='ArrowRight'?.03:-.03),latest.current.panY);}}}>
-          <span className="trail-line"/>{Array.from({length:10},(_,i)=><i className="trail-mark" key={i} style={{left:`${(i+.5)*10}%`}}/>)}
-          {view.units.filter(u=>!u.saved).map(u=><span key={u.id} className="trail-companion" style={{left:`${clamp(u.x/level.width)*100}%`}}/>)}
-          <span className="trail-viewport" style={{left:`${mapLeft}%`,width:`${mapWidth}%`}}/><Flag className="trail-goal" size={12}/>
-        </div>
+        <nav className="page-trail" aria-label="Les cinq tableaux du voyage">{Array.from({length:tableauCount},(_,index)=>{
+          const occupied=view.units.some(u=>!u.saved&&Math.floor(u.x/TABLEAU_WIDTH)===index);
+          return <button key={index} onClick={()=>goToTableau(index)} className={`${index===tableauIndex?'current':''} ${occupied?'occupied':''}`} aria-current={index===tableauIndex?'page':undefined} aria-label={`Tableau ${index+1} : ${level.sectors?.[index*2]?.name??level.stageName}`}><span>{index+1}</span></button>;
+        })}</nav>
       </>}
       {view.stroke&&<div className={`stroke-ink ${view.stroke.used>view.stroke.limit?'empty':''}`} aria-label="Encre du trait"><Pencil size={16}/><progress value={Math.min(view.stroke.used,view.stroke.limit)} max={Math.max(1,view.stroke.limit)}/></div>}
       {erasing&&!drawing&&!panel&&<div className="game-toast mode-toast">Touche le trait à effacer</div>}

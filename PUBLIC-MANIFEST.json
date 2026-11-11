@@ -1,7 +1,7 @@
 {
   "version": 1,
   "project": "Coup de Main",
-  "gameVersion": "3.0.0",
+  "gameVersion": "3.1.0",
   "files": [
     {
       "path": ".github/workflows/public-ci.yml",
@@ -25,38 +25,38 @@
     },
     {
       "path": "CHANGELOG.md",
-      "bytes": 5220,
-      "sha256": "7188158041c5a3b287e4c6af7f7161008bc779a1a3cf3adb28fb3dfe40680275"
+      "bytes": 8237,
+      "sha256": "f113e82b71cd535aea502a3156385820fe9550dcee7ceb9362c6393cf1457bda"
     },
     {
       "path": "CREDITS.md",
-      "bytes": 5076,
-      "sha256": "8ded287bdbec1f278125402aee3b4db6a0568fd7051a50e9492543355d8a29f6"
+      "bytes": 5952,
+      "sha256": "eaaa17eccad2104197d9d15bb2b7482c11860f4e76680fd3494a0e375d37fe48"
     },
     {
       "path": "README.md",
-      "bytes": 10425,
-      "sha256": "e388de5faa6a43c18c1ba5ea13f6243c9bd4eba755ca24163eb2c7d86eb23045"
+      "bytes": 12674,
+      "sha256": "bb58ff482605efeab15365a2021cd8a2fa0e942623dae753639c96e0e23b8ef8"
     },
     {
       "path": "app/globals.css",
-      "bytes": 20070,
-      "sha256": "7e57f37940594f412c04ccc5623e3e651a0663c83f79a2a5df7411c81769bf0e"
+      "bytes": 24062,
+      "sha256": "1fda7a08b815eddcb03982e2e638891d354a6e71dbb0d530816c2cb117d53dde"
     },
     {
       "path": "app/page.tsx",
-      "bytes": 37845,
-      "sha256": "b43aab7241075c14853a837587a94688af08f3356c925e3f0b55632bf7939429"
+      "bytes": 42159,
+      "sha256": "00061514244a918433e38699854efbc6f1ebe4c6b55dd2b3c55b79544b460838"
     },
     {
       "path": "components/worlds/world-gate.tsx",
       "bytes": 3258,
-      "sha256": "f20f4bda52e6cadefa4a460e6503efa41c0687417c0da0fbe05601fa11d515b5"
+      "sha256": "739c3f8649ee11bf1e3ab3392fef7d6fc607aeea88b067fce140d999cdbef0cd"
     },
     {
       "path": "docs/BUILD.md",
-      "bytes": 8506,
-      "sha256": "c117e85f6bda60a07cb26007d92451a4a1c113e1aa4678fec5bc8b73f48a445e"
+      "bytes": 12447,
+      "sha256": "b6b52054fd5a4d831496bd78d1d775de1da367e0feb4747502bc9ee29fe032cf"
     },
     {
       "path": "docs/THIRD-PARTY-NOTICES.md",
@@ -65,8 +65,18 @@
     },
     {
       "path": "docs/WORLDS.md",
-      "bytes": 7900,
-      "sha256": "9265e1462d62a4181cd0a8e9d660fb6b9b6745c2eb2ea0bfe8fcb61a447713d3"
+      "bytes": 10311,
+      "sha256": "16f57e91ea4f819a736d094959495ac602dc038324660768506012eeb21ec650"
+    },
+    {
+      "path": "docs/art-plis-prompts.json",
+      "bytes": 8484,
+      "sha256": "75df56530a6b1b4345c6d02ccc8d7edb98db86e8a76c7052b132a361bee6533e"
+    },
+    {
+      "path": "docs/art-tableaux-prompts.json",
+      "bytes": 21996,
+      "sha256": "6c64086197537387b13715b8e462613c4e20008e666ca417b04e39ea55f12885"
     },
     {
       "path": "lib/worlds/assets.ts",
@@ -90,23 +100,28 @@
     },
     {
       "path": "lib/worlds/camera.ts",
-      "bytes": 4149,
-      "sha256": "9e4bd7eee743e24b761469791ac3a5c259b8332b2f535167f7713ac3f704de19"
+      "bytes": 6153,
+      "sha256": "5848a9883cfb01210fab28f59e9917f87545d52a088d921014257ddd3b29e75d"
     },
     {
       "path": "lib/worlds/engine.ts",
-      "bytes": 58467,
-      "sha256": "2ba934f5fbe4fa4ffce8640388ea8ac2e44f2f05404a6899a590b018a68e3eb4"
+      "bytes": 68022,
+      "sha256": "c0c3270c65106cddbcc8cd64f2627b2b1d245d101f2addab53b4411d26f2e101"
     },
     {
       "path": "lib/worlds/levels.ts",
-      "bytes": 16019,
-      "sha256": "22d7a2631da337b014f880f513b7b29737d7531f0cbbc17192fe7d2763fd41ff"
+      "bytes": 16101,
+      "sha256": "8f56c7646d661691f7179b22405cb86f9a2aa0425663ef90b49c70d688b86df8"
+    },
+    {
+      "path": "lib/worlds/renderer-authored.ts",
+      "bytes": 5654,
+      "sha256": "eaa60fc92984d640dec1358f101c9b110b1b6654123187d2160b54754d0bcce3"
     },
     {
       "path": "lib/worlds/renderer-characters.ts",
-      "bytes": 6071,
-      "sha256": "44582925ed6c25e805fca0ae001eedc091fa1836e6a69c7ac1583b80b0dd809f"
+      "bytes": 12472,
+      "sha256": "8723a263814b99d91dda8424b7ad53714f0f53a9a6a9ce39e3429d16f8d7fbd4"
     },
     {
       "path": "lib/worlds/renderer-guidance.ts",
@@ -115,13 +130,13 @@
     },
     {
       "path": "lib/worlds/renderer-landscape.ts",
-      "bytes": 28995,
-      "sha256": "906fb2928717477636bec453a076d08cd1f9aba979e243701ec5d3d1a49a7c63"
+      "bytes": 3916,
+      "sha256": "bc5634960bc147ec41e3c2f8a207f2dad5257893496a0dea4d6723d9f44a2a30"
     },
     {
       "path": "lib/worlds/renderer-mechanisms.ts",
-      "bytes": 21442,
-      "sha256": "7052d6ebbf3fbbc748cbf74f5eb3f18c52c8496cdaa8bd9f4b9dd50941dcc389"
+      "bytes": 17310,
+      "sha256": "13ce4c868ce694b175030f90fc6504109c8572970fcb195fa76af13045a03bef"
     },
     {
       "path": "lib/worlds/renderer-primitives.ts",
@@ -130,8 +145,8 @@
     },
     {
       "path": "lib/worlds/renderer.ts",
-      "bytes": 12257,
-      "sha256": "a5657d0aafbbf0fa2d2a8738b533f4bb4e4f98c37d667764f8718af0dba5cfe0"
+      "bytes": 12280,
+      "sha256": "c10e741fad43261c528bba90573f7727c4b07c08484726f26b90a39828d585d5"
     },
     {
       "path": "lib/worlds/session.ts",
@@ -139,19 +154,29 @@
       "sha256": "fe94bc099213c00bc1904e398ad0dfde7d9a23ce70d437042298bd9e4ebbb674"
     },
     {
+      "path": "lib/worlds/tableau-plates.json",
+      "bytes": 25159,
+      "sha256": "79c8a7efb03acc7786c15281704200a0641ddce26481c547c7a978599fdb2f2f"
+    },
+    {
+      "path": "lib/worlds/tableaux.ts",
+      "bytes": 8709,
+      "sha256": "f70b582b8ef6cc6cc85ec7d3b6d506f93c29db51b70440584d1394e4b2f763fd"
+    },
+    {
       "path": "lib/worlds/types.ts",
-      "bytes": 6674,
-      "sha256": "3cf6e170b75e5fd66aa8261adaf95e5bcdec395390d3d15fd4f4700fcbb936ee"
+      "bytes": 7323,
+      "sha256": "afe74f6095a3defc8380b4d2c15fb1b5331441a28f2f54e753d06c99ac6ed25f"
     },
     {
       "path": "package-lock.json",
       "bytes": 56478,
-      "sha256": "c8b4dd6d545f940593058f85a69d830f3556a3d5eb63a764e0f97ba04d04df15"
+      "sha256": "fe6f9ae375e027db441c6f38ced22e3b7268463cdc661ef818eeff1b8c9ff1dd"
     },
     {
       "path": "package.json",
-      "bytes": 1011,
-      "sha256": "129cc191efb353ecbecf6911d8774c2b2ac7568ff8309b217f3c5f6df4694ee8"
+      "bytes": 1034,
+      "sha256": "24958e898b47d89627205223914c69f96505ff5a8561e8f79847324c5f8f48d7"
     },
     {
       "path": "public/drawing-hand-hd-manifest.json",
@@ -189,9 +214,29 @@
       "sha256": "f8803ad1c5493c76a550ebbe500b59f4215d2afde15f42ba6aafb7eb09e4cf02"
     },
     {
+      "path": "public/worlds/boucles-tableau-2.webp",
+      "bytes": 658010,
+      "sha256": "afd5667e955a42a9f9a43a69e3874ba1170779b0d70b54417bfd62441fe06859"
+    },
+    {
+      "path": "public/worlds/boucles-tableau-3.webp",
+      "bytes": 711528,
+      "sha256": "997aa4c0ebc66573461ed66698d31474cca21f9d309ade2432a2f9bead9c06a7"
+    },
+    {
+      "path": "public/worlds/boucles-tableau-4.webp",
+      "bytes": 570936,
+      "sha256": "5f9ddd36f35bd326a0ba5ffd1260c50c8921b9f16168188a6655627cd315023b"
+    },
+    {
+      "path": "public/worlds/boucles-tableau-5.webp",
+      "bytes": 772956,
+      "sha256": "718c2d99f4db62d4e789e9813c99705a2cfc3c6f739b230325803504b9b7594e"
+    },
+    {
       "path": "public/worlds/manifest.json",
-      "bytes": 5873,
-      "sha256": "94894859c8345a004d1fbdb6c4cfa8f98ee5f752bb81589652be4a04c77553c5"
+      "bytes": 12627,
+      "sha256": "84a107797dd7e50e331eea527649d9d0ec4447b6da7f8b72c9e5ca7a33bf5b2b"
     },
     {
       "path": "public/worlds/plis-art.png",
@@ -214,6 +259,26 @@
       "sha256": "d9c4f51d23d4966aadf4300c526df521729a7fc7be3ef17e8700fea8d621efc7"
     },
     {
+      "path": "public/worlds/plis-tableau-2.webp",
+      "bytes": 303976,
+      "sha256": "c2ed1d57bfed0e3fe1221505f567da0c462ea740ce19ff1a358ca556ea9cb4c2"
+    },
+    {
+      "path": "public/worlds/plis-tableau-3.webp",
+      "bytes": 364952,
+      "sha256": "d8aba2e2edc6c25d0777f7a7ac8e1ec65468b9bc2c7f44cd672d2d833ac3d7a0"
+    },
+    {
+      "path": "public/worlds/plis-tableau-4.webp",
+      "bytes": 358690,
+      "sha256": "3cf023ea606fb438392f3b7b20b15926192bdb27edf47ce533c16105518f6675"
+    },
+    {
+      "path": "public/worlds/plis-tableau-5.webp",
+      "bytes": 410950,
+      "sha256": "8d8aa0d5b54b9b8d35e31de887c40b9a0e6993b0c35136aa2d76ee2206d011bd"
+    },
+    {
       "path": "public/worlds/veilleurs-art.png",
       "bytes": 2161747,
       "sha256": "d683895acbbf9e1438dfd16a8811db4ab827e490d54247450b29dcf74b261ad2"
@@ -234,6 +299,26 @@
       "sha256": "bc3b25cb374bbc98f1c2cf361851024043a7f4fa9f259f4745dd69a19268c75a"
     },
     {
+      "path": "public/worlds/veilleurs-tableau-2.webp",
+      "bytes": 381212,
+      "sha256": "164038e071f5a499f36e227cd8121227583d49936e52f570e133b9ddec947213"
+    },
+    {
+      "path": "public/worlds/veilleurs-tableau-3.webp",
+      "bytes": 391910,
+      "sha256": "b7a5e804aad794b88d0f70f4b662e202b99dda41053ee79746051c074064772d"
+    },
+    {
+      "path": "public/worlds/veilleurs-tableau-4.webp",
+      "bytes": 417638,
+      "sha256": "df899bf63e209a3b12e970a85c6dae42b358d9c9e1fb05d371805eaa514c65c9"
+    },
+    {
+      "path": "public/worlds/veilleurs-tableau-5.webp",
+      "bytes": 407472,
+      "sha256": "47c2e1bfd1eba9b06643886d66929750db8f492e26dc7713773a5edcf2583fa0"
+    },
+    {
       "path": "scripts/public-app/index.html",
       "bytes": 725,
       "sha256": "78a781f585ce64815501bc663dee5ae3df18c3949f25ee9cefe910888a2f11ce"
@@ -250,8 +335,8 @@
     },
     {
       "path": "scripts/public-test.mjs",
-      "bytes": 1919,
-      "sha256": "fb01eaeed28448f76842a49376d1f74871d88818bccc83c38d6d468783e2b5ce"
+      "bytes": 1942,
+      "sha256": "d33995b233bbd4231825f1bbd990a464c3cf0cf9191b9abbafd6c275c6edeee7"
     },
     {
       "path": "scripts/public-vite.config.mjs",
@@ -279,14 +364,24 @@
       "sha256": "6c11cfceedc295c57f64c401e15e50e662452348204683ad39f7570997573520"
     },
     {
+      "path": "tests/worlds-expedition-recovery.test.ts",
+      "bytes": 8987,
+      "sha256": "8971016b48101fca3585f0549cf6841b02b4ced08a219d4f7c28ac3c223a4918"
+    },
+    {
       "path": "tests/worlds-expedition-walkthrough.ts",
-      "bytes": 6078,
-      "sha256": "b787e9f6aba0e9f5e0d3e0d84de7a80d2f0a83f3d09e4b32ca63bd6b82cb4271"
+      "bytes": 7598,
+      "sha256": "efb42aeaa81a633d49f3d6c65841c09308af6d9680f6bd7c6f07d75b1f8dea5e"
     },
     {
       "path": "tests/worlds-expedition.test.ts",
-      "bytes": 12637,
-      "sha256": "89d9a3d5cc6a571f9a9508734404f62f5a9d4b8fb76ac28851c86f98c1186d0c"
+      "bytes": 12803,
+      "sha256": "cec42680f211f52939a71443ac4072be0fca0c658e4524c55dbdf8c1059c51b4"
+    },
+    {
+      "path": "tests/worlds-geometry-migration.test.ts",
+      "bytes": 12786,
+      "sha256": "49b6e2141b6178d467b4bb9270849c61c93f2f9f04203b43831b1f38cae4aecd"
     },
     {
       "path": "tests/worlds-guidance.test.ts",

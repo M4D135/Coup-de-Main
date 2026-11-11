@@ -1,4 +1,4 @@
-# Coup de Main — Compilation autonome de la version 3.0.0
+# Coup de Main — Compilation autonome de la version 3.1.0
 
 [Dépôt public Coup de Main](https://github.com/M4D135/Coup-de-Main)
 
@@ -16,7 +16,7 @@ npm test
 npm run build
 ```
 
-L’entrée `scripts/public-app/main.tsx` monte `app/page.tsx`. React et Vite compilent une application statique qui inclut trois cartes de **16 000 × 900 unités**, dix secteurs et cinq réseaux par monde. L’installation des outils nécessite une connexion ; le jeu compilé fonctionne ensuite sans compte de jeu, CDN ou serveur d’application.
+L’entrée `scripts/public-app/main.tsx` monte `app/page.tsx`. React et Vite compilent une application statique qui inclut trois parcours de **16 000 × 1 800 unités**, chacun présenté en cinq tableaux de **3 200 × 1 800 unités**. Les cinq réseaux de mécanismes et la troupe persistent entre les tableaux. L’installation des outils nécessite une connexion ; le jeu compilé fonctionne ensuite sans compte de jeu, CDN ou serveur d’application.
 
 | Sortie | Usage |
 | --- | --- |
@@ -29,7 +29,9 @@ L’entrée `scripts/public-app/main.tsx` monte `app/page.tsx`. React et Vite co
 
 ## Images et création sonore
 
-Les fichiers `public/worlds/*-art.png`, `*-scene.png`, `*-sprites.png` et `*-props.png` fournissent les références, décors, atlas à huit poses et accessoires. Le manifeste décrit leur provenance, leurs dimensions et leurs SHA-256. La main et son manifeste restent dans `public/`.
+Les fichiers `public/worlds/*-art.png`, `*-scene.png`, `*-sprites.png` et `*-props.png` conservent les références, les trois premières scènes complètes, les atlas à huit poses et les accessoires. Douze images `public/worlds/{boucles,plis,veilleurs}-tableau-{2..5}.webp` apportent les compositions suivantes. Le manifeste décrit leur provenance, leurs dimensions et leurs SHA-256. Les prompts des nouveaux tableaux sont conservés dans `docs/art-plis-prompts.json` et `docs/art-tableaux-prompts.json`. La main et son manifeste restent dans `public/`.
+
+Les dessins de production intermédiaires ne sont pas des ressources distribuées. L’export retient explicitement les douze PNG d’origine, les douze tableaux WebP, le manifeste des mondes et la main. Le rendu n’utilise pas de découpes de paysage pour reconstituer le premier tableau : il affiche sa scène complète, puis les éléments animés et les traits du joueur.
 
 Le build web conserve ces images dans des fichiers séparés. Le seul `offline-play.html` embarque un dictionnaire de ressources : chaque image y est encodée une fois, après la déclaration UTF-8, avec le code et les styles intégrés. La déclaration d’encodage reste dans les 1 024 premiers octets.
 
@@ -58,7 +60,11 @@ Le scheduler n’anticipe qu’une courte fenêtre musicale. Les événements é
 
 La sauvegarde V3 conserve le parcours continu, les dessins, les réglages et le dernier souvenir. Un souvenir physique est validé lorsque tous les survivants ont franchi le repère et qu’aucun passage dangereux n’est encore en cours. Revenir à ce point restaure son état ; recommencer le monde repart avec les douze compagnons et garde le meilleur résultat.
 
-Les positions des anciennes versions ne sont pas appliquées aux nouvelles cartes. Le jeu reconnaît leur format et explique le nouveau départ. Les résultats historiques ne sont pas présentés comme des parcours V3 déjà terminés.
+Le format V3 est conservé avec une révision de géométrie distincte. La reprise d’une partie 3.0 compatible reprojette ses unités sur les mêmes chemins et ses dessins entre les nouveaux appuis ; elle conserve les identités, les pertes, les arrivées, les réglages et les souvenirs compatibles. Un trait déjà construit dont la reprojection dépasse la nouvelle réserve n’est pas supprimé pour cette seule raison : le montant existant est enregistré pour la reprise, sans ouvrir un nouveau budget de construction.
+
+Les sauvegardes V1/V2 sont reconnues mais ne transposent pas leurs positions dans ce parcours différent ; le jeu explique le nouveau départ. Les résultats historiques ne sont pas présentés comme des parcours V3 déjà terminés.
+
+Les taquets déjà utilisés restent engagés, y compris après annulation. La restauration peut rétablir un tel appui uniquement lorsque le registre des passages prouve qu’il a servi. Les traits occupés ou réservés à un retour sont protégés ; une ancienne reprise ayant perdu un pont de retour replace le compagnon en attente sur sa rive.
 
 `localStorage` dépend du navigateur et de l’origine. Un fichier `file:` et un site HTTP ne partagent pas automatiquement la progression. Le jeu signale lorsque le stockage persistant est indisponible. L’audio et le plein écran restent soumis aux capacités du navigateur et aux gestes utilisateur.
 
@@ -70,12 +76,29 @@ Les suites couvrent les itinéraires, les réseaux, les identités et effectifs,
 
 Avant livraison, vérifier également dans le navigateur :
 
-- L’ouverture et la reprise des trois cartes, leur refuge et leur progression continue.
+- L’ouverture et la reprise des trois mondes, leurs cinq tableaux, leur refuge et la conservation de la troupe entre les pages.
 - Le toucher d’un mécanisme, le tracé depuis un appui, la Gomme et les refus sur un passage occupé.
-- Le glissement, le pincement, la molette, la petite carte et le recentrage sur les groupes.
+- Le glissement, le pincement, la molette, les changements de page, le recentrage et les pastilles de groupes hors champ.
+- Le cadrage sans bandes unies, l’absence de raccord entre deux illustrations et les cibles tactiles en portrait et en paysage.
+- Le coucou au toucher, les réactions des compagnons et la préférence de réduction des animations.
 - La pause, la vitesse, le retour à un souvenir et le redémarrage complet.
 - Les trois volumes, la coupure générale, le déverrouillage audio et le retour d’un onglet masqué.
 - L’absence d’erreurs de console et le chargement correct des images dans le build web et le HTML autonome.
+
+### Résultats de la livraison 3.1.0
+
+La validation du projet de création comprend **249 tests réussis sur 249** dans la suite complète et **60 sur 60** dans la suite ciblée du moteur. Les parcours simulés des trois mondes se terminent avec **12 compagnons sur 12**. Neuf parties enregistrées avec l’ancienne géométrie ont été reprises et terminées avec **12 sur 12** ; 99 traversées anciennes sûres ont été contrôlées sans décès induit ; trois situations devenues dangereuses après le recalage reprennent en attente sur leur rive et demandent une nouvelle libération au bon moment.
+
+Les interactions suivantes ont été effectivement essayées dans le navigateur :
+
+- Petits Plis, premier tableau : dessin des deux ponts, commande du taquet et du déflecteur, puis passage de la troupe.
+- Petits Plis, deuxième tableau : dessin des deux ponts, sélection des éclaireurs et commande du vent.
+- Affichage en portrait **375 × 812**, en paysage **844 × 390**, et glissement du décor en portrait.
+- Toucher du bord d’un plateau de balance : le jeu retourne son état de charge (« 0/2 porteurs… ») sans démarrer un faux trait.
+
+Ces essais ne constituent ni trois parcours manuels complets, ni une validation subjective à l’écoute. Les vérifications audio automatisées utilisent un contexte simulé ; aucune écoute audio complète n’est annoncée pour cette livraison.
+
+Le paquet public a été exporté dans un dossier neuf, puis installé avec `npm ci --ignore-scripts` (**48 paquets installés**). `npm run check` s’est terminé avec succès : vérification TypeScript, **92 tests réussis sur 92**, puis compilation Vite. Le HTML autonome embarque **25 images**, identiques aux fichiers de la distribution web. Les captures de QA et les PNG intermédiaires de génération ne font pas partie de cet export public.
 
 Le runner affiche le nombre exact de tests de la livraison. Les résultats publiés doivent distinguer les tests automatisés, les interactions effectivement essayées et les limites de la validation sonore ou mobile.
 
@@ -86,9 +109,9 @@ npm run public:build
 npm run public:export -- /chemin/absolu/vers/un-dossier-vide
 ```
 
-Le premier script produit `work/public-dist/`. L’exporteur suit les imports actifs de l’interface et des tests publics, puis copie une liste explicite de scripts, documents et médias. Il refuse de remplacer un dossier non vide.
+Le premier script produit `work/public-dist/`. L’exporteur suit les imports actifs de l’interface et des tests publics, puis copie une liste explicite de scripts, documents, prompts de génération et médias. Les fichiers intermédiaires `*-tableau-*.png` ne sont pas exportés : seuls les douze tableaux finaux WebP sont retenus. Il refuse de remplacer un dossier non vide.
 
-Le paquet ne contient ni historique Git, identité d’hébergement, variables d’environnement, connecteurs, ancien moteur, médias audio historiques ni archives de création. Les anciennes sources restent dans leurs projets et historiques. `PUBLIC-MANIFEST.json` énumère les fichiers, tailles et SHA-256. Son champ `version` désigne le format du manifeste ; `gameVersion` reprend **3.0.0**, comme le package, le lock et le manifeste des médias.
+Le paquet ne contient ni historique Git, identité d’hébergement, variables d’environnement, connecteurs, ancien moteur, médias audio historiques ni archives de création. Les anciennes sources restent dans leurs projets et historiques. `PUBLIC-MANIFEST.json` énumère les fichiers, tailles et SHA-256. Son champ `version` désigne le format du manifeste ; `gameVersion` reprend **3.1.0**, comme le package, le lock et le manifeste des médias.
 
 Dans un export neuf, `npm ci && npm run check` vérifie la distribution publique. L’export et le build locaux ne publient ni release ni site à eux seuls.
 

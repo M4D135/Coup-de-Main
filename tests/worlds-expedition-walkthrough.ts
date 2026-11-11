@@ -8,9 +8,9 @@ export function drawExpedition(run:WorldRun,level:WorldLevel,id:string):boolean 
   const definition=level.drawings.find(drawing=>drawing.id===id)!;
   if(Object.values(run.drawings).reduce((sum,drawing)=>sum+drawing.inkLength,0)+pathLength(definition.suggested)>(level.inkBudget??Infinity))return false;
   const result=beginStroke(run,level,definition.from);assert(result.ok,result.message);
-  assert.equal(result.drawingId,id,`anchor must unambiguously select ${id}`);
+  // Shared supports are selected by the completed gesture, not its first dot.
   for(const point of definition.suggested.slice(1))appendStroke(run,level,point);
-  const finished=finishStroke(run,level);assert(finished.ok,finished.message);return true;
+  const finished=finishStroke(run,level);assert(finished.ok,finished.message);assert.equal(finished.drawingId,id);return true;
 }
 function mode(run:WorldRun,level:WorldLevel,id:string,value:number):void {
   if(run.devices[id].mode===value)return;
@@ -28,11 +28,37 @@ export function safeHazardRelease(run:WorldRun,level:WorldLevel,hazard:Expeditio
 }
 export function expeditionController(run:WorldRun,level:WorldLevel):()=>void {
   const networks=WORLD_NETWORKS[level.id],carryingSince=new Map<string,number>();
+  const approaching=(id:string)=>{
+    const edge=level.edges.find(edge=>edge.drawingId===id)!;
+    return run.units.some(unit=>{
+      if(['lost','saved'].includes(unit.state))return false;
+      const current=level.edges.find(candidate=>candidate.id===unit.edgeId);
+      return current?(unit.returning?current.from:current.to)===edge.from:unit.nodeId===edge.from;
+    });
+  };
+  const drawNeeded=(id:string)=>{
+    const edge=level.edges.find(edge=>edge.drawingId===id)!;
+    if(run.drawings[id]||!approaching(id)||edge.gates?.some(gate=>!gateSatisfied(run,gate)))return;
+    if(edge.route&&run.devices[edge.route.deviceId].mode!==edge.route.mode)return;
+    if(drawExpedition(run,level,id))return;
+    // A dispersed party needs the earlier bridge before its leaders need a
+    // later one. Reclaim only unoccupied, presently unapproached ink, just as
+    // the player's eraser allows; do not assume that a whole network is done.
+    for(const candidate of Object.keys(run.drawings)){
+      if(approaching(candidate)||run.units.some(unit=>!['lost','saved','queued'].includes(unit.state)
+        &&level.edges.find(edge=>edge.id===unit.edgeId)?.drawingId===candidate))continue;
+      applyAction(run,level,{type:'erase',id:candidate});
+      if(drawExpedition(run,level,id))break;
+    }
+  };
   return ()=>{
     const living=run.units.filter(unit=>unit.state!=='lost');
+    const complete=(network:ExpeditionNetwork)=>{
+      const end=level.nodes.find(node=>node.id===network.end)!;
+      return living.every(unit=>(run.visits[network.end]??[]).includes(unit.id)&&unit.x>=end.x-.05&&!unit.returning);
+    };
     for(const network of networks){
-      const complete=living.every(unit=>(run.visits[network.end]??[]).includes(unit.id));
-      if(complete){
+      if(complete(network)){
         for(const id of network.drawings)if(run.drawings[id]){
           const erased=applyAction(run,level,{type:'erase',id});assert(erased.ok,erased.message);
         }
@@ -41,9 +67,8 @@ export function expeditionController(run:WorldRun,level:WorldLevel):()=>void {
     const lead=Math.max(...living.map(unit=>unit.x));
     for(const network of networks){
       const start=level.nodes.find(node=>node.id===network.start)!;
-      const completed=living.every(unit=>(run.visits[network.end]??[]).includes(unit.id));
+      const completed=complete(network);
       if(completed||lead<start.x-10)continue;
-      for(const id of network.drawings)drawExpedition(run,level,id);
       if(network.kind==='scout'){
         const route=level.edges.find(edge=>edge.route?.deviceId===network.forks[0]&&edge.maxPassages===2)!;
         mode(run,level,network.forks[0],(run.passages[route.id]?.length??0)<2?1:0);
@@ -76,10 +101,12 @@ export function expeditionController(run:WorldRun,level:WorldLevel):()=>void {
         if(brake.mode===1||run.units.some(unit=>unit.edgeId===hazard.edge&&unit.state!=='lost'))continue;
         const waiting=run.units.find(unit=>{
           const incoming=level.edges.find(edge=>edge.id===unit.edgeId);
-          return unit.state!=='lost'&&incoming?.to===hazard.approach&&unit.distance>=pathLength(getEdgePath(run,level,incoming))-.1;
+          return !['lost','saved','queued'].includes(unit.state)&&(unit.edgeId===null?unit.nodeId===hazard.approach
+            :incoming?.to===hazard.approach&&unit.distance>=pathLength(getEdgePath(run,level,incoming))-.1);
         });
         if(waiting&&safeHazardRelease(run,level,hazard,waiting.id))mode(run,level,hazard.gate,1);
       }
+      for(const id of network.drawings)drawNeeded(id);
     }
   };
 }

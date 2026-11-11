@@ -1,6 +1,6 @@
 # Coup de Main — Crédits et création sonore
 
-**Version 3.0.0**
+**Version 3.1.0**
 
 [Sources de Coup de Main](https://github.com/M4D135/Coup-de-Main)
 
@@ -13,14 +13,18 @@ Les artworks **Les Boucles**, **Petits Plis** et **Les Veilleurs** ont été fou
 | Ressource | Usage |
 | --- | --- |
 | `public/worlds/*-art.png` | Références originales et choix des mondes |
-| `public/worlds/*-scene.png` | Matière illustrée des décors jouables |
+| `public/worlds/*-scene.png` | Trois premières scènes complètes d’origine, affichées comme des planches entières |
+| `public/worlds/*-tableau-[2-5].webp` | Douze nouvelles compositions complètes qui prolongent les trois mondes |
 | `public/worlds/*-sprites.png` | Atlas de huit poses par famille de personnages |
 | `public/worlds/*-props.png` | Accessoires séparés des mécanismes |
 | `public/worlds/manifest.json` | Provenance, dimensions, rôles et empreintes SHA-256 |
+| `docs/art-plis-prompts.json` / `docs/art-tableaux-prompts.json` | Prompts et références de création des nouveaux tableaux |
 
-Les trois `*-art.png` conservent les pixels des images transmises, de **1 672 × 941 pixels**. Les scènes, sprites et accessoires sont des adaptations générées avec l’aide de l’IA à partir de ces références. La version 3 conserve ces PNG et compose ses cartes de 16 000 × 900 unités avec ces ressources et les éléments calculés par le renderer.
+Les trois `*-art.png` conservent les pixels des images transmises, de **1 672 × 941 pixels**. Les scènes nettoyées, sprites et accessoires sont des adaptations générées avec l’aide de l’IA à partir de ces références. Leurs fichiers PNG sont conservés sans modification.
 
-La fidélité des fichiers de référence ne constitue pas une identité pixel par pixel entre une image fixe et une scène interactive. Les mouvements, poses, chemins et interactions sont calculés par le jeu.
+La version 3.1 rétablit chaque `*-scene.png` comme premier tableau complet. Douze illustrations supplémentaires ont été générées avec l’outil intégré **image_gen**, en prenant les artworks d’origine comme références de matière et de composition et les guides de parcours comme contraintes. Elles sont distribuées en WebP. Chaque monde comprend cinq tableaux de **3 200 × 1 800 unités logiques** ; le cadrage montre une planche à la fois et les chemins sont positionnés sur ses sols.
+
+Les prompts des douze nouvelles illustrations sont conservés dans les deux fichiers JSON cités ci-dessus. Les prompts historiques des scènes, sprites et accessoires ne figurent pas dans ce checkout : ils ne sont pas reconstitués. Les personnages animés, les traits du joueur et les parties mobiles des mécanismes sont rendus séparément au-dessus des scènes.
 
 ## Main et crayon
 

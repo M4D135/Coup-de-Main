@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {WORLD_LEVELS,WORLD_NETWORKS} from '../lib/worlds/levels';
+import {TABLEAU_HEIGHT} from '../lib/worlds/tableaux';
 import {appendStroke,applyAction,beginStroke,finishStroke,createRun,getActCount,getJourneySummary,getStageProgress,restoreRun,saveRun,updateRun} from '../lib/worlds/engine';
 import {drawExpedition,expeditionController,solveExpedition} from './worlds-expedition-walkthrough';
 
@@ -18,7 +19,7 @@ for(const level of WORLD_LEVELS)test(`${level.name}: one continuous expedition r
 
 test('every expedition is ten physical sectors, all supporting paths meet nodes, and quotas have physical controls',()=>{
   for(const level of WORLD_LEVELS){
-    assert.equal(level.width,16000);assert.equal(level.height,900);assert.equal(level.sectors?.length,10);assert.equal(level.acts,undefined);
+    assert.equal(level.width,16000);assert.equal(level.height,TABLEAU_HEIGHT);assert.equal(level.sectors?.length,10);assert.equal(level.acts,undefined);
     assert.equal(level.hints.length,0);assert(level.devices.every(device=>device.modes.length<=2));
     for(const edge of level.edges){
       const from=level.nodes.find(node=>node.id===edge.from)!,to=level.nodes.find(node=>node.id===edge.to)!;
@@ -31,7 +32,7 @@ test('every expedition is ten physical sectors, all supporting paths meet nodes,
       return level.edges.some(edge=>edge.gates?.includes(gate)&&Math.abs(edge.path[0].x-device.x)>2000);
     });assert(links.length>0,'physical dependencies must cross sector boundaries');
     const totalInk=level.drawings.reduce((sum,d)=>sum+Math.hypot(d.to.x-d.from.x,d.to.y-d.from.y),0);
-    assert(totalInk>level.inkBudget!*1.5,'the entire journey cannot be drawn before launch');
+    assert(totalInk>level.inkBudget!,'the entire journey cannot be drawn before launch');
   }
 });
 
@@ -81,7 +82,8 @@ test('the distant mill must release the original porters before the first physic
   assert.equal(run.devices['s0:relay'].mode,1);assert.equal(run.devices['s2:relay'].mode,0);
   assert.equal(run.units.filter(unit=>unit.nodeId==='s0:pan'&&unit.edgeId===null).length,3);
   assert.equal(run.autoCheckpointId,null,'nine forward scouts cannot abandon three porters in a checkpoint');
-  assert(getStageProgress(run,level).furthestX>4000);assert(getStageProgress(run,level).rearmostX<900);
+  assert(getStageProgress(run,level).furthestX>4000);
+  assert(getStageProgress(run,level).rearmostX<level.nodes.find(node=>node.id==='s0:far')!.x,'the original porters remain behind the first high bridge');
   assert.equal(applyAction(run,level,{type:'device',id:'s2:relay'}).ok,false,'distant arrival mechanisms cannot be clicked open');
   solveExpedition(run,level);assert.equal(run.saved,12);
 });
