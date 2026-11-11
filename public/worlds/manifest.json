@@ -1,0 +1,186 @@
+{
+  "project": "Coup de Main",
+  "version": "2.0.0",
+  "updated_at": "2026-11-11",
+  "provenance": {
+    "references": "Three artworks supplied and approved by the user. The art files retain exactly the same decoded pixels as the uploaded references; only PNG RGB/RGBA encoding differs.",
+    "playable_assets": "Scene plates, character atlases and prop atlases recovered from the preceding development conversation. They are derived AI-generated production assets based on the approved artworks; gameplay motion and overlays are implemented in code.",
+    "generator_prompts": "The previous generation prompts are not present in this checkout. No exact prompt is reconstructed or claimed.",
+    "fidelity": "The original artwork pixels are preserved in the art files. Clean scene plates, sprites and animated gameplay are adaptations, not pixel-identical copies of the reference screenshots.",
+    "audio": "Original procedural Web Audio voices, foley and chimes; no samples from a third-party game."
+  },
+  "rendering": {
+    "logical_resolution": [
+      1600,
+      900
+    ],
+    "sprite_frames": 8,
+    "sprite_alpha": "Preserved from source PNG files",
+    "prop_cells": 4,
+    "hand_manifest": "../drawing-hand-hd-manifest.json"
+  },
+  "worlds": [
+    {
+      "id": "boucles",
+      "name": "Les Boucles",
+      "reference_upload": "image(2).png",
+      "reference_pixels_identical": true,
+      "assets": [
+        {
+          "file": "boucles-art.png",
+          "role": "art",
+          "width": 1672,
+          "height": 941,
+          "mode": "RGB",
+          "bytes": 3135557,
+          "sha256": "42ec8fd88ccf301657dd81437fa9a520ae383c4fd64388eb3f58ce1cd7b203f4",
+          "grid": null
+        },
+        {
+          "file": "boucles-scene.png",
+          "role": "scene",
+          "width": 1672,
+          "height": 941,
+          "mode": "RGB",
+          "bytes": 2578034,
+          "sha256": "283f196ccafb0fd9688f5f328fb9468e5f0fb8be8d4762856e1d82eea55e7bcd",
+          "grid": null
+        },
+        {
+          "file": "boucles-sprites.png",
+          "role": "sprites",
+          "width": 1774,
+          "height": 887,
+          "mode": "RGBA",
+          "bytes": 733197,
+          "sha256": "f8803ad1c5493c76a550ebbe500b59f4215d2afde15f42ba6aafb7eb09e4cf02",
+          "grid": {
+            "columns": 4,
+            "rows": 2
+          }
+        },
+        {
+          "file": "boucles-props.png",
+          "role": "props",
+          "width": 1254,
+          "height": 1254,
+          "mode": "RGBA",
+          "bytes": 635364,
+          "sha256": "adc8daeb6423241d92e3627c84cff7e0dfa619f94a1875fa7c448a46f8130f81",
+          "grid": {
+            "columns": 2,
+            "rows": 2
+          }
+        }
+      ]
+    },
+    {
+      "id": "plis",
+      "name": "Petits Plis",
+      "reference_upload": "image(1).png",
+      "reference_pixels_identical": true,
+      "assets": [
+        {
+          "file": "plis-art.png",
+          "role": "art",
+          "width": 1672,
+          "height": 941,
+          "mode": "RGB",
+          "bytes": 2897529,
+          "sha256": "1fcd9f79ad40a9787ebf932a744ac3a7cf779b082066df195a683bd8ef4dd2d5",
+          "grid": null
+        },
+        {
+          "file": "plis-scene.png",
+          "role": "scene",
+          "width": 1672,
+          "height": 941,
+          "mode": "RGB",
+          "bytes": 2310707,
+          "sha256": "911799df45aa62bc679e26bf6a1a940e2c0cb4bb8245eb1ba86937fe6e06be73",
+          "grid": null
+        },
+        {
+          "file": "plis-sprites.png",
+          "role": "sprites",
+          "width": 1774,
+          "height": 887,
+          "mode": "RGBA",
+          "bytes": 1031453,
+          "sha256": "d9c4f51d23d4966aadf4300c526df521729a7fc7be3ef17e8700fea8d621efc7",
+          "grid": {
+            "columns": 4,
+            "rows": 2
+          }
+        },
+        {
+          "file": "plis-props.png",
+          "role": "props",
+          "width": 1254,
+          "height": 1254,
+          "mode": "RGBA",
+          "bytes": 1228071,
+          "sha256": "d79231c297c0f48eda6096730df7dff33bd89f9474503d899a2d4710db08223d",
+          "grid": {
+            "columns": 2,
+            "rows": 2
+          }
+        }
+      ]
+    },
+    {
+      "id": "veilleurs",
+      "name": "Les Veilleurs",
+      "reference_upload": "image.png",
+      "reference_pixels_identical": true,
+      "assets": [
+        {
+          "file": "veilleurs-art.png",
+          "role": "art",
+          "width": 1672,
+          "height": 941,
+          "mode": "RGB",
+          "bytes": 2161747,
+          "sha256": "d683895acbbf9e1438dfd16a8811db4ab827e490d54247450b29dcf74b261ad2",
+          "grid": null
+        },
+        {
+          "file": "veilleurs-scene.png",
+          "role": "scene",
+          "width": 1672,
+          "height": 941,
+          "mode": "RGB",
+          "bytes": 1905667,
+          "sha256": "edba35085048f5d85c551adafce365642146ac9d992db5ce1e4339cf61e41352",
+          "grid": null
+        },
+        {
+          "file": "veilleurs-sprites.png",
+          "role": "sprites",
+          "width": 1774,
+          "height": 887,
+          "mode": "RGBA",
+          "bytes": 766692,
+          "sha256": "bc3b25cb374bbc98f1c2cf361851024043a7f4fa9f259f4745dd69a19268c75a",
+          "grid": {
+            "columns": 4,
+            "rows": 2
+          }
+        },
+        {
+          "file": "veilleurs-props.png",
+          "role": "props",
+          "width": 1254,
+          "height": 1254,
+          "mode": "RGBA",
+          "bytes": 977015,
+          "sha256": "3aae56e55354a0add308350b72f96a70e38fe7dc13ced379da27de34794bc6fa",
+          "grid": {
+            "columns": 2,
+            "rows": 2
+          }
+        }
+      ]
+    }
+  ]
+}
