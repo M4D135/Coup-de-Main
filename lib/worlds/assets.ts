@@ -9,7 +9,9 @@ export function getWorldAsset(file: string): string {
   if (embeddedAssets?.[clean]) {
     return embeddedAssets[clean];
   }
-  return typeof document === 'undefined' ? `/${clean}` : new URL(clean, document.baseURI).href;
+  // Keep server and client markup identical. The browser resolves this path
+  // against its base URL; the portable edition uses the embedded dictionary.
+  return clean;
 }
 
 export const WORLD_IDENTITIES = [

@@ -1,4 +1,4 @@
-import {readFileSync} from 'node:fs';
+import {existsSync, readFileSync} from 'node:fs';
 import {dirname, resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {defineConfig} from 'vite';
@@ -9,7 +9,8 @@ export const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..'
 
 /** Standalone client build: no server framework, account, secret, or connector. */
 export function publicConfig(outDir = resolve(projectRoot, 'dist')) {
-  const gameVersion = JSON.parse(readFileSync(resolve(projectRoot, 'package.json'), 'utf8')).version;
+  const packageFile = existsSync(resolve(projectRoot, 'scripts/public-package.json')) ? 'scripts/public-package.json' : 'package.json';
+  const gameVersion = JSON.parse(readFileSync(resolve(projectRoot, packageFile), 'utf8')).version;
   const favicon = `data:image/svg+xml;base64,${readFileSync(resolve(projectRoot, 'public/favicon.svg')).toString('base64')}`;
   return {
     configFile: false,

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {autoPanWorldView,getWorldView} from '../lib/worlds/camera';
+import {autoPanWorldView,getWorldView,getExpeditionView,panAroundPoint} from '../lib/worlds/camera';
 import {WORLD_LEVELS} from '../lib/worlds/levels';
 import {getActiveAct,getActCount} from '../lib/worlds/engine';
 
@@ -12,12 +12,12 @@ const close=(actual:number,expected:number)=>assert(Math.abs(actual-expected)<1e
 for(const [width,height] of [[375,812],[844,390]]){
   test(`all authored drawing anchors and mechanisms stay reachable at 100% and 300% in ${width} × ${height}`,()=>{
     for(const level of TABLEAUX)for(const zoom of [1,3]){
-      const fitted=getWorldView(level.width,level.height,width,height,zoom,.5,.5);
+      const fitted=getExpeditionView(level.width,level.height,width,height,zoom,.5,.5);
       const points=[...level.drawings.flatMap(drawing=>[drawing.from,drawing.to]),...level.devices.filter(device=>device.modes.length>1)];
       for(const point of points){
         const panX=fitted.overflowX>0?clamp((point.x*fitted.scale-width/2)/fitted.overflowX):.5;
         const panY=fitted.overflowY>0?clamp((point.y*fitted.scale-height/2)/fitted.overflowY):.5;
-        const view=getWorldView(level.width,level.height,width,height,zoom,panX,panY);
+        const view=getExpeditionView(level.width,level.height,width,height,zoom,panX,panY);
         const screenX=point.x*view.scale+view.x,screenY=point.y*view.scale+view.y;
         assert(screenX>=16&&screenX<=width-16,`${level.id} x=${point.x} is not touch-reachable at zoom ${zoom}`);
         assert(screenY>=16&&screenY<=height-16,`${level.id} y=${point.y} is not touch-reachable at zoom ${zoom}`);
@@ -36,22 +36,20 @@ for(const [width,height] of [[375,812],[844,390]]){
   });
 }
 
-test('a held drawing pointer can reveal the lower Veilleurs return anchor in landscape',()=>{
-  const level=getActiveAct(WORLD_LEVELS[2],{actIndex:1}),anchor=level.drawings.find(drawing=>drawing.id==='lower-return')!.from;
-  let panX=.5,panY=.5;
-  let view=getWorldView(level.width,level.height,844,390,3,panX,panY);
-  assert(anchor.y*view.scale+view.y>view.height,'this regression starts with the anchor off screen');
-  const pointer={x:view.width/2,y:view.height};
-  let previousWorldY=(pointer.y-view.y)/view.scale;
-  for(let frame=0;frame<80;frame++){
+test('a held drawing pointer reveals another part of a continuous expedition without jumping',()=>{
+  let panX=.2,panY=.5;
+  let view=getExpeditionView(16000,900,844,390,2,panX,panY);
+  const pointer={x:view.width,y:view.height/2};
+  let previousWorldX=(pointer.x-view.x)/view.scale;
+  const start=previousWorldX;
+  for(let frame=0;frame<100;frame++){
     ({panX,panY}=autoPanWorldView(view,pointer,1/60,panX,panY));
-    view=getWorldView(level.width,level.height,844,390,3,panX,panY);
-    const worldY=(pointer.y-view.y)/view.scale;
-    assert(worldY>=previousWorldY&&worldY-previousWorldY<=5/view.scale+1e-7,'scrolling preserves continuous stroke coordinates');
-    previousWorldY=worldY;
+    view=getExpeditionView(16000,900,844,390,2,panX,panY);
+    const worldX=(pointer.x-view.x)/view.scale;
+    assert(worldX>=previousWorldX&&worldX-previousWorldX<=5/view.scale+1e-6);
+    previousWorldX=worldX;
   }
-  const screenY=anchor.y*view.scale+view.y;
-  assert(screenY>=56&&screenY<=view.height-56,`the lower anchor remains hidden at ${screenY}`);
+  assert(previousWorldX>start+400,'a held finger must reveal the continuation');
 });
 
 test('edge scrolling is gradual, time based, bounded after suspension and idle away from the edges',()=>{
@@ -95,4 +93,36 @@ test('invalid dimensions, pans, time and pointer coordinates cannot poison the c
   const view=getWorldView(1600,900,844,390,3,.5,.5);
   assert.deepEqual(autoPanWorldView(view,{x:NaN,y:Infinity},.06,.3,.7),{panX:.3,panY:.7});
   for(const dt of [NaN,Infinity,-1,0])assert.deepEqual(autoPanWorldView(view,{x:844,y:390},dt,.3,.7),{panX:.3,panY:.7});
+});
+
+for(const [width,height,zoom] of [[375,812,2.6],[320,568,2.6],[844,390,1.8],[1363,934,1]]){
+  test(`a long map remains legible and every sector is reachable in ${width} × ${height}`,()=>{
+    const view=getExpeditionView(16000,900,width,height,zoom,0,.5);
+    assert(view.scale*70>=29,'companions must not shrink to specks to fit the whole world');
+    assert(view.width/view.scale<2200,'the initial camera frames a landscape, not all ten sectors');
+    for(let sector=0;sector<10;sector++){
+      const target={x:sector*1600+800,y:500},screen={x:width*.5,y:height*.5};
+      const pos=panAroundPoint(view,target,screen);
+      const moved=getExpeditionView(16000,900,width,height,zoom,pos.panX,pos.panY);
+      assert(target.x*moved.scale+moved.x>=24&&target.x*moved.scale+moved.x<=width-24);
+      assert(target.y*moved.scale+moved.y>=24&&target.y*moved.scale+moved.y<=height-24);
+    }
+  });
+  test(`pinching preserves the world point beneath the fingers in ${width} × ${height}`,()=>{
+    const before=getExpeditionView(16000,900,width,height,zoom,.42,.5),finger={x:width*.4,y:height*.52};
+    const anchor={x:(finger.x-before.x)/before.scale,y:(finger.y-before.y)/before.scale};
+    const next=getExpeditionView(16000,900,width,height,Math.min(3.4,zoom*1.2),.42,.5);
+    const pos=panAroundPoint(next,anchor,finger),after=getExpeditionView(16000,900,width,height,Math.min(3.4,zoom*1.2),pos.panX,pos.panY);
+    close(anchor.x*after.scale+after.x,finger.x);
+    if(after.overflowY>0)close(anchor.y*after.scale+after.y,finger.y);
+  });
+}
+
+test('the lowest expedition platform can sit above the landscape phone controls',()=>{
+  const initial=getExpeditionView(16000,900,844,390,1.8,0,.5);
+  const position=panAroundPoint(initial,{x:800,y:770},{x:844*.43,y:390*.54});
+  const view=getExpeditionView(16000,900,844,390,1.8,position.panX,position.panY);
+  const feet=770*view.scale+view.y;
+  assert.ok(feet<390-90,`low platform at ${feet} overlaps the controls`);
+  assert.ok(feet-70*view.scale>75,'the companion remains below the header');
 });

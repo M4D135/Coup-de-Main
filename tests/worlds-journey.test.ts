@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {WORLD_LEVELS} from '../lib/worlds/levels';
+import {WORLD_LEVELS} from './fixtures/worlds-v2';
 import {appendStroke,applyAction,beginStroke,createRun,finishStroke,getActiveAct,getActCount,getDeviceStatus,getJourneySummary,getRunSummary,isJourneyComplete,restoreRun,saveRun,updateRun} from '../lib/worlds/engine';
 import {advanceUntil,drawPassage,setDevice,solveCurrentAct} from './worlds-walkthrough';
 
@@ -118,8 +118,8 @@ test('a lost companion remains lost across tableaux and sparse survivor IDs keep
 test('old one-tableau saves migrate safely while malformed new act history is rejected',()=>{
   const world=WORLD_LEVELS[0],old={...saveRun(createRun(world)),version:1};
   const migrated=restoreRun(old,world);assert(migrated);
-  assert.equal(migrated.version,2);assert.equal(migrated.actIndex,0);assert.equal(migrated.phase,'ready');assert.deepEqual(migrated.actResults,[]);
-  assert.match(migrated.message,/trois tableaux/);
+  assert.equal(migrated.version,3);assert.equal(migrated.actIndex,0);assert.equal(migrated.phase,'ready');assert.deepEqual(migrated.actResults,[]);
+  assert.match(migrated.message,/aventure continue/);
   const invalid={...saveRun(createRun(world)),actIndex:1,actResults:[]};
   assert.equal(restoreRun(invalid,world),null);
 });

@@ -38,6 +38,29 @@ export function getWorldView(
   };
 }
 
+/** Continuous expeditions frame one landscape, never shrink the whole map. */
+export function getExpeditionView(
+  worldWidth:number,worldHeight:number,viewportWidth:number,viewportHeight:number,
+  zoom:number,panX:number,panY:number,
+):WorldView {
+  const sceneWidth=dimension(worldWidth),sceneHeight=dimension(worldHeight);
+  const width=dimension(viewportWidth),height=dimension(viewportHeight);
+  const magnification=Number.isFinite(zoom)?clamp(zoom,.65,3.4):1;
+  const scale=Math.min(width/Math.min(sceneWidth,1400),height/sceneHeight)*magnification;
+  const overflowX=Math.max(0,sceneWidth*scale-width),overflowY=Math.max(0,sceneHeight*scale-height);
+  return {scale,x:overflowX>0?-overflowX*pan(panX):(width-sceneWidth*scale)/2,
+    y:overflowY>0?-overflowY*pan(panY):(height-sceneHeight*scale)/2,
+    width,height,overflowX,overflowY};
+}
+
+/** Keep a world point beneath a finger while changing magnification. */
+export function panAroundPoint(view:WorldView,worldPoint:Point,screenPoint:Point):WorldPan {
+  return {
+    panX:view.overflowX>0?clamp((worldPoint.x*view.scale-screenPoint.x)/view.overflowX,0,1):.5,
+    panY:view.overflowY>0?clamp((worldPoint.y*view.scale-screenPoint.y)/view.overflowY,0,1):.5,
+  };
+}
+
 function edgeVelocity(coordinate:number,extent:number):number {
   if(!Number.isFinite(coordinate)||!Number.isFinite(extent)||extent<=0)return 0;
   const border=Math.min(56,extent/2);

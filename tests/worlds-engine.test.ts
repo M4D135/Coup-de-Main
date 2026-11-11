@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {WORLD_LEVELS} from '../lib/worlds/levels';
+import {WORLD_LEVELS} from './fixtures/worlds-v2';
 import {ANCHOR_RADIUS,appendStroke,applyAction,beginStroke,createRun,finishStroke,getActiveAct,getEdgePath,getPendulumPosition,getRunSummary,pathLength,restoreRun,saveRun,updateRun} from '../lib/worlds/engine';
 import type {WorldLevel,WorldRun} from '../lib/worlds/types';
 import {solveCurrentAct} from './worlds-walkthrough';

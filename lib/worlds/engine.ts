@@ -1,6 +1,6 @@
-import type {ActionResult, ActResult, Creature, DeviceDefinition, DeviceStatus, DrawingDefinition, DrawnRoute, EditSnapshot, GameAction, GameEvent, Gate, Point, RouteEdge, RunSnapshot, WorldLevel, WorldRun} from './types';
+import type {ActionResult, ActResult, Creature, DeviceDefinition, DeviceStatus, DrawingDefinition, DrawnRoute, EditSnapshot, GameAction, GameEvent, Gate, Point, RouteEdge, RunSnapshot, StageProgress, WorldLevel, WorldRun} from './types';
 
-export const WORLD_SAVE_KEY='mondes-du-trait-v2';
+export const WORLD_SAVE_KEY='coup-de-main-v3';
 export const FIXED_STEP=1/60;
 export const ANCHOR_RADIUS=76;
 const SPACING=45;
@@ -74,7 +74,7 @@ function createActRun(world:WorldLevel,actIndex:number,actResults:ActResult[]):W
   const previous=actResults.find(result=>result.index===actIndex-1);
   const lostIds=new Set(previous?.lostIds??[]);
   return {
-    version:2,levelId:level.id,actIndex,actResults:copyActResults(actResults),phase:'ready',time:0,speed:1,
+    version:3,autoCheckpointId:null,levelId:level.id,actIndex,actResults:copyActResults(actResults),phase:'ready',time:0,speed:1,
     units:Array.from({length:level.total},(_,id)=>({id,x:source.x,y:lostIds.has(id)?level.height+300:source.y,state:lostIds.has(id)?'lost':'queued',direction:1,nodeId:source.id,edgeId:null,distance:0,walkTime:0,waitTime:0,savedAt:null,lostAt:lostIds.has(id)?0:null,fallVelocity:0,returning:false,returnEdges:[],formationSlot:null,variant:(id*7)%5})),
     devices:Object.fromEntries(level.devices.map(device=>[device.id,{mode:device.initialMode,progress:0,load:0}])),
     drawings:{},spawned:lostIds.size,saved:0,lost:lostIds.size,nextSpawn:0,accumulator:0,edits:0,retries:0,visits:{},passages:{},
@@ -109,7 +109,7 @@ export function applyAction(run:WorldRun,level:WorldLevel,action:GameAction):Act
     recordAct(run,level);
     const speed=run.speed;
     Object.assign(run,createActRun(world,run.actIndex+1,run.actResults));run.speed=speed;
-    run.checkpoint=saveRun(run);
+    rememberGestureCheckpoint(run,level);
     return result(run,true,`Tableau ${run.actIndex+1} : la même troupe attend ton signal.`);
   }
   if(action.type==='restart'){
@@ -124,10 +124,10 @@ export function applyAction(run:WorldRun,level:WorldLevel,action:GameAction):Act
     if(!restored)return result(run,false,'Ce point de reprise est indisponible.');
     Object.assign(run,restored);run.checkpoint=checkpoint;run.retries=retries;run.phase='paused';
     emit(run,{type:'retry'});
-    return result(run,true,'Retour au dernier geste. Reprends quand tu es prêt.');
+    return result(run,true,level.sectors?'Retour au dernier souvenir.':'Retour au dernier geste. Reprends quand tu es prêt.');
   }
   if(action.type==='checkpoint'){
-    run.checkpoint=saveRun(run);
+    run.checkpoint=snapshotCore(run);
     return result(run,true,'Un point de reprise est posé.');
   }
   if(action.type==='speed'){
@@ -137,7 +137,7 @@ export function applyAction(run:WorldRun,level:WorldLevel,action:GameAction):Act
   if(action.type==='start'){
     if(run.phase==='won'||run.phase==='lost')return result(run,false,'Recommence le stage pour repartir.');
     run.phase='playing';
-    if(!run.checkpoint)run.checkpoint=saveRun(run);
+    if(!run.checkpoint)run.checkpoint=snapshotCore(run);
     return result(run,true,'La troupe est en route.');
   }
   if(action.type==='pause'){
@@ -152,7 +152,7 @@ export function applyAction(run:WorldRun,level:WorldLevel,action:GameAction):Act
     if(!id||!run.drawings[id])return result(run,false,'Choisis un passage dessiné et libre pour récupérer son encre.');
     if(activeOnDrawing(run,level,id))return result(run,false,'Ce passage porte encore des compagnons. Laisse-les quitter le trait avant de l’effacer.');
     const amount=Math.round(run.drawings[id].inkLength);remember(run);delete run.drawings[id];run.activeStroke=null;
-    emit(run,{type:'undo'});run.checkpoint=saveRun(run);
+    emit(run,{type:'undo'});rememberGestureCheckpoint(run,level);
     return result(run,true,`${amount} unités d’encre récupérées. Le passage peut être redessiné.`);
   }
   if(action.type==='undo'){
@@ -173,14 +173,15 @@ export function applyAction(run:WorldRun,level:WorldLevel,action:GameAction):Act
     run.history.pop();run.drawings=copyDrawings(previous.drawings);
     // Undo edits, not the troupe's already completed physical relay visits.
     for(const [id,mode] of Object.entries(previous.modes))if(run.devices[id]&&deviceFor(level,id)?.playerControlled!==false)run.devices[id].mode=mode;
-    run.activeStroke=null;emit(run,{type:'undo'});run.checkpoint=saveRun(run);
+    run.activeStroke=null;emit(run,{type:'undo'});rememberGestureCheckpoint(run,level);
     return result(run,true,'Le dernier geste est annulé.');
   }
   if(action.type==='device'){
     const definition=deviceFor(level,action.id),state=run.devices[action.id];
     if(!definition||!state)return result(run,false,'Ce mécanisme est introuvable.');
     if(definition.modes.length<2)return result(run,false,definition.description);
-    const next=action.mode??((state.mode+1)%definition.modes.length);
+    const next=action.mode??Array.from({length:definition.modes.length-1},(_,offset)=>(state.mode+offset+1)%definition.modes.length)
+      .find(mode=>!deviceActionReason(run,level,definition,mode))??((state.mode+1)%definition.modes.length);
     if(!Number.isInteger(next)||next<0||next>=definition.modes.length)return result(run,false,'Cette position est indisponible.');
     if(definition.playerControlled===false)return result(run,false,deviceActionReason(run,level,definition,next));
     if(next===state.mode)return result(run,true,`${definition.label} : ${definition.modes[next]}.`);
@@ -188,7 +189,7 @@ export function applyAction(run:WorldRun,level:WorldLevel,action:GameAction):Act
     if(blocked)return result(run,false,blocked);
     remember(run);state.mode=next;state.released=0;
     emit(run,{type:'device',x:definition.x,y:definition.y,deviceId:definition.id});
-    run.checkpoint=saveRun(run);
+    rememberGestureCheckpoint(run,level);
     return result(run,true,`${definition.label} : ${definition.modes[next]}.`);
   }
   return result(run,false,'Action inconnue.');
@@ -219,6 +220,17 @@ export function appendStroke(run:WorldRun,level:WorldLevel,point:Point):void {
   if(distance(stroke.points[stroke.points.length-1],bounded)<2.5)return;
   if(stroke.points.length>=700)stroke.points=stroke.points.filter((_,index)=>index%2===0||index===stroke.points.length-1);
   stroke.points.push(bounded);
+  const start=stroke.points[0],movement=distance(start,bounded);
+  if(movement>=30){
+    let best:{id:string;reversed:boolean;score:number}|null=null;
+    for(const definition of level.drawings)for(const reversed of [false,true]){
+      const anchor=reversed?definition.to:definition.from,target=reversed?definition.from:definition.to;
+      if(distance(anchor,start)>=2||activeOnDrawing(run,level,definition.id))continue;
+      const reach=distance(start,target),score=((bounded.x-start.x)*(target.x-start.x)+(bounded.y-start.y)*(target.y-start.y))/(movement*reach);
+      if(score>.3&&(!best||score>best.score))best={id:definition.id,reversed,score};
+    }
+    if(best){stroke.drawingId=best.id;stroke.reversed=best.reversed;}
+  }
 }
 
 const pointSegmentDistance=(p:Point,a:Point,b:Point):number=>{
@@ -243,6 +255,14 @@ export function finishStroke(run:WorldRun,level:WorldLevel):ActionResult {
   const stroke=run.activeStroke;
   if(!stroke)return result(run,false,'Commence sur un appui, puis rejoins l’autre.');
   run.activeStroke=null;
+  // Several real passages can meet at one physical support. The player's
+  // destination, rather than definition order, selects the intended span.
+  const first=stroke.points[0],last=stroke.points[stroke.points.length-1];
+  const destinations=level.drawings.flatMap(definition=>[false,true].flatMap(reversed=>{
+    const start=reversed?definition.to:definition.from,end=reversed?definition.from:definition.to;
+    return distance(first,start)<2&&distance(last,end)<=ANCHOR_RADIUS+12?[{definition,reversed,distance:distance(last,end)}]:[];
+  })).sort((a,b)=>a.distance-b.distance);
+  if(destinations[0]){stroke.drawingId=destinations[0].definition.id;stroke.reversed=destinations[0].reversed;}
   const definition=level.drawings.find(item=>item.id===stroke.drawingId)!;
   const points=stroke.reversed?copyPoints(stroke.points).reverse():copyPoints(stroke.points);
   if(points.length<2||pathLength(points)<distance(definition.from,definition.to)*.55)return result(run,false,'Prolonge le trait jusqu’au second appui.');
@@ -255,7 +275,7 @@ export function finishStroke(run:WorldRun,level:WorldLevel):ActionResult {
   if(stable.some(point=>pointSegmentDistance(point,definition.from,definition.to)>definition.corridor))return result(run,false,'Reste un peu plus près du passage à relier.');
   if(activeOnDrawing(run,level,definition.id))return result(run,false,'Les compagnons ont rejoint ce trait ; laisse-les passer.');
   remember(run);run.drawings[definition.id]={points:stable,inkLength,createdAt:run.time};
-  emit(run,{type:'draw',x:definition.to.x,y:definition.to.y});run.checkpoint=saveRun(run);
+  emit(run,{type:'draw',x:definition.to.x,y:definition.to.y});rememberGestureCheckpoint(run,level);
   return result(run,true,`Trait validé : ${definition.label}.`,{drawingId:definition.id});
 }
 
@@ -395,6 +415,10 @@ function recallStranded(run:WorldRun,level:WorldLevel,unit:Creature,nodeId:strin
 
 function arrive(run:WorldRun,level:WorldLevel,unit:Creature,edge:RouteEdge):void {
   if(unit.returning){
+    // A physically recalled scout gives its unfinished reservation back.
+    // Otherwise a late return could leave the permitted identities behind
+    // a queue of companions who are no longer allowed onto the branch.
+    if(edge.maxPassages!==undefined)run.passages[edge.id]=(run.passages[edge.id]??[]).filter(id=>id!==unit.id);
     const remaining=(unit.returnEdges??[]).slice(1),nodeId=edge.from;
     if(remaining.length){
       unit.nodeId=nodeId;unit.edgeId=remaining[0];unit.distance=0;
@@ -469,7 +493,7 @@ function simulateStep(run:WorldRun,level:WorldLevel,dt:number):void {
       const definition=deviceFor(level,edge.deviceId!)!,state=run.devices[definition.id];
       const slot=unit.formationSlot??unit.id%3;
       const low=definition.low??edge.path[0],high=definition.high??edge.path[edge.path.length-1];
-      const slotX=low.x+(high.x-low.x)*state.progress+(slot-1)*30;
+      const slotX=low.x+(high.x-low.x)*state.progress+(slot-((edge.capacity??3)-1)/2)*36;
       const platformY=low.y+(high.y-low.y)*state.progress;
       if(state.progress<=.018&&unit.distance<1){
         const gap=slotX-unit.x,step=level.pace*dt;
@@ -514,6 +538,10 @@ function simulateStep(run:WorldRun,level:WorldLevel,dt:number):void {
     }
     if(unit.distance>=length-.05)arrive(run,level,unit,edge);
   }
+  if(level.sectors)updatePhysicalCheckpoint(run,level);
+  if(level.sectors&&run.lost>level.total-level.rescueTarget){
+    run.phase='lost';run.message='La troupe ne peut plus atteindre le refuge. Reviens au dernier souvenir.';return;
+  }
   if(run.spawned===level.total&&run.saved+run.lost===level.total){
     run.phase=run.saved>=level.rescueTarget?'won':'lost';
     run.message=run.phase==='won'?(run.saved===level.total?'Toute la troupe est réunie !':'Le refuge s’illumine. Tu peux revenir sauver tout le monde.'):'Le refuge attend encore des compagnons. Reprends ton dernier geste.';
@@ -535,23 +563,42 @@ export function updateRun(run:WorldRun,level:WorldLevel,dt:number):GameEvent[] {
   return run.events;
 }
 
-export function saveRun(run:WorldRun):RunSnapshot {
-  return {version:2,levelId:run.levelId,actIndex:run.actIndex??0,actResults:copyActResults(run.actResults??[]),phase:run.phase,time:run.time,speed:run.speed,
+/** A checkpoint is a flat snapshot: never recursively embed earlier checkpoints. */
+function snapshotCore(run:RunSnapshot):RunSnapshot {
+  return {version:3,autoCheckpointId:run.autoCheckpointId??null,levelId:run.levelId,actIndex:run.actIndex??0,actResults:copyActResults(run.actResults??[]),phase:run.phase,time:run.time,speed:run.speed,
     units:run.units.map(unit=>({...unit,returning:unit.returning===true,returnEdges:[...(unit.returnEdges??[])]})),devices:Object.fromEntries(Object.entries(run.devices).map(([id,state])=>[id,{...state}])),
     drawings:copyDrawings(run.drawings),spawned:run.spawned,saved:run.saved,lost:run.lost,nextSpawn:run.nextSpawn,accumulator:run.accumulator,edits:run.edits,retries:run.retries,
-    visits:copyVisits(run.visits??{}),passages:copyVisits(run.passages??{})};
+    visits:copyVisits(run.visits??{}),passages:copyVisits(run.passages??{}),checkpoint:null};
+}
+function rememberGestureCheckpoint(run:WorldRun,level:WorldLevel):void {
+  if(!level.sectors)run.checkpoint=snapshotCore(run);
+}
+function updatePhysicalCheckpoint(run:WorldRun,level:WorldLevel):void {
+  if(run.spawned<level.total||run.units.some(unit=>!['saved','lost'].includes(unit.state)&&edgeFor(level,unit.edgeId)?.kind==='hazard'))return;
+  const previous=level.nodes.find(node=>node.id===run.autoCheckpointId)?.x??-1;
+  const survivors=run.units.filter(unit=>unit.state!=='lost');
+  const candidate=level.nodes.filter(node=>node.kind==='checkpoint'&&node.x>previous
+    &&survivors.every(unit=>(run.visits[node.id]??[]).includes(unit.id)))
+    .sort((a,b)=>b.x-a.x)[0];
+  if(!candidate)return;
+  run.autoCheckpointId=candidate.id;run.checkpoint=snapshotCore(run);
+  run.message=`${candidate.checkpointLabel??'Souvenir'} : la troupe est réunie.`;
+  emit(run,{type:'device',x:candidate.x,y:candidate.y,deviceId:candidate.id});
+}
+export function saveRun(run:WorldRun):RunSnapshot {
+  return {...snapshotCore(run),checkpoint:run.checkpoint?snapshotCore(run.checkpoint):null};
 }
 
 const isRecord=(value:unknown):value is Record<string,unknown>=>!!value&&typeof value==='object'&&!Array.isArray(value);
-export function restoreRun(raw:unknown,level:WorldLevel):WorldRun|null {
+export function restoreRun(raw:unknown,level:WorldLevel,restoreCheckpoint=true):WorldRun|null {
   const world=canonicalWorld(level);
   if(!isRecord(raw)||raw.levelId!==world.id||!Array.isArray(raw.units)||raw.units.length!==world.total)return null;
-  if(raw.version===1){
+  if(raw.version===1||raw.version===2){
     const migrated=createRun(world);
-    migrated.message='Ce voyage a été agrandi en trois tableaux. Ton ancien record reste dans le carnet ; la nouvelle aventure commence au premier tableau.';
+    migrated.message='Le paysage est devenu une grande aventure continue. La nouvelle troupe attend au départ ; les anciens records restent dans le carnet.';
     return migrated;
   }
-  if(raw.version!==2||!Number.isInteger(raw.actIndex)||finite(raw.actIndex)<0||finite(raw.actIndex)>=getActCount(world))return null;
+  if(raw.version!==3||!Number.isInteger(raw.actIndex)||finite(raw.actIndex)<0||finite(raw.actIndex)>=getActCount(world))return null;
   const actIndex=finite(raw.actIndex);
   level=getActiveAct(world,{actIndex});
   if(!Array.isArray(raw.actResults)||raw.actResults.length<actIndex||raw.actResults.length>actIndex+1)return null;
@@ -633,7 +680,15 @@ export function restoreRun(raw:unknown,level:WorldLevel):WorldRun|null {
   run.phase=run.saved+run.lost===level.total?(run.saved>=level.rescueTarget?'won':'lost'):raw.phase==='ready'&&run.spawned===previousLost.size?'ready':'paused';
   if(run.phase!=='won'&&actResults.some(result=>result.index===actIndex))return null;
   updateDevices(run,level,0);if(run.phase==='won')recordAct(run,level);
-  run.checkpoint=saveRun(run);run.message=`Tableau ${actIndex+1} retrouvé avec la même troupe. Reprends quand tu es prêt.`;
+  if(raw.autoCheckpointId!==null&&raw.autoCheckpointId!==undefined
+    &&(typeof raw.autoCheckpointId!=='string'||!level.nodes.some(node=>node.id===raw.autoCheckpointId&&node.kind==='checkpoint')))return null;
+  run.autoCheckpointId=typeof raw.autoCheckpointId==='string'?raw.autoCheckpointId:null;
+  if(restoreCheckpoint&&isRecord(raw.checkpoint)){
+    const checkpoint=restoreRun({...raw.checkpoint,checkpoint:null},world,false);
+    if(checkpoint&&checkpoint.time<=run.time)run.checkpoint=snapshotCore(checkpoint);
+  }
+  if(!run.checkpoint)run.checkpoint=level.sectors?snapshotCore(createRun(world)):snapshotCore(run);
+  run.message=level.sectors?'La troupe a retrouvé sa route.':`Tableau ${actIndex+1} retrouvé avec la même troupe. Reprends quand tu es prêt.`;
   return run;
 }
 
@@ -678,7 +733,7 @@ export function getDeviceStatus(run:WorldRun,level:WorldLevel,id:string):DeviceS
     const reason=deviceActionReason(run,level,definition,mode);
     return {mode,label:modeLabel(mode),enabled:mode!==state.mode&&!reason,reason};
   });
-  const nextMode=definition.modes.length>1?(state.mode+1)%definition.modes.length:null;
+  const nextMode=Array.from({length:Math.max(0,definition.modes.length-1)},(_,offset)=>(state.mode+offset+1)%definition.modes.length).find(mode=>modes[mode].enabled)??null;
   let stateLabel=definition.modes[state.mode],reason=definition.description;
   if(definition.kind==='counterweight'&&definition.modes.length>1){
     stateLabel=state.mode===1?'Cran verrouillé':`${state.load}/${definition.requiredLoad??1} porteurs`;
@@ -691,7 +746,7 @@ export function getDeviceStatus(run:WorldRun,level:WorldLevel,id:string):DeviceS
     reason=missing?gateReason(run,level,missing):moving?'Laisse l’ascenseur rejoindre son palier.':state.progress>=.98?(state.load?'Les passagers quittent le palier.':'Redescends chercher le groupe suivant.'):state.load?`${state.load} passager(s) à bord. Tu peux faire monter l’ascenseur.`:'Les compagnons montent à bord quand ils atteignent le palier.';
   }else if(definition.kind==='splitter'){
     reason=`Les prochains compagnons prennent « ${stateLabel} ». Ceux qui sont bloqués sur une branche peuvent revenir à pied.`;
-  }else if(definition.kind==='wind'){
+  }else if(definition.kind==='wind'&&definition.modes.length>2){
     reason=state.mode===1?(state.progress>=.96?'Le moulin est en haut. Bloque son taquet avant de détourner le vent.':'Le moulin soulève le support de la passerelle.'):state.mode===2?'Le passage est à l’abri. Un taquet bloqué conserve la hauteur du moulin.':'Le vent gêne le chemin : choisis où le diriger.';
   }
   if(definition.playerControlled===false){
@@ -740,7 +795,7 @@ export function getRunSummary(run:WorldRun,level:WorldLevel){
   level=getActiveAct(level,run);
   const inkUsed=Math.round(Object.values(run.drawings).reduce((sum,drawing)=>sum+drawing.inkLength,0));
   const mastered=run.saved===level.total&&inkUsed<=level.masteryInk&&gatesSatisfied(run,level.masteryDevices);
-  const stars=run.phase==='won'?1+(run.saved===level.total?1:0)+(mastered?1:0):0;
+  const stars=run.phase==='won'?(level.sectors?clamp(run.saved-level.rescueTarget+1,1,3):1+(run.saved===level.total?1:0)+(mastered?1:0)):0;
   return {phase:run.phase,saved:run.saved,lost:run.lost,total:level.total,target:level.rescueTarget,
     remaining:level.total-run.saved-run.lost,waiting:run.units.filter(unit=>unit.state==='waiting').length,
     time:Math.floor(run.time),inkUsed,drawn:Object.keys(run.drawings).length,canUndo:run.history.length>0,
@@ -754,7 +809,7 @@ export function getJourneySummary(run:WorldRun,level:WorldLevel){
   const inkUsed=past.reduce((sum,result)=>sum+result.inkUsed,local.inkUsed);
   const masteryInk=Array.from({length:actCount},(_,index)=>getActiveAct(world,{actIndex:index}).masteryInk).reduce((sum,value)=>sum+value,0);
   const complete=isJourneyComplete(world,run),mastered=complete&&run.saved===world.total&&inkUsed<=masteryInk;
-  const stars=complete?1+(run.saved===world.total?1:0)+(mastered?1:0):0;
+  const stars=complete?(world.sectors?clamp(run.saved-world.rescueTarget+1,1,3):1+(run.saved===world.total?1:0)+(mastered?1:0)):0;
   const objectives=(active.objectives??[]).map(objective=>{
     let current:number|undefined,target:number|undefined;
     const complete=objective.conditions.every(condition=>{
@@ -772,5 +827,20 @@ export function getJourneySummary(run:WorldRun,level:WorldLevel){
   });
   return {actIndex,actNumber:actIndex+1,actCount,actTitle:active.stageName,objective:active.objective,completedActs:results.length,complete,
     survivors:world.total-run.lost,total:world.total,saved:run.saved,lost:run.lost,time,inkUsed,masteryInk,stars,mastered,
-    masteryGoal:`Réunis les douze compagnons au terme des ${actCount} tableaux avec au plus ${masteryInk.toLocaleString('fr-FR')} unités d’encre au total.`,objectives,acts};
+    masteryGoal:actCount===1?world.masteryGoal:`Réunis les douze compagnons au terme des ${actCount} tableaux avec au plus ${masteryInk.toLocaleString('fr-FR')} unités d’encre au total.`,objectives,acts};
+}
+
+/** Physical map progress, independent from elapsed time and menu/act bookkeeping. */
+export function getStageProgress(run:WorldRun,level:WorldLevel):StageProgress {
+  level=getActiveAct(level,run);
+  const sectors=level.sectors??[{id:level.id,x:0,width:level.width,name:level.stageName}];
+  const source=nodeFor(level,level.spawn),goal=nodeFor(level,level.goal),survivors=run.units.filter(unit=>unit.state!=='lost');
+  const xs=survivors.map(unit=>unit.state==='queued'?source.x:unit.state==='saved'?goal.x:unit.x);
+  const furthestX=xs.length?Math.max(...xs):source.x,rearmostX=xs.length?Math.min(...xs):source.x;
+  const sectorIndex=Math.max(0,sectors.findIndex(sector=>furthestX>=sector.x&&furthestX<sector.x+sector.width));
+  const checkpoint=level.nodes.find(node=>node.id===run.autoCheckpointId);
+  const progress=run.phase==='won'?1:xs.length?xs.reduce((sum,x)=>sum+clamp((x-source.x)/Math.max(1,goal.x-source.x),0,1),0)/xs.length:0;
+  return {sectorIndex,sectorNumber:sectorIndex+1,sectorCount:sectors.length,sectorName:sectors[sectorIndex].name,
+    furthestX,rearmostX,progress,checkpoint:checkpoint?{id:checkpoint.id,x:checkpoint.x,y:checkpoint.y,name:checkpoint.checkpointLabel??'Souvenir'}:null,
+    saved:run.saved,lost:run.lost,remaining:level.total-run.saved-run.lost,decisions:run.edits};
 }

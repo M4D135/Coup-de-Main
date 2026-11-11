@@ -1,17 +1,17 @@
 {
   "project": "Coup de Main",
-  "version": "2.1.1",
+  "version": "3.0.0",
   "updated_at": "2026-11-11",
   "provenance": {
     "references": "Three artworks supplied and approved by the user. The art files retain exactly the same decoded pixels as the uploaded references; only PNG RGB/RGBA encoding differs.",
     "playable_assets": "Scene plates, character atlases and prop atlases recovered from the preceding development conversation. They are derived AI-generated production assets based on the approved artworks; gameplay motion and overlays are implemented in code.",
     "generator_prompts": "The previous generation prompts are not present in this checkout. No exact prompt is reconstructed or claimed.",
     "fidelity": "The original artwork pixels are preserved in the art files. Clean scene plates, sprites and animated gameplay are adaptations, not pixel-identical copies of the reference screenshots.",
-    "audio": "Original procedural Web Audio voices, foley and chimes; no samples from a third-party game."
+    "audio": "Original procedural Web Audio scores, formant-based character voices and material effects. Three authored 16-bar themes with answering phrases, harmony and evolving arrangement; no downloaded music or third-party audio samples."
   },
   "rendering": {
     "logical_resolution": [
-      1600,
+      16000,
       900
     ],
     "sprite_frames": 8,

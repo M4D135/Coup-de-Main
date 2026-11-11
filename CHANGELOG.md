@@ -2,6 +2,37 @@
 
 Les sources et les fichiers prêts à jouer sont publiés dans le [dépôt Coup de Main](https://github.com/M4D135/Coup-de-Main).
 
+## [3.0.0]
+
+### Trois grandes cartes continues
+
+- Chaque monde mesure 16 000 × 900 unités et réunit dix secteurs, cinq réseaux de mécanismes et un refuge final.
+- La même troupe traverse la carte. Les groupes, porteurs, relais, souffles et transports peuvent agir sur des passages plus loin dans le décor.
+- Des souvenirs sont conservés lorsque tous les survivants ont franchi un repère. Ils permettent de reprendre le parcours avec ses dessins et ses réglages.
+- Le score devient direct : dix sauvés donnent une étoile, onze en donnent deux et douze en donnent trois. L’encre reste une ressource de construction, récupérable avec la Gomme.
+
+### Des gestes dans le décor
+
+- Toucher commande un mécanisme, tracer depuis un appui construit un passage, glisser explore et pincer ajuste le zoom.
+- La petite carte et le recentrage permettent de retrouver les groupes sur le long parcours.
+- L’interface privilégie le décor et un menu de pause compact. Les anciennes étapes séparées, listes d’objectifs et panneaux d’indices sont remplacés par ce parcours continu.
+- Les anciennes sauvegardes sont reconnues sans transposer leurs positions dans les nouvelles cartes. Les résultats V3 sont identifiés séparément.
+
+### Une création sonore originale
+
+- Trois thèmes avec mélodies, réponses, harmonies, basses et variations d’arrangement : piano doux, flûte et célesta selon le monde.
+- Bruitages de matière et petites voix synthétiques propres aux réactions des compagnons, jusqu’à leur réunion finale.
+- Trois volumes indépendants : musique, bruitages et voix, avec coupure générale.
+- Écoute centrée sur la région visible, polyphonie limitée et annulation des sons programmés quand la page est masquée.
+- Aucun morceau téléchargé, échantillon vocal extérieur ou nouveau PNG n’est requis pour cette version.
+
+### Des compagnons plus expressifs
+
+- La marche suit la distance parcourue et chaque pose conserve son contact au sol. Clignements, regards vers les voisins, petits saluts et réactions à l’arrivée rythment la troupe.
+- L’hélice possède un cadre frontal, un seul moyeu et un socle relié à la rive. Sa rotation accélère et ralentit avec la commande.
+- Les terrains et les supports suivent les vrais chemins de la simulation, avec les matières peintes, pliées ou boisées de chaque monde.
+- Le cadrage et les gestes sont adaptés aux téléphones en portrait et en paysage ; les écritures de sauvegarde préservent les réglages récents d’un autre onglet.
+
 ## [2.1.1]
 
 - L’écran titre affiche le numéro de version du jeu sous le nom, pour vérifier d’un coup d’œil la version jouée.

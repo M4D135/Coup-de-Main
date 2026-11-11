@@ -1,7 +1,7 @@
 {
   "version": 1,
   "project": "Coup de Main",
-  "gameVersion": "2.1.1",
+  "gameVersion": "3.0.0",
   "files": [
     {
       "path": ".github/workflows/public-ci.yml",
@@ -25,43 +25,38 @@
     },
     {
       "path": "CHANGELOG.md",
-      "bytes": 2680,
-      "sha256": "ee2b63d1733c1c8f3245a18efe4fe393a18ba4e981baf2fa08f8fb7704cfb075"
+      "bytes": 5220,
+      "sha256": "7188158041c5a3b287e4c6af7f7161008bc779a1a3cf3adb28fb3dfe40680275"
     },
     {
       "path": "CREDITS.md",
-      "bytes": 4968,
-      "sha256": "028113afa0c558b115c7473b961ebeb16612529a7e445c293cb7a66b16d3ecc7"
+      "bytes": 5076,
+      "sha256": "8ded287bdbec1f278125402aee3b4db6a0568fd7051a50e9492543355d8a29f6"
     },
     {
       "path": "README.md",
-      "bytes": 11563,
-      "sha256": "185b389c9bf926bd969880d30a9587709598047755c2b85edc0d5161c7c41643"
+      "bytes": 10425,
+      "sha256": "e388de5faa6a43c18c1ba5ea13f6243c9bd4eba755ca24163eb2c7d86eb23045"
     },
     {
       "path": "app/globals.css",
-      "bytes": 39861,
-      "sha256": "a9b5f9a46ba6a486ea6c98d6c94f3f0add0c608da6ca9d38febbcf5257f03e1d"
+      "bytes": 20070,
+      "sha256": "7e57f37940594f412c04ccc5623e3e651a0663c83f79a2a5df7411c81769bf0e"
     },
     {
       "path": "app/page.tsx",
-      "bytes": 46869,
-      "sha256": "234b353c0fe2701bdda03f1432878821a1cf947def59218681d79ae65782192c"
-    },
-    {
-      "path": "components/worlds/journey-tools.tsx",
-      "bytes": 7041,
-      "sha256": "658be2e5f7400491697e5e6592fc6ede2655e608d677f20a2a712b5319a65213"
+      "bytes": 37845,
+      "sha256": "b43aab7241075c14853a837587a94688af08f3356c925e3f0b55632bf7939429"
     },
     {
       "path": "components/worlds/world-gate.tsx",
-      "bytes": 3396,
-      "sha256": "f58bb8b76ed31c2e283bece3181217dd11eb2dcd3d9e274d7d84e29310156f90"
+      "bytes": 3258,
+      "sha256": "f20f4bda52e6cadefa4a460e6503efa41c0687417c0da0fbe05601fa11d515b5"
     },
     {
       "path": "docs/BUILD.md",
-      "bytes": 13342,
-      "sha256": "dcf56cc95d9cae5b2672cb0ff5df9e051af2374f3403ce364056325241d5dfb3"
+      "bytes": 8506,
+      "sha256": "c117e85f6bda60a07cb26007d92451a4a1c113e1aa4678fec5bc8b73f48a445e"
     },
     {
       "path": "docs/THIRD-PARTY-NOTICES.md",
@@ -70,33 +65,48 @@
     },
     {
       "path": "docs/WORLDS.md",
-      "bytes": 11948,
-      "sha256": "a9b04022228a0bdbe0eac87ced76189a2d0d63726595010f3327d7470c11315a"
+      "bytes": 7900,
+      "sha256": "9265e1462d62a4181cd0a8e9d660fb6b9b6745c2eb2ea0bfe8fcb61a447713d3"
     },
     {
       "path": "lib/worlds/assets.ts",
-      "bytes": 1720,
-      "sha256": "67cd12fd51a3e9096c375ece949e908020723550482cffc1f402d1f54551f5d0"
+      "bytes": 1795,
+      "sha256": "df5604c1d0cfdc40c5ad65e5fff763d6a572faa86f4e36caef70ff037a21f319"
+    },
+    {
+      "path": "lib/worlds/audio-score.ts",
+      "bytes": 6318,
+      "sha256": "f4051d96dbf26059918b2587235e78a3ccdd47118def0865d0888b82707d3b0e"
+    },
+    {
+      "path": "lib/worlds/audio-space.ts",
+      "bytes": 1293,
+      "sha256": "85b37db01eacdc68b5ed6f084139ebfd3712a11e7b94793e396453505d3bb79c"
     },
     {
       "path": "lib/worlds/audio.ts",
-      "bytes": 9079,
-      "sha256": "312a6c14301865aec507adf74c549ecf4f8851546cf6d375511ff66fe7100bcf"
+      "bytes": 27327,
+      "sha256": "9c2057f7297c4e0e3b55c7ff17ad8f3e45fbc8d3e2d969d6ffdfbdc3a382ff4a"
     },
     {
       "path": "lib/worlds/camera.ts",
-      "bytes": 2924,
-      "sha256": "7593eec88d868165a5eae4b7777b2c3e1f36c635a7757de8996f197db6434447"
+      "bytes": 4149,
+      "sha256": "9e4bd7eee743e24b761469791ac3a5c259b8332b2f535167f7713ac3f704de19"
     },
     {
       "path": "lib/worlds/engine.ts",
-      "bytes": 52662,
-      "sha256": "eff931cb4daf0a4537fdf78c53ca528479c71f5c55a8e6820f7f4bd8d55ab5b6"
+      "bytes": 58467,
+      "sha256": "2ba934f5fbe4fa4ffce8640388ea8ac2e44f2f05404a6899a590b018a68e3eb4"
     },
     {
       "path": "lib/worlds/levels.ts",
-      "bytes": 30010,
-      "sha256": "da4c369d150ebe7fba95e4eb56494a5a6fa16a6f8b8db46035d4d889a546e14e"
+      "bytes": 16019,
+      "sha256": "22d7a2631da337b014f880f513b7b29737d7531f0cbbc17192fe7d2763fd41ff"
+    },
+    {
+      "path": "lib/worlds/renderer-characters.ts",
+      "bytes": 6071,
+      "sha256": "44582925ed6c25e805fca0ae001eedc091fa1836e6a69c7ac1583b80b0dd809f"
     },
     {
       "path": "lib/worlds/renderer-guidance.ts",
@@ -104,9 +114,24 @@
       "sha256": "7dc8c2c601b22def0657407d76100e6ba4a6f618bf356fde34acb43de4cf48d5"
     },
     {
+      "path": "lib/worlds/renderer-landscape.ts",
+      "bytes": 28995,
+      "sha256": "906fb2928717477636bec453a076d08cd1f9aba979e243701ec5d3d1a49a7c63"
+    },
+    {
+      "path": "lib/worlds/renderer-mechanisms.ts",
+      "bytes": 21442,
+      "sha256": "7052d6ebbf3fbbc748cbf74f5eb3f18c52c8496cdaa8bd9f4b9dd50941dcc389"
+    },
+    {
+      "path": "lib/worlds/renderer-primitives.ts",
+      "bytes": 4043,
+      "sha256": "bd4d6eb979527555f46ecee30719adec7043ad3c7c948c0d7d972c3b66819828"
+    },
+    {
       "path": "lib/worlds/renderer.ts",
-      "bytes": 40835,
-      "sha256": "6bd405d0407232c28267998ed305b7caa5c8f91645679c9af943fbaa03c23c5d"
+      "bytes": 12257,
+      "sha256": "a5657d0aafbbf0fa2d2a8738b533f4bb4e4f98c37d667764f8718af0dba5cfe0"
     },
     {
       "path": "lib/worlds/session.ts",
@@ -115,18 +140,18 @@
     },
     {
       "path": "lib/worlds/types.ts",
-      "bytes": 6095,
-      "sha256": "86c272e5b423784c3e3fb314dbb8cd4a96447c97cce23a486658804fcfb9f9e9"
+      "bytes": 6674,
+      "sha256": "3cf6e170b75e5fd66aa8261adaf95e5bcdec395390d3d15fd4f4700fcbb936ee"
     },
     {
       "path": "package-lock.json",
       "bytes": 56478,
-      "sha256": "dce488270907b3cc2605a7124bf838c31f3f46be089508aa89fec66b40a20a36"
+      "sha256": "c8b4dd6d545f940593058f85a69d830f3556a3d5eb63a764e0f97ba04d04df15"
     },
     {
       "path": "package.json",
-      "bytes": 990,
-      "sha256": "5eef5f067171488583bd483d477d79d9163b62e55baa0d41113fd1c7b259c27f"
+      "bytes": 1011,
+      "sha256": "129cc191efb353ecbecf6911d8774c2b2ac7568ff8309b217f3c5f6df4694ee8"
     },
     {
       "path": "public/drawing-hand-hd-manifest.json",
@@ -165,8 +190,8 @@
     },
     {
       "path": "public/worlds/manifest.json",
-      "bytes": 5736,
-      "sha256": "bc18863c3a084c06156539eb5edbb7dac6dcae93a38cd91626dbe7925fd5b62c"
+      "bytes": 5873,
+      "sha256": "94894859c8345a004d1fbdb6c4cfa8f98ee5f752bb81589652be4a04c77553c5"
     },
     {
       "path": "public/worlds/plis-art.png",
@@ -230,18 +255,38 @@
     },
     {
       "path": "scripts/public-vite.config.mjs",
-      "bytes": 1642,
-      "sha256": "071e39b877a5d9d5202912d5ac0e81b1cf2511b1f90b89000fe353acf61dff0c"
+      "bytes": 1787,
+      "sha256": "f1838958d98e7d4b19a70eef3462bec8f49f5da8a4509870b4f75ce9dd1e9bd6"
+    },
+    {
+      "path": "tests/fixtures/worlds-v2.ts",
+      "bytes": 30025,
+      "sha256": "c4560609a46153d49a4ea9e29fb5d187d1538bc92cccc599ead7cdf90ed01359"
+    },
+    {
+      "path": "tests/worlds-audio.test.ts",
+      "bytes": 11065,
+      "sha256": "5dea865fbc2b41aea66e0dc679f79cad92b48e17c7732abaa74544d22fc686b4"
     },
     {
       "path": "tests/worlds-camera.test.ts",
-      "bytes": 5703,
-      "sha256": "152c5a0f4b2e5a1d46477adaa85aa4955bd493cfbbcd32439b0eeda411d72f79"
+      "bytes": 7467,
+      "sha256": "b040c2a0558cf0ff0a03530eb9fb3ac414d54c6656a6a51a25ad2e5a275a89c8"
     },
     {
       "path": "tests/worlds-engine.test.ts",
       "bytes": 16338,
-      "sha256": "1f93b54b3d6b50f2e378e56247dd01706e2392f4dcf53f1d279fc35fa8ef5876"
+      "sha256": "6c11cfceedc295c57f64c401e15e50e662452348204683ad39f7570997573520"
+    },
+    {
+      "path": "tests/worlds-expedition-walkthrough.ts",
+      "bytes": 6078,
+      "sha256": "b787e9f6aba0e9f5e0d3e0d84de7a80d2f0a83f3d09e4b32ca63bd6b82cb4271"
+    },
+    {
+      "path": "tests/worlds-expedition.test.ts",
+      "bytes": 12637,
+      "sha256": "89d9a3d5cc6a571f9a9508734404f62f5a9d4b8fb76ac28851c86f98c1186d0c"
     },
     {
       "path": "tests/worlds-guidance.test.ts",
@@ -250,8 +295,8 @@
     },
     {
       "path": "tests/worlds-journey.test.ts",
-      "bytes": 9691,
-      "sha256": "cbb17348fd76c96852fbde797e06c6b8eec4ad077f64a581e3f77a54f9607033"
+      "bytes": 9694,
+      "sha256": "d8121182f449abb74cd27c70bdaee7693eb77ae36d62c6b8eba912b30f130033"
     },
     {
       "path": "tests/worlds-walkthrough.ts",

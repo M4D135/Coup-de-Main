@@ -5,7 +5,8 @@ export type UnitState = 'queued' | 'walking' | 'waiting' | 'riding' | 'saved' | 
 
 export interface RouteNode extends Point {
   id:string;
-  kind?:'spawn'|'goal'|'weight'|'wait';
+  kind?:'spawn'|'goal'|'weight'|'wait'|'checkpoint';
+  checkpointLabel?:string;
   /** Weight stations hold their occupants until their counterweight is latched. */
   deviceId?:string;
   capacity?:number;
@@ -34,6 +35,7 @@ export interface RouteEdge {
   priority?:number;
   capacity?:number;
   hidden?:boolean;
+  terrain?:'solid'|'platform';
   /** A clearly marked scout passage; reservations count before arrival. */
   maxPassages?:number;
 }
@@ -46,6 +48,7 @@ export interface DeviceDefinition extends Point {
   modes:string[];
   initialMode:number;
   requiredLoad?:number;
+  width?:number;
   /** Mechanical interlocks apply at this device, never as arbitrary exit locks. */
   gates?:Gate[];
   weightNodes?:string[];
@@ -111,11 +114,21 @@ export interface WorldLevel {
   masteryDevices?:Gate[];
   inkBudget?:number;
   objectives?:WorldObjective[];
+  sectors?:WorldSector[];
+  revision?:number;
   acts?:WorldAct[];
   /** Present on a resolved act, so helpers never resolve it a second time. */
   actKey?:string;
   actNumber?:number;
   journeyActCount?:number;
+}
+
+export interface WorldSector {id:string;x:number;width:number;name:string;style?:WorldId}
+export interface StageProgress {
+  sectorIndex:number;sectorNumber:number;sectorCount:number;sectorName:string;
+  furthestX:number;rearmostX:number;progress:number;
+  checkpoint:{id:string;x:number;y:number;name:string}|null;
+  saved:number;lost:number;remaining:number;decisions:number;
 }
 
 export type ObjectiveCondition =
@@ -200,7 +213,9 @@ export type EditSnapshot = {
 };
 
 export interface RunSnapshot {
-  version:2;
+  version:3;
+  autoCheckpointId:string|null;
+  checkpoint?:RunSnapshot|null;
   levelId:WorldId;
   actIndex:number;
   actResults:ActResult[];
