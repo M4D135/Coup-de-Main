@@ -1,4 +1,4 @@
-# Coup de Main — Les neuf énigmes de la version 2.1.0
+# Coup de Main — Les neuf énigmes de la version 2.1.1
 
 Le [projet Coup de Main](https://github.com/M4D135/Coup-de-Main) propose un voyage dans chacun de ses trois mondes. Chaque voyage contient **trois actes successifs**, avec une situation, un objectif et une combinaison de mécanismes propres. Les trois artworks, les personnages et les matières visuelles restent ceux de la version précédente.
 

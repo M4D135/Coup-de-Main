@@ -6,13 +6,16 @@ import {getWorldAsset, WORLD_IDENTITIES} from '../../lib/worlds/assets';
 export interface WorldRecord {rescued:number; stars:number; time:number; completed:boolean;revision?:number}
 export type WorldRecords = Record<string, WorldRecord>;
 
+declare const __GAME_VERSION__: string | undefined;
+const GAME_VERSION = typeof __GAME_VERSION__ === 'undefined' ? 'dev' : __GAME_VERSION__;
+
 export function WorldGate({onEnter,onSettings,onBook,records,muted,onMute,resumeAt}: {
   onEnter:(index:number)=>void; onSettings:()=>void; onBook:()=>void;
   records:WorldRecords; muted:boolean; onMute:()=>void;resumeAt:Record<string,number>;
 }) {
   return <section className="world-gate" aria-label="Choisir un monde">
     <header className="gate-header">
-      <div className="universe-mark"><Pencil size={21} strokeWidth={1.4}/><span>COUP DE<br/><b className="universe-wordmark">MAIN</b></span></div>
+      <div className="universe-mark"><Pencil size={21} strokeWidth={1.4}/><span>COUP DE<br/><b className="universe-wordmark">MAIN</b><small className="universe-version" aria-label={`Version ${GAME_VERSION}`}>v{GAME_VERSION}</small></span></div>
       <p>Un crayon. Trois mondes.</p>
       <nav aria-label="Réglages de l’univers">
         <button className="round-button" onClick={onBook} aria-label="Ouvrir le carnet des mondes" title="Le carnet des mondes"><BookOpen size={19}/></button>

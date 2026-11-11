@@ -2,6 +2,10 @@
 
 Les sources et les fichiers prêts à jouer sont publiés dans le [dépôt Coup de Main](https://github.com/M4D135/Coup-de-Main).
 
+## [2.1.1]
+
+- L’écran titre affiche le numéro de version du jeu sous le nom, pour vérifier d’un coup d’œil la version jouée.
+
 ## [2.1.0]
 
 ### Des voyages en trois actes

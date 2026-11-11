@@ -1,4 +1,4 @@
-# Coup de Main — Compilation autonome de la version 2.1.0
+# Coup de Main — Compilation autonome de la version 2.1.1
 
 [Dépôt public Coup de Main](https://github.com/M4D135/Coup-de-Main)
 
@@ -102,7 +102,7 @@ npm run public:export -- /chemin/absolu/vers/un-dossier-vide
 
 `public:build` produit `work/public-dist/`. L’exporteur suit uniquement les imports actifs de `app/page.tsx`, ajoute les fichiers `tests/worlds-*.test.ts` et leurs dépendances, puis copie une liste explicite de fichiers de compilation, documentation et médias actifs. Les fichiers des mondes sont inclus avec leur manifeste. Les anciens moteurs `lib/trait`, leurs composants, leurs tests et les documents `docs/archive/` ne sont pas inclus dans cette distribution. Leurs sources restent préservées dans le checkout de création.
 
-L’export refuse un dossier de destination non vide. Il ne reprend ni historique Git, identité d’hébergement, variables d’environnement, configuration de serveur, connecteurs ni fichiers de travail. `PUBLIC-MANIFEST.json` énumère les fichiers exportés, leurs tailles et leurs empreintes SHA-256. Son champ `version` désigne le format du manifeste ; `gameVersion` reprend la version du jeu. Le paquet public porte la version **2.1.0** dans `package.json` et `package-lock.json`. Le manifeste des médias indique la même version ; les empreintes des illustrations conservées restent celles de leurs fichiers d’origine.
+L’export refuse un dossier de destination non vide. Il ne reprend ni historique Git, identité d’hébergement, variables d’environnement, configuration de serveur, connecteurs ni fichiers de travail. `PUBLIC-MANIFEST.json` énumère les fichiers exportés, leurs tailles et leurs empreintes SHA-256. Son champ `version` désigne le format du manifeste ; `gameVersion` reprend la version du jeu. Le paquet public porte la version **2.1.1** dans `package.json` et `package-lock.json`. Le manifeste des médias indique la même version ; les empreintes des illustrations conservées restent celles de leurs fichiers d’origine.
 
 Dans le dossier exporté, `npm ci && npm run check` vérifie la distribution comme après un clone neuf. Le script d’export et le build locaux ne créent aucune release GitHub et ne déploient pas automatiquement le Site. Ce paquet est destiné à la distribution Coup de Main. Les scripts VPS et le workflow de déploiement de l’ancien projet restent dans son dépôt historique ; ils ne sont pas copiés dans ce paquet.
 

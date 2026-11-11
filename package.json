@@ -1,6 +1,6 @@
 {
   "name": "coup-de-main",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "private": true,
   "description": "Coup de Main : trois mondes, neuf énigmes de dessin et de coopération pour guider douze compagnons autonomes.",
   "type": "module",

@@ -9,6 +9,7 @@ export const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..'
 
 /** Standalone client build: no server framework, account, secret, or connector. */
 export function publicConfig(outDir = resolve(projectRoot, 'dist')) {
+  const gameVersion = JSON.parse(readFileSync(resolve(projectRoot, 'package.json'), 'utf8')).version;
   const favicon = `data:image/svg+xml;base64,${readFileSync(resolve(projectRoot, 'public/favicon.svg')).toString('base64')}`;
   return {
     configFile: false,
@@ -20,7 +21,7 @@ export function publicConfig(outDir = resolve(projectRoot, 'dist')) {
       {name: 'embedded-favicon', transformIndexHtml: {order: 'pre', handler: html => html.replace('__TRAIT_FAVICON__', favicon)}},
     ],
     resolve: {alias: {'@': projectRoot}},
-    define: {__WORLDS_ASSETS__:'globalThis.__COUP_DE_MAIN_ASSETS__'},
+    define: {__WORLDS_ASSETS__:'globalThis.__COUP_DE_MAIN_ASSETS__', __GAME_VERSION__: JSON.stringify(gameVersion)},
     css: {postcss: {plugins: [tailwind({base: resolve(projectRoot, 'app')})]}},
     build: {
       outDir,

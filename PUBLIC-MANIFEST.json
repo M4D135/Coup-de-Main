@@ -1,7 +1,7 @@
 {
   "version": 1,
   "project": "Coup de Main",
-  "gameVersion": "2.1.0",
+  "gameVersion": "2.1.1",
   "files": [
     {
       "path": ".github/workflows/public-ci.yml",
@@ -25,23 +25,23 @@
     },
     {
       "path": "CHANGELOG.md",
-      "bytes": 2543,
-      "sha256": "233e4ae9679706541ab2abed5cfc3987fe4f43e6fb461c0036af541e6419785d"
+      "bytes": 2680,
+      "sha256": "ee2b63d1733c1c8f3245a18efe4fe393a18ba4e981baf2fa08f8fb7704cfb075"
     },
     {
       "path": "CREDITS.md",
       "bytes": 4968,
-      "sha256": "1e593b5c6910a071f1e98670fd8dedcb3730ce23044310f15f92a689a9e7cf4c"
+      "sha256": "028113afa0c558b115c7473b961ebeb16612529a7e445c293cb7a66b16d3ecc7"
     },
     {
       "path": "README.md",
       "bytes": 11563,
-      "sha256": "4619494b5e3233e4ea3f1b23399372916d76f24384b3c0b8563cde5f8b9a69f1"
+      "sha256": "185b389c9bf926bd969880d30a9587709598047755c2b85edc0d5161c7c41643"
     },
     {
       "path": "app/globals.css",
-      "bytes": 39748,
-      "sha256": "d3afb6895ce50e0dc5e3173372e90799afa05e36656ff087df34136f236951d2"
+      "bytes": 39861,
+      "sha256": "a9b5f9a46ba6a486ea6c98d6c94f3f0add0c608da6ca9d38febbcf5257f03e1d"
     },
     {
       "path": "app/page.tsx",
@@ -55,13 +55,13 @@
     },
     {
       "path": "components/worlds/world-gate.tsx",
-      "bytes": 3156,
-      "sha256": "602e1ef624c3af1d39fe951d53c6aa3e945583346e57fb9814f14001a8385908"
+      "bytes": 3396,
+      "sha256": "f58bb8b76ed31c2e283bece3181217dd11eb2dcd3d9e274d7d84e29310156f90"
     },
     {
       "path": "docs/BUILD.md",
       "bytes": 13342,
-      "sha256": "1f62f19ab48355d95e0736d5407a02fef7601b692d217c922a33c8eebe11b777"
+      "sha256": "dcf56cc95d9cae5b2672cb0ff5df9e051af2374f3403ce364056325241d5dfb3"
     },
     {
       "path": "docs/THIRD-PARTY-NOTICES.md",
@@ -71,7 +71,7 @@
     {
       "path": "docs/WORLDS.md",
       "bytes": 11948,
-      "sha256": "5caaec5f43e5f56dfebec901bb25b001cc2c7d625ee7648d083005087dc71422"
+      "sha256": "a9b04022228a0bdbe0eac87ced76189a2d0d63726595010f3327d7470c11315a"
     },
     {
       "path": "lib/worlds/assets.ts",
@@ -121,12 +121,12 @@
     {
       "path": "package-lock.json",
       "bytes": 56478,
-      "sha256": "42d4d85417de9c3b536b9a0e187ac44921ffd2b3e72d710eef4550423bec746a"
+      "sha256": "dce488270907b3cc2605a7124bf838c31f3f46be089508aa89fec66b40a20a36"
     },
     {
       "path": "package.json",
       "bytes": 990,
-      "sha256": "7e3a68d89e03cb4281ca26493151d9407725f5bf18aa88c4bcadf7fd72ad8f32"
+      "sha256": "5eef5f067171488583bd483d477d79d9163b62e55baa0d41113fd1c7b259c27f"
     },
     {
       "path": "public/drawing-hand-hd-manifest.json",
@@ -166,7 +166,7 @@
     {
       "path": "public/worlds/manifest.json",
       "bytes": 5736,
-      "sha256": "0146b0866201e53f035e2f04006b89aee10537fd96bc931c786244329552cd03"
+      "sha256": "bc18863c3a084c06156539eb5edbb7dac6dcae93a38cd91626dbe7925fd5b62c"
     },
     {
       "path": "public/worlds/plis-art.png",
@@ -230,8 +230,8 @@
     },
     {
       "path": "scripts/public-vite.config.mjs",
-      "bytes": 1493,
-      "sha256": "7374e7f661a8c1a56bab179361c90cadba1c8fcc7a09bd064759af8eea2e0b70"
+      "bytes": 1642,
+      "sha256": "071e39b877a5d9d5202912d5ac0e81b1cf2511b1f90b89000fe353acf61dff0c"
     },
     {
       "path": "tests/worlds-camera.test.ts",
