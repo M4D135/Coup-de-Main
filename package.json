@@ -1,8 +1,8 @@
 {
   "name": "coup-de-main",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "private": true,
-  "description": "Les Mondes du Trait : trois mondes de dessin et de coopération, douze compagnons autonomes à guider.",
+  "description": "Coup de Main : trois mondes, neuf énigmes de dessin et de coopération pour guider douze compagnons autonomes.",
   "type": "module",
   "engines": {
     "node": ">=22.13.0"

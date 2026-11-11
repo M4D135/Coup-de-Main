@@ -1,8 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {WORLD_LEVELS} from '../lib/worlds/levels';
-import {ANCHOR_RADIUS,appendStroke,applyAction,beginStroke,createRun,finishStroke,getEdgePath,getPendulumPosition,getRunSummary,pathLength,restoreRun,saveRun,updateRun} from '../lib/worlds/engine';
+import {ANCHOR_RADIUS,appendStroke,applyAction,beginStroke,createRun,finishStroke,getActiveAct,getEdgePath,getPendulumPosition,getRunSummary,pathLength,restoreRun,saveRun,updateRun} from '../lib/worlds/engine';
 import type {WorldLevel,WorldRun} from '../lib/worlds/types';
+import {solveCurrentAct} from './worlds-walkthrough';
 
 function tick(run:WorldRun,level:WorldLevel,seconds:number,dt=1/60){for(let t=0;t<seconds-1e-9;t+=dt)updateRun(run,level,Math.min(dt,seconds-t));}
 function waitFor(run:WorldRun,level:WorldLevel,predicate:()=>boolean,limit=120){
@@ -49,9 +50,9 @@ test('Petits Plis offers a distinct complete lower solution, without a hidden ex
   draw(run,level,'paper-detour',true);device(run,level,'fork',1);device(run,level,'deflector',2);
   applyAction(run,level,{type:'start'});waitFor(run,level,()=>run.phase==='won');
   assert.equal(run.saved,12);assert.equal(run.devices.cleat.mode,0);assert.equal(run.devices.deflector.progress,0);
-  assert.equal(getRunSummary(run,level).stars,2);
-  assert.equal(getRunSummary(run,level).mastered,false);
-  assert.match(getRunSummary(run,level).masteryGoal,/taquet du moulin/);
+  assert.equal(getRunSummary(run,level).stars,3);
+  assert.equal(getRunSummary(run,level).mastered,true);
+  assert.match(getRunSummary(run,level).masteryGoal,/route de ton choix/);
 });
 
 test('Boucles: a wrong first junction remains recoverable on foot, including after a mid-return save',()=>{
@@ -116,7 +117,7 @@ test('Veilleurs: a troop sent to the unpowered lift can return to activate the b
 });
 
 test('Veilleurs: the pendulum has both a safe crossing window and a dangerous timing',()=>{
-  const level=WORLD_LEVELS[2];
+  const level=getActiveAct(WORLD_LEVELS[2],{actIndex:1});
   function crossAt(time:number){
     const run=createRun(level);run.phase='playing';run.spawned=12;run.saved=11;run.time=time;
     for(const unit of run.units){
@@ -131,17 +132,11 @@ test('Veilleurs: the pendulum has both a safe crossing window and a dangerous ti
   assert.equal(crossAt(2).state,'lost','the balancier must remain a real hazard');
 });
 
-test('Veilleurs: all twelve can actually complete the lower route by observing the pendulum and pulsing the gate',()=>{
-  const level=WORLD_LEVELS[2],run=createRun(level);
-  draw(run,level,'lower-return');device(run,level,'fork',2);applyAction(run,level,{type:'start'});
-  for(let frame=0;frame<60*160&&run.phase==='playing';frame++){
-    const phase=run.time%12;
-    const mode=(phase>=6.25&&phase<6.45)||(phase>=10&&phase<10.2)?1:0;
-    if(run.devices['pendulum-gate'].mode!==mode)device(run,level,'pendulum-gate',mode);
-    updateRun(run,level,1/60);
-  }
+test('Veilleurs: two timed scouts activate the brake and secure the lower route for the whole troupe',()=>{
+  const level=getActiveAct(WORLD_LEVELS[2],{actIndex:1}),run=createRun(level);
+  solveCurrentAct(run,level);
   assert.equal(run.phase,'won');assert.equal(run.saved,12);assert.equal(run.lost,0);
-  assert.equal(run.devices.balance.progress,0);assert.equal(run.devices.lift.progress,0);
+  assert.equal(run.devices['pendulum-brake'].mode,1);assert.equal(run.devices['pendulum-brake'].progress,1);
 });
 
 test('the troupe waits safely at a missing span, keeps its spacing, and accepts a bridge while paused',()=>{
@@ -208,7 +203,7 @@ test('save and restore retain every route, mechanism and creature and resume in 
   assert.equal(restoreRun({...snapshot,units:[{...snapshot.units[0],x:NaN},...snapshot.units.slice(1)]},level),null);
 });
 
-test('legacy version-1 saves and live HMR units remain usable without return fields',()=>{
+test('live HMR units remain usable without optional return fields',()=>{
   const level=WORLD_LEVELS[1],run=createRun(level);
   draw(run,level,'paper-detour');device(run,level,'fork',1);device(run,level,'deflector',2);
   applyAction(run,level,{type:'start'});tick(run,level,8);
@@ -242,7 +237,7 @@ test('drawn approaches and fixed tails meet the physical platforms; pendulum ren
   assert.deepEqual(low[0],{x:800,y:666});assert.deepEqual(low[1],{x:860,y:666});
   const high=getEdgePath(v,veilleurs,veilleurs.edges.find(edge=>edge.id==='pan-return')!);
   assert.deepEqual(high[0],{x:590,y:360});assert.deepEqual(high.at(-1),{x:950,y:400});assert(pathLength(high)>300);
-  const pendulum=veilleurs.devices.find(device=>device.id==='pendulum')!;
+  const pendulum=getActiveAct(veilleurs,{actIndex:1}).devices.find(device=>device.id==='pendulum')!;
   for(const time of [0,1,2,3,10]){
     const bob=getPendulumPosition(pendulum,time);assert(Math.abs(Math.hypot(bob.x-pendulum.pivot!.x,bob.y-pendulum.pivot!.y)-pendulum.length!)<.001);
   }

@@ -9,6 +9,7 @@ export interface RouteNode extends Point {
   /** Weight stations hold their occupants until their counterweight is latched. */
   deviceId?:string;
   capacity?:number;
+  arrivalTrigger?:{deviceId:string;mode:number;minVisitors:number};
 }
 
 export interface Gate {
@@ -33,6 +34,8 @@ export interface RouteEdge {
   priority?:number;
   capacity?:number;
   hidden?:boolean;
+  /** A clearly marked scout passage; reservations count before arrival. */
+  maxPassages?:number;
 }
 
 export interface DeviceDefinition extends Point {
@@ -55,6 +58,10 @@ export interface DeviceDefinition extends Point {
   phase?:number;
   low?:Point;
   high?:Point;
+  playerControlled?:boolean;
+  activationNodeId?:string;
+  autoCloseAfter?:number;
+  holdOpenDeviceId?:string;
 }
 
 export interface DrawingDefinition {
@@ -102,6 +109,41 @@ export interface WorldLevel {
   /** The third star is an explicit stage challenge, never an undisclosed retry penalty. */
   masteryGoal:string;
   masteryDevices?:Gate[];
+  inkBudget?:number;
+  objectives?:WorldObjective[];
+  acts?:WorldAct[];
+  /** Present on a resolved act, so helpers never resolve it a second time. */
+  actKey?:string;
+  actNumber?:number;
+  journeyActCount?:number;
+}
+
+export type ObjectiveCondition =
+  | {kind:'drawing';id:string}
+  | {kind:'device';gate:Gate}
+  | {kind:'visitors';nodeId:string;count:number}
+  | {kind:'arrivals'};
+export interface WorldObjective {id:string;label:string;conditions:ObjectiveCondition[]}
+export type WorldAct = Pick<WorldLevel,'description'|'objective'|'nodes'|'edges'|'devices'|'drawings'|'hints'|'masteryInk'|'masteryGoal'>
+  & Partial<Pick<WorldLevel,'masteryDevices'|'objectives'|'inkBudget'|'pace'|'spawn'|'goal'|'spawnInterval'>>
+  & {key:string;title:string};
+
+export interface ActResult {
+  index:number;
+  key:string;
+  saved:number;
+  lost:number;
+  lostIds:number[];
+  time:number;
+  inkUsed:number;
+  mastered:boolean;
+}
+
+export interface DeviceStatus {
+  id:string;label:string;description:string;stateLabel:string;
+  load:number;requiredLoad:number|null;progress:number;
+  actionable:boolean;nextMode:number|null;actionLabel:string;reason:string;
+  modes:Array<{mode:number;label:string;enabled:boolean;reason:string}>;
 }
 
 export interface Creature extends Point {
@@ -119,6 +161,8 @@ export interface Creature extends Point {
   /** A changed junction can call stranded companions back along their actual path. */
   returning:boolean;
   returnEdges:string[];
+  /** Allocated at boarding; surviving IDs need not be consecutive. */
+  formationSlot?:number|null;
   /** Stable pose/voice variation, independent of frame rate. */
   variant:number;
 }
@@ -127,6 +171,7 @@ export interface DeviceState {
   mode:number;
   progress:number;
   load:number;
+  released?:number;
 }
 
 export interface DrawnRoute {
@@ -155,8 +200,10 @@ export type EditSnapshot = {
 };
 
 export interface RunSnapshot {
-  version:1;
+  version:2;
   levelId:WorldId;
+  actIndex:number;
+  actResults:ActResult[];
   phase:RunPhase;
   time:number;
   speed:1|2;
@@ -170,6 +217,8 @@ export interface RunSnapshot {
   accumulator:number;
   edits:number;
   retries:number;
+  visits:Record<string,number[]>;
+  passages:Record<string,number[]>;
 }
 
 export interface WorldRun extends RunSnapshot {
@@ -186,6 +235,8 @@ export type GameAction =
   | {type:'speed';value?:1|2}
   | {type:'device';id:string;mode?:number}
   | {type:'undo'}
+  | {type:'erase';id?:string}
+  | {type:'advanceAct'}
   | {type:'restart'}
   | {type:'checkpoint'}
   | {type:'retry'};

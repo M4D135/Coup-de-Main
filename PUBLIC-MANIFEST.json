@@ -1,5 +1,7 @@
 {
   "version": 1,
+  "project": "Coup de Main",
+  "gameVersion": "2.1.0",
   "files": [
     {
       "path": ".github/workflows/public-ci.yml",
@@ -8,8 +10,8 @@
     },
     {
       "path": ".github/workflows/release-worlds.yml",
-      "bytes": 7808,
-      "sha256": "1354a5a6c8055a3a12298d93bbecefdef321472c1d3f4bedce31a986c271ef31"
+      "bytes": 8200,
+      "sha256": "c6d7ea247bf12d81de55cab82549b04c5d3fec526f82d177485200dd92d7937e"
     },
     {
       "path": ".gitignore",
@@ -22,34 +24,44 @@
       "sha256": "f14b4987904bcb5814e4459a057ed4d20f58a633152288a761214dcd28780b56"
     },
     {
+      "path": "CHANGELOG.md",
+      "bytes": 2543,
+      "sha256": "233e4ae9679706541ab2abed5cfc3987fe4f43e6fb461c0036af541e6419785d"
+    },
+    {
       "path": "CREDITS.md",
       "bytes": 4968,
-      "sha256": "ea7e485de8a59cb20057fc26770d9afca5c178342924638f298eabddfff57de5"
+      "sha256": "1e593b5c6910a071f1e98670fd8dedcb3730ce23044310f15f92a689a9e7cf4c"
     },
     {
       "path": "README.md",
-      "bytes": 9808,
-      "sha256": "6e801f15fe9a3ee87d30a6b2a1a0586c21a2eb61f5e088e83e6395225fe3f323"
+      "bytes": 11563,
+      "sha256": "4619494b5e3233e4ea3f1b23399372916d76f24384b3c0b8563cde5f8b9a69f1"
     },
     {
       "path": "app/globals.css",
-      "bytes": 26150,
-      "sha256": "e44f70b2a891db96cbeaaf85c3a75b9273d652db02a927d48d83c0deb533f6d8"
+      "bytes": 39748,
+      "sha256": "d3afb6895ce50e0dc5e3173372e90799afa05e36656ff087df34136f236951d2"
     },
     {
       "path": "app/page.tsx",
-      "bytes": 37961,
-      "sha256": "00f37b3887328477b365d1d360d8aae511fef8b2e56905dc6f3b544401709168"
+      "bytes": 46869,
+      "sha256": "234b353c0fe2701bdda03f1432878821a1cf947def59218681d79ae65782192c"
+    },
+    {
+      "path": "components/worlds/journey-tools.tsx",
+      "bytes": 7041,
+      "sha256": "658be2e5f7400491697e5e6592fc6ede2655e608d677f20a2a712b5319a65213"
     },
     {
       "path": "components/worlds/world-gate.tsx",
-      "bytes": 2811,
-      "sha256": "bdf3ccd3b825bebeae30c30713770ca5d6122f08214ad2f75aa851ce8f7453f2"
+      "bytes": 3156,
+      "sha256": "602e1ef624c3af1d39fe951d53c6aa3e945583346e57fb9814f14001a8385908"
     },
     {
       "path": "docs/BUILD.md",
-      "bytes": 11298,
-      "sha256": "5e164226161fa76ba6e36c9e09893605440a2f853f3c8fc43798bac36acf8a5c"
+      "bytes": 13342,
+      "sha256": "1f62f19ab48355d95e0736d5407a02fef7601b692d217c922a33c8eebe11b777"
     },
     {
       "path": "docs/THIRD-PARTY-NOTICES.md",
@@ -58,8 +70,8 @@
     },
     {
       "path": "docs/WORLDS.md",
-      "bytes": 8779,
-      "sha256": "070e0f3658e2856283a294c8667c7668bb437c89390fcdf96de68c684b84de35"
+      "bytes": 11948,
+      "sha256": "5caaec5f43e5f56dfebec901bb25b001cc2c7d625ee7648d083005087dc71422"
     },
     {
       "path": "lib/worlds/assets.ts",
@@ -78,18 +90,23 @@
     },
     {
       "path": "lib/worlds/engine.ts",
-      "bytes": 32477,
-      "sha256": "6e5c2228c99a35d9f97c2493121ba935b8e93597dc36ae3df5a90ee36d2f6c3e"
+      "bytes": 52662,
+      "sha256": "eff931cb4daf0a4537fdf78c53ca528479c71f5c55a8e6820f7f4bd8d55ab5b6"
     },
     {
       "path": "lib/worlds/levels.ts",
-      "bytes": 12729,
-      "sha256": "2cf23e0ff7e66edc1ba010e49247f4d6ace874af3dca88f314f18323ceb889ce"
+      "bytes": 30010,
+      "sha256": "da4c369d150ebe7fba95e4eb56494a5a6fa16a6f8b8db46035d4d889a546e14e"
+    },
+    {
+      "path": "lib/worlds/renderer-guidance.ts",
+      "bytes": 3487,
+      "sha256": "7dc8c2c601b22def0657407d76100e6ba4a6f618bf356fde34acb43de4cf48d5"
     },
     {
       "path": "lib/worlds/renderer.ts",
-      "bytes": 26557,
-      "sha256": "7566bbafdaa7c65006c871aceb9c9a2c232bd37e3fb9e4844b85b28d19eb075c"
+      "bytes": 40835,
+      "sha256": "6bd405d0407232c28267998ed305b7caa5c8f91645679c9af943fbaa03c23c5d"
     },
     {
       "path": "lib/worlds/session.ts",
@@ -98,18 +115,18 @@
     },
     {
       "path": "lib/worlds/types.ts",
-      "bytes": 4305,
-      "sha256": "1ae808a7506dd35171a95c1d76cc8861db3902f215b279fdd7ef1d7e99357bb3"
+      "bytes": 6095,
+      "sha256": "86c272e5b423784c3e3fb314dbb8cd4a96447c97cce23a486658804fcfb9f9e9"
     },
     {
       "path": "package-lock.json",
       "bytes": 56478,
-      "sha256": "77f3364787cd2de3e937fbc5895503ee8c57a9ad3295d9abb342965e29528ae7"
+      "sha256": "42d4d85417de9c3b536b9a0e187ac44921ffd2b3e72d710eef4550423bec746a"
     },
     {
       "path": "package.json",
-      "bytes": 981,
-      "sha256": "52fb5e51a02aa7a78cc9c697a20e1b0cda3e6d46514ed2b061d3702ac131b046"
+      "bytes": 990,
+      "sha256": "7e3a68d89e03cb4281ca26493151d9407725f5bf18aa88c4bcadf7fd72ad8f32"
     },
     {
       "path": "public/drawing-hand-hd-manifest.json",
@@ -149,7 +166,7 @@
     {
       "path": "public/worlds/manifest.json",
       "bytes": 5736,
-      "sha256": "fc14e923f7efc24ac850d1d93faf8de3bc07d20d6209af776224a82320d1ae74"
+      "sha256": "0146b0866201e53f035e2f04006b89aee10537fd96bc931c786244329552cd03"
     },
     {
       "path": "public/worlds/plis-art.png",
@@ -218,13 +235,28 @@
     },
     {
       "path": "tests/worlds-camera.test.ts",
-      "bytes": 5486,
-      "sha256": "4708740e918a644635114a1cdb0554f3f6dba548f2e0d085d011971898e12fb4"
+      "bytes": 5703,
+      "sha256": "152c5a0f4b2e5a1d46477adaa85aa4955bd493cfbbcd32439b0eeda411d72f79"
     },
     {
       "path": "tests/worlds-engine.test.ts",
-      "bytes": 16556,
-      "sha256": "912f5c3e8bcf064e42489f7fc102bc6451378b7f224348da0372a4e242fa5082"
+      "bytes": 16338,
+      "sha256": "1f93b54b3d6b50f2e378e56247dd01706e2392f4dcf53f1d279fc35fa8ef5876"
+    },
+    {
+      "path": "tests/worlds-guidance.test.ts",
+      "bytes": 4976,
+      "sha256": "53b24acfcd7bee37aad8e3fbb1315f484532b9b09df89cbb529ae6e23a2f70e4"
+    },
+    {
+      "path": "tests/worlds-journey.test.ts",
+      "bytes": 9691,
+      "sha256": "cbb17348fd76c96852fbde797e06c6b8eec4ad077f64a581e3f77a54f9607033"
+    },
+    {
+      "path": "tests/worlds-walkthrough.ts",
+      "bytes": 5574,
+      "sha256": "28056187ad9fc2751defa3c095a480775aafc90fceb7f74fc18725b116d1c07a"
     },
     {
       "path": "tsconfig.json",

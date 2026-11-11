@@ -1,4 +1,4 @@
-# Coup de Main — Compilation autonome de la version 2.0.0
+# Coup de Main — Compilation autonome de la version 2.1.0
 
 [Dépôt public Coup de Main](https://github.com/M4D135/Coup-de-Main)
 
@@ -21,7 +21,7 @@ npm run build
 npm run check
 ```
 
-L’entrée `scripts/public-app/main.tsx` monte `app/page.tsx` et importe ses styles. `scripts/public-vite.config.mjs` utilise React et Vite, sans framework serveur. Ce build inclut **les trois mondes et un stage par monde**, avec douze compagnons dans chaque stage.
+L’entrée `scripts/public-app/main.tsx` monte `app/page.tsx` et importe ses styles. `scripts/public-vite.config.mjs` utilise React et Vite, sans framework serveur. Ce build inclut **trois mondes, chacun parcouru en trois actes**, soit neuf énigmes. Un voyage commence avec douze compagnons ; ses survivants poursuivent dans les actes suivants.
 
 | Sortie | Contenu et destination |
 | --- | --- |
@@ -55,9 +55,13 @@ Les artworks conservés ont les mêmes pixels que les trois images fournies par 
 
 ## Sauvegardes et comportement hors ligne
 
-Les étoiles récompensent le nombre de compagnons sauvés puis l’objectif de maîtrise du stage : budget d’encre et, pour Petits Plis, réglage complet du moulin. Les indices et les nouvelles tentatives ne diminuent pas le résultat.
+Les étoiles finales récompensent les survivants au terme des trois actes, puis le respect du budget d’encre cumulé du voyage. La somme retient l’encre des passages encore présents à la fin de chaque tableau. Les conditions des mécanismes servent à résoudre les actes ; un ancien critère de position finale du moulin ne constitue plus un objectif d’étoile distinct. Les indices et les nouvelles tentatives ne diminuent pas le résultat.
 
-La V2 conserve les parties en cours, résultats, indices consultés et réglages dans `localStorage`, sous une clé distincte de l’ancienne aventure. Une partie restaurée reprend en pause. La V2 ne convertit ni ne supprime les données de la campagne V1.
+La V2 conserve les parties en cours, résultats, indices consultés et réglages dans `localStorage`, sous une clé distincte de l’ancienne aventure. La version 2.1 enregistre l’acte courant, les résultats des actes achevés et les survivants du voyage. Une partie restaurée reprend en pause. Recommencer un tableau rétablit sa troupe d’entrée et conserve la progression antérieure.
+
+Le menu distingue la reprise du tableau de **Recommencer le voyage entier**. Ce second choix remet les douze compagnons au premier tableau après confirmation et conserve le meilleur résultat.
+
+Les sauvegardes issues du format 2.0 sont reconnues sans être appliquées telles quelles à une campagne différente : le voyage repart au premier acte avec un message explicatif. Les anciens résultats sont distingués des records à trois actes. Les données de l’aventure historique V1 restent séparées.
 
 Le stockage dépend du navigateur et de l’origine du document. Une adresse `file:` peut ne pas disposer des mêmes garanties qu’un site HTTP. L’interface indique lorsque la sauvegarde persistante est indisponible ; le jeu reste jouable. Les données du site, du fichier autonome et de navigateurs différents ne sont pas synchronisées.
 
@@ -67,18 +71,23 @@ Le démarrage de Web Audio demande un geste utilisateur. Le plein écran dépend
 
 `scripts/public-test.mjs` découvre les fichiers `tests/**/*.test.ts` et `.spec.ts`, les compile avec TypeScript dans un dossier temporaire CommonJS puis lance le runner de Node. Le dossier temporaire est nettoyé à la fin.
 
-La suite V2 contrôle notamment les solutions complètes des Boucles, les deux itinéraires de Petits Plis et le transport de toute la troupe des Veilleurs par l’ascenseur. Elle couvre aussi le dessin dans les deux sens, les tracés refusés, la protection des passages occupés, les files d’attente, la pause, la cadence fixe et la reprise de sauvegarde. Le paquet public contient uniquement les **24 tests** des trois mondes : **16 tests moteur** dans `worlds-engine.test.ts` et **8 tests caméra** dans `worlds-camera.test.ts`. Les contrôles caméra couvrent l’accès aux appuis et mécanismes, les bornes de déplacement, le défilement pendant le dessin et la résistance aux coordonnées invalides. Les tests historiques V1 sont conservés ailleurs, hors de ce paquet.
+La suite publique regroupe les fichiers `tests/worlds-*.test.ts`. Les contrôles du moteur portent sur les parcours, les effectifs, les files d’attente, le dessin, les gestes protégés, les réglages, la cadence fixe et la reprise. La progression à trois actes, les survivants et les règles d’encre doivent rester cohérents pendant les transitions et les nouvelles tentatives.
+
+Les tests de caméra contrôlent l’accès aux appuis et mécanismes, les bornes de déplacement, le défilement pendant le dessin et les coordonnées invalides. Les tests de guidage couvrent la projection des étiquettes, leur taille en pixels d’écran, les bornes en portrait et en paysage, la protection d’une explication sélectionnée contre les bulles d’attente et la concordance des zones de sélection. Le runner affiche le nombre exact de tests et leur résultat ; les tests historiques V1 restent hors de ce paquet.
 
 Les contrôles automatisés ne remplacent pas les essais de rendu et d’interaction. Avant une livraison, vérifier dans le navigateur :
 
-- L’accueil affiche les trois artworks et ouvre le stage correspondant.
+- L’accueil affiche les trois artworks et ouvre le voyage correspondant.
 - Le décor, les personnages, les mécanismes, les appuis et les collisions restent alignés à différentes tailles de fenêtre.
 - Le crayon accepte les gestes dans les deux sens ; annuler ou rater un dessin conserve un passage valide précédent.
-- Les mécanismes répondent au toucher ou à la souris, et les compagnons attendent devant un passage indisponible.
+- Sélectionner un mécanisme ouvre son explication sans le commander ; ses actions sont nommées et les conditions indisponibles sont lisibles.
+- Le panneau d’objectif et les repères montrent le tableau courant, sa progression et les attentes. Les petits écrans gardent accès aux commandes et à l’arrivée.
+- La Gomme récupère l’encre d’un passage libre et refuse un passage occupé. Son retour d’action correspond à l’état affiché.
 - La pause, le retour au menu, la reprise de sauvegarde et la vitesse ×2 gardent un état cohérent.
 - Le zoom et le déplacement du décor fonctionnent sur un écran étroit ; aucune action sur la scène ne déclenche le défilement de la page.
 - Les sons commencent après un geste, respectent le volume et peuvent être coupés.
-- Les trois stages peuvent être terminés avec les interactions de l’interface ; les tests moteur seuls ne valent pas validation manuelle.
+- Les neuf actes peuvent être terminés avec les interactions de l’interface ; l’acte suivant conserve les survivants, et recommencer ne réinitialise que le tableau courant.
+- Une reprise d’une campagne récente retrouve le bon acte en pause ; une sauvegarde 2.0 n’est pas annoncée comme une campagne 2.1 déjà gagnée.
 
 Les résultats annoncés pour une livraison doivent distinguer le moteur automatisé, le navigateur utilisé et les appareils mobiles réellement essayés.
 
@@ -93,13 +102,13 @@ npm run public:export -- /chemin/absolu/vers/un-dossier-vide
 
 `public:build` produit `work/public-dist/`. L’exporteur suit uniquement les imports actifs de `app/page.tsx`, ajoute les fichiers `tests/worlds-*.test.ts` et leurs dépendances, puis copie une liste explicite de fichiers de compilation, documentation et médias actifs. Les fichiers des mondes sont inclus avec leur manifeste. Les anciens moteurs `lib/trait`, leurs composants, leurs tests et les documents `docs/archive/` ne sont pas inclus dans cette distribution. Leurs sources restent préservées dans le checkout de création.
 
-L’export refuse un dossier de destination non vide. Il ne reprend ni historique Git, identité d’hébergement, variables d’environnement, configuration de serveur, connecteurs ni fichiers de travail. `PUBLIC-MANIFEST.json` énumère les fichiers exportés, leurs tailles et leurs empreintes SHA-256. Le paquet public porte la version **2.0.0** dans `package.json` et `package-lock.json`.
+L’export refuse un dossier de destination non vide. Il ne reprend ni historique Git, identité d’hébergement, variables d’environnement, configuration de serveur, connecteurs ni fichiers de travail. `PUBLIC-MANIFEST.json` énumère les fichiers exportés, leurs tailles et leurs empreintes SHA-256. Son champ `version` désigne le format du manifeste ; `gameVersion` reprend la version du jeu. Le paquet public porte la version **2.1.0** dans `package.json` et `package-lock.json`. Le manifeste des médias indique la même version ; les empreintes des illustrations conservées restent celles de leurs fichiers d’origine.
 
 Dans le dossier exporté, `npm ci && npm run check` vérifie la distribution comme après un clone neuf. Le script d’export et le build locaux ne créent aucune release GitHub et ne déploient pas automatiquement le Site. Ce paquet est destiné à la distribution Coup de Main. Les scripts VPS et le workflow de déploiement de l’ancien projet restent dans son dépôt historique ; ils ne sont pas copiés dans ce paquet.
 
 ## Releases publiques
 
-Le paquet exporté comprend `.github/workflows/release-worlds.yml`, nommé **Versions publiques — Coup de Main**. Un push sur `main` qui modifie `package.json` ou ce workflow le déclenche ; un lancement manuel est aussi disponible. La version est lue dans le `package.json` public et doit respecter SemVer.
+Le paquet exporté comprend `.github/workflows/release-worlds.yml`, nommé **Versions publiques — Coup de Main**. Un push sur `main` qui modifie `package.json` ou ce workflow le déclenche ; un lancement manuel est aussi disponible. La version est lue dans le `package.json` public et doit respecter SemVer. L’entrée `## [version]` correspondante de [CHANGELOG.md](../CHANGELOG.md) est reprise dans les notes de release ; son absence bloque la publication pour éviter des notes sans rapport avec le paquet.
 
 Après `npm ci` et `npm run check`, le workflow prépare :
 

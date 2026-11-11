@@ -1,11 +1,11 @@
-import type {DrawingDefinition, Point, WorldLevel} from './types';
+import type {DrawingDefinition, Point, WorldAct, WorldLevel, WorldObjective} from './types';
 
 const p=(x:number,y:number):Point=>({x,y});
 const drawing=(id:string,label:string,from:Point,to:Point,inkLimit:number,hint:string,suggested?:Point[]):DrawingDefinition=>({
   id,label,from,to,inkLimit,hint,corridor:145,suggested:suggested??[from,p((from.x+to.x)/2,(from.y+to.y)/2-35),to],
 });
 
-export const WORLD_LEVELS:WorldLevel[]=[
+const BASE_LEVELS:WorldLevel[]=[
   {
     id:'boucles',number:1,name:'Les Boucles',stageName:'Le poids de l’entraide',
     description:'Une vallée d’encre, une nacelle et douze petits caractères.',
@@ -144,4 +144,165 @@ export const WORLD_LEVELS:WorldLevel[]=[
   },
 ];
 
+const objective=(id:string,label:string,conditions:WorldObjective['conditions']):WorldObjective=>({id,label,conditions});
+const arrivals=():WorldObjective=>objective('arrivals','Réunir tous les compagnons encore en route',[{kind:'arrivals'}]);
+const asAct=(base:WorldLevel,key:string,title:string,changes:Partial<WorldAct>={}):WorldAct=>{
+  const copied=structuredClone(base);
+  return {key,title,description:copied.description,objective:copied.objective,nodes:copied.nodes,edges:copied.edges,
+    devices:copied.devices,drawings:copied.drawings,hints:copied.hints,masteryInk:copied.masteryInk,
+    masteryGoal:copied.masteryGoal,masteryDevices:copied.masteryDevices,...changes};
+};
+
+function bouclesActs(base:WorldLevel):WorldAct[]{
+  const first=asAct(base,'entraide','Le poids de l’entraide',{
+    objective:'Envoie trois Boucles dans la nacelle, bloque le cliquet, puis prépare le passage du reste et le retour des porteuses.',
+    inkBudget:1250,
+    objectives:[
+      objective('balance','Charger la nacelle et bloquer son cliquet',[{kind:'device',gate:{deviceId:'balance',mode:1}}]),
+      objective('bridges','Dessiner le grand pont et le retour des porteuses',[{kind:'drawing',id:'sky-bridge'},{kind:'drawing',id:'cradle-return'}]),arrivals(),
+    ],
+  });
+  first.edges.find(edge=>edge.id==='weight-descent')!.gates=[{deviceId:'balance',mode:0}];
+  first.edges.find(edge=>edge.id==='weight-descent')!.maxPassages=3;
+  first.devices.find(device=>device.id==='balance')!.description='Trois porteuses suffisent. Bloque le cliquet : l’accès de la nacelle se ferme, son retour s’ouvre et le grand pont est soutenu.';
+
+  const second=asAct(base,'eclaireurs','Les éclaireurs des rives',{
+    objective:'Deux éclaireurs doivent atteindre l’autre rive par le bas. Ils ouvrent le passage du groupe resté en haut.',
+    inkBudget:1200,masteryInk:960,masteryGoal:'Réunis la troupe en laissant au plus 960 unités d’encre sur les deux passages.',
+    objectives:[objective('scouts','Faire arriver deux éclaireurs par la nacelle',[{kind:'visitors',nodeId:'landing',count:2}]),
+      objective('upper-route','Tracer le pont ouvert par les éclaireurs',[{kind:'drawing',id:'sky-bridge'}]),arrivals()],
+    hints:['Le petit groupe ouvre le passage du grand. La borne de l’autre rive indique 0/2, puis 1/2 et 2/2.',
+      'Dessine le retour depuis la nacelle et oriente la troupe vers le bas. Ce chemin accepte deux éclaireurs seulement.',
+      'Lorsque les deux éclaireurs ont atteint la rive droite, oriente le reste vers le pont et dessine ce passage. Les compagnons coincés font demi-tour.'],
+  });
+  second.nodes=second.nodes.map(node=>node.id==='cradle'?{id:node.id,x:node.x,y:node.y,kind:'wait'}:node.id==='landing'?{...node,arrivalTrigger:{deviceId:'river-lock',mode:1,minVisitors:2}}:node);
+  second.devices=[second.devices[0],{...second.devices[1],label:'La nacelle fixe',description:'Le passage bas accueille les deux éclaireurs.',modes:['Nacelle stabilisée'],requiredLoad:0,weightNodes:[]},
+    {id:'river-lock',kind:'gate',x:1190,y:335,label:'La borne de la rive',description:'Deux éclaireurs arrivés ici libèrent le grand pont. Oriente ensuite le reste de la troupe vers le haut.',modes:['Deux éclaireurs attendus','Grand pont ouvert'],initialMode:0,playerControlled:false,activationNodeId:'landing'}];
+  second.edges=second.edges.map(edge=>edge.id==='weight-descent'?{...edge,maxPassages:2,gates:[{deviceId:'river-lock',mode:0}]}:
+    edge.id==='upper-bridge'?{...edge,gates:[{deviceId:'river-lock',mode:1}]}:edge.id==='weight-return'?{...edge,gates:undefined}:edge);
+
+  const third=asAct(base,'dernier-fil','Le dernier fil',{
+    objective:'Deux éclaireurs passent en haut. Récupère ensuite l’encre de leur pont pour tracer la descente du reste de la troupe.',
+    inkBudget:650,masteryInk:490,masteryGoal:'Réunis la troupe avec au plus 490 unités d’encre laissées sur le dernier passage.',
+    objectives:[objective('scouts','Envoyer deux éclaireurs par le pont du haut',[{kind:'visitors',nodeId:'landing',count:2}]),
+      objective('return-ink','Récupérer l’encre puis tracer le chemin du bas',[{kind:'drawing',id:'cradle-return'}]),arrivals()],
+    hints:['Il n’y a pas assez d’encre pour garder les deux ponts à la fois. La gomme récupère l’encre d’un trait libre.',
+      'Dessine d’abord le grand pont. Deux éclaireurs peuvent le franchir ; les autres attendent. La borne de droite libère alors le passage bas.',
+      'Attends que les deux éclaireurs aient quitté le pont, efface ce pont avec la gomme, choisis la nacelle et dessine son retour vers la rive droite.'],
+  });
+  third.nodes=second.nodes.map(node=>node.id==='landing'?{...node,arrivalTrigger:{deviceId:'river-lock',mode:1,minVisitors:2}}:structuredClone(node));
+  third.devices=structuredClone(second.devices);
+  third.devices.find(device=>device.id==='river-lock')!.description='Deux éclaireurs du haut ouvrent le passage bas. Le pont du haut peut alors être effacé pour récupérer son encre.';
+  third.devices.find(device=>device.id==='river-lock')!.modes=['Deux éclaireurs attendus','Passage bas ouvert'];
+  third.edges=third.edges.map(edge=>edge.id==='upper-bridge'?{...edge,maxPassages:2,gates:[{deviceId:'river-lock',mode:0}]}:
+    edge.id==='weight-descent'?{...edge,gates:[{deviceId:'river-lock',mode:1}]}:edge.id==='weight-return'?{...edge,gates:[{deviceId:'river-lock',mode:1}]}:edge);
+  return [first,second,third];
+}
+
+function plisActs(base:WorldLevel):WorldAct[]{
+  const first=asAct(base,'premier-souffle','Le vent a ses raisons',{
+    objective:'Choisis une route : abrite le détour inférieur, ou fais travailler le moulin pour soutenir la passerelle haute.',
+    inkBudget:950,masteryDevices:undefined,
+    masteryGoal:'Réunis les douze Plis avec au plus 660 unités d’encre, par la route de ton choix.',
+    objectives:[objective('shelter','Mettre le passage à l’abri du vent',[{kind:'device',gate:{deviceId:'deflector',mode:2}}]),arrivals()],
+    hints:['Deux solutions sont possibles. Le détour inférieur fonctionne dès que le vent est écarté.',
+      'Route basse : place le déflecteur à l’abri, oriente la troupe en bas, puis dessine la rampe.',
+      'Route haute : dirige le vent vers le moulin, bloque son taquet une fois la corde en haut, puis mets le vent à l’abri et dessine le pont.'],
+  });
+  const second=asAct(base,'moulin-verrou','Le moulin et le verrou',{
+    objective:'Le passage inférieur est fermé. Monte la passerelle avec le moulin, bloque sa corde et relie les deux coupures.',
+    inkBudget:800,masteryInk:660,masteryDevices:undefined,
+    masteryGoal:'Réunis la troupe avec au plus 660 unités d’encre sur les deux coupures.',
+    objectives:[objective('mill','Faire monter le mécanisme et bloquer le taquet',[{kind:'device',gate:{deviceId:'cleat',mode:1}}]),
+      objective('two-spans','Relier le pont et la descente à l’abri',[{kind:'drawing',id:'paper-bridge'},{kind:'drawing',id:'paper-descent'},{kind:'device',gate:{deviceId:'deflector',mode:2}}]),arrivals()],
+    hints:['Le moulin doit d’abord soulever le support. La corde doit ensuite rester bloquée lorsque le vent change.',
+      'Dirige le vent vers le moulin, attends la montée complète et bloque le taquet. Tu peux maintenant mettre le vent à l’abri.',
+      'Dessine le grand pont puis la petite descente entre la passerelle haute et la rive de la maison.'],
+  });
+  second.devices=second.devices.map(device=>device.id==='fork'?{...device,label:'La voie haute',description:'La voie du moulin est la seule ouverte dans ce tableau.',modes:['Vers le moulin'],initialMode:0}:device);
+  second.edges=second.edges.filter(edge=>!['lower-fold','lower-approach'].includes(edge.id)).map(edge=>edge.id==='windy-descent'?{...edge,kind:'drawn',drawingId:'paper-descent'}:edge);
+  second.drawings=[second.drawings[0],drawing('paper-descent','La descente abritée',p(1175,450),p(1280,580),260,'Relie la passerelle haute à la rive de la maison.',[p(1175,450),p(1215,495),p(1240,560),p(1280,580)])];
+
+  const third=asAct(base,'deux-equipes','Les deux équipes',{
+    objective:'Deux Plis ouvrent le verrou depuis le chemin bas. Prépare ensuite le moulin pour faire traverser le reste en haut.',
+    inkBudget:1000,masteryInk:820,masteryDevices:undefined,
+    masteryGoal:'Réunis les deux équipes avec au plus 820 unités d’encre.',
+    objectives:[objective('scouts','Envoyer deux éclaireurs jusqu’au verrou inférieur',[{kind:'visitors',nodeId:'low',count:2}]),
+      objective('mill','Faire monter le moulin puis bloquer le taquet',[{kind:'device',gate:{deviceId:'cleat',mode:1}}]),
+      objective('safe-wind','Mettre le vent à l’abri pour la réunion',[{kind:'device',gate:{deviceId:'deflector',mode:2}}]),arrivals()],
+    hints:['Le verrou du pont se commande depuis le chemin inférieur. Seuls deux éclaireurs peuvent prendre ce détour.',
+      'Mets le vent à l’abri, choisis le bas et dessine la rampe. Attends que deux Plis atteignent la borne 2/2.',
+      'Dirige ensuite le vent vers le moulin, bloque le taquet en haut, remets le vent à l’abri et dirige le reste vers le pont dessiné.'],
+  });
+  third.nodes=third.nodes.map(node=>node.id==='low'?{...node,arrivalTrigger:{deviceId:'fold-lock',mode:1,minVisitors:2}}:node);
+  third.devices.push({id:'fold-lock',kind:'gate',x:1000,y:645,label:'Le verrou des deux plis',description:'Deux éclaireurs sur le chemin bas libèrent l’ancrage de la passerelle haute.',modes:['Deux éclaireurs attendus','Ancrage libéré'],initialMode:0,playerControlled:false,activationNodeId:'low'});
+  third.edges=third.edges.map(edge=>edge.id==='lower-fold'?{...edge,maxPassages:2,gates:[{deviceId:'deflector',mode:2},{deviceId:'fold-lock',mode:0}]}:
+    edge.id==='upper-crossing'?{...edge,gates:[{deviceId:'deflector',minProgress:.96},{deviceId:'fold-lock',mode:1}]}:edge);
+  return [first,second,third];
+}
+
+function veilleursActs(base:WorldLevel):WorldAct[]{
+  const first=asAct(base,'atelier','La mécanique du soir',{
+    objective:'Deux porteurs débloquent l’ascenseur. Verrouille la balance puis transporte le reste, trois passagers à la fois.',
+    inkBudget:1300,
+    objectives:[objective('balance','Charger la balance et engager son cran',[{kind:'device',gate:{deviceId:'balance',mode:1}}]),
+      objective('bridges','Dessiner le retour des porteurs et la passerelle',[{kind:'drawing',id:'balance-return'},{kind:'drawing',id:'lantern-bridge'}]),arrivals()],
+    hints:['Deux porteurs vont sur la balance. Le cran la verrouille et referme son accès ; le reste utilise l’ascenseur.',
+      'Dessine la rampe de la balance, son retour et le pont lumineux. Oriente deux Veilleurs vers la balance puis engage le cran.',
+      'Oriente les suivants vers l’ascenseur. Fais monter trois passagers, attends leur sortie et redescends chercher le groupe suivant.'],
+  });
+  first.edges=first.edges.filter(edge=>!['downstairs','low-floor','swing-crossing','low-home','lower-ramp'].includes(edge.id));
+  first.edges.find(edge=>edge.id==='pan-ramp')!.gates=[{deviceId:'balance',mode:0}];
+  first.edges.find(edge=>edge.id==='pan-ramp')!.maxPassages=2;
+  first.devices=first.devices.filter(device=>!['pendulum','pendulum-gate'].includes(device.id));
+  first.devices.find(device=>device.id==='fork')!.modes=['Vers l’ascenseur','Vers la balance'];
+  first.devices.find(device=>device.id==='balance')!.description='Deux porteurs lèvent le frein. Engage le cran : la balance garde ce réglage, ses porteurs sortent et son accès se ferme aux suivants.';
+  first.drawings=first.drawings.filter(item=>item.id!=='lower-return');
+
+  const second=asAct(base,'balancier','Le passage du balancier',{
+    objective:'Fais traverser deux éclaireurs au bon moment. Ils serrent le frein du balancier pour sécuriser le passage de tous les autres.',
+    inkBudget:550,masteryInk:390,masteryGoal:'Réunis les douze Veilleurs avec au plus 390 unités d’encre.',
+    objectives:[objective('brake','Faire atteindre le frein à deux éclaireurs',[{kind:'visitors',nodeId:'pendulum-exit',count:2}]),
+      objective('ascent','Tracer la remontée vers la maison',[{kind:'drawing',id:'lower-return'}]),arrivals()],
+    hints:['Tu n’as besoin de négocier le balancier que pour les deux premiers. La borne à droite du passage affiche leur progression.',
+      'Attends que le balancier s’éloigne du chemin puis libère un éclaireur. La barrière se referme toute seule. Recommence pour le second.',
+      'Une fois la borne 2/2 atteinte, le frein range le balancier sur le côté. Ouvre la barrière pour le reste et dessine la remontée finale.'],
+  });
+  second.nodes=second.nodes.map(node=>node.id==='pendulum-exit'?{...node,arrivalTrigger:{deviceId:'pendulum-brake',mode:1,minVisitors:2}}:node);
+  second.edges=second.edges.filter(edge=>['entry','downstairs','low-floor','swing-crossing','low-home','lower-ramp','home'].includes(edge.id)).map(edge=>edge.id==='downstairs'?{...edge,route:undefined}:edge);
+  second.devices=second.devices.filter(device=>['pendulum-gate','pendulum'].includes(device.id));
+  Object.assign(second.devices.find(device=>device.id==='pendulum-gate')!,{modes:['Attendre','Laisser passer un éclaireur'],autoCloseAfter:1,holdOpenDeviceId:'pendulum-brake',description:'Un clic libère un seul éclaireur puis la barrière se referme. Lorsque les deux éclaireurs ont serré le frein, elle laisse passer toute la troupe.'});
+  second.devices.find(device=>device.id==='pendulum')!.lockDeviceId='pendulum-brake';
+  second.devices.push({id:'pendulum-brake',kind:'gate',x:1195,y:650,label:'Le frein des éclaireurs',description:'Deux éclaireurs arrivés de l’autre côté serrent le frein. Le balancier se range ensuite hors du chemin.',modes:['Deux éclaireurs attendus','Frein serré'],initialMode:0,duration:1.2,playerControlled:false,activationNodeId:'pendulum-exit'});
+  second.drawings=second.drawings.filter(item=>item.id==='lower-return');
+
+  const third=asAct(base,'unisson','L’atelier à l’unisson',{
+    objective:'Deux porteurs passent par le haut et serrent le frein du balancier. Le reste de la troupe rejoint alors la maison par le passage bas sécurisé.',
+    inkBudget:1500,masteryInk:1250,masteryGoal:'Réunis les deux groupes avec au plus 1 250 unités d’encre.',
+    objectives:[objective('balance','Verrouiller la balance avec deux porteurs',[{kind:'device',gate:{deviceId:'balance',mode:1}}]),
+      objective('scouts','Faire arriver les deux porteurs près de la maison',[{kind:'visitors',nodeId:'landing',count:2}]),
+      objective('last-ramp','Tracer la remontée du groupe resté en bas',[{kind:'drawing',id:'lower-return'}]),arrivals()],
+    hints:['Le premier groupe ouvre le chemin du second. Deux porteurs seulement peuvent prendre la balance.',
+      'Dessine l’accès à la balance, son retour et le pont lumineux. Charge les deux porteurs et engage le cran. Attends qu’ils atteignent la borne près de la maison.',
+      'Le frein se serre alors et sécurise le balancier. Oriente le reste vers le passage inférieur et dessine la remontée finale.'],
+  });
+  third.nodes=third.nodes.map(node=>node.id==='landing'?{...node,arrivalTrigger:{deviceId:'pendulum-brake',mode:1,minVisitors:2}}:node);
+  third.devices=third.devices.filter(device=>!['lift','pendulum-gate'].includes(device.id));
+  const fork=third.devices.find(device=>device.id==='fork')!;
+  fork.modes=['Vers la balance','Passage inférieur'];fork.initialMode=0;fork.description='Les deux porteurs vont d’abord à la balance. Quand ils ont libéré le frein, oriente les autres vers le bas.';
+  third.devices.find(device=>device.id==='pendulum')!.lockDeviceId='pendulum-brake';
+  third.devices.push({id:'pendulum-brake',kind:'gate',x:1350,y:405,label:'La borne du frein',description:'Les deux porteurs arrivés près de la maison serrent le frein et ouvrent l’accès du groupe inférieur.',modes:['Deux porteurs attendus','Passage inférieur sûr'],initialMode:0,duration:1.2,playerControlled:false,activationNodeId:'landing'});
+  third.edges=third.edges.filter(edge=>!['main-floor','elevator','upper-floor'].includes(edge.id)).map(edge=>edge.id==='pan-ramp'?{...edge,maxPassages:2,route:{deviceId:'fork',mode:0},gates:[{deviceId:'balance',mode:0}]}:
+    edge.id==='downstairs'?{...edge,route:{deviceId:'fork',mode:1},gates:[{deviceId:'pendulum-brake',mode:1,minProgress:.99}]}:
+    edge.id==='swing-crossing'?{...edge,gates:[{deviceId:'pendulum-brake',mode:1,minProgress:.99}]}:edge);
+  return [first,second,third];
+}
+
+export const WORLD_LEVELS:WorldLevel[]=BASE_LEVELS.map(base=>{
+  const acts=base.id==='boucles'?bouclesActs(base):base.id==='plis'?plisActs(base):veilleursActs(base);
+  const first=acts[0],masteryInk=acts.reduce((sum,act)=>sum+act.masteryInk,0);
+  return {...base,stageName:first.title,description:first.description,objective:first.objective,nodes:first.nodes,edges:first.edges,
+    devices:first.devices,drawings:first.drawings,hints:first.hints,inkBudget:first.inkBudget,objectives:first.objectives,acts,
+    masteryInk,masteryGoal:`Réunis les douze compagnons au terme des trois tableaux avec au plus ${masteryInk.toLocaleString('fr-FR')} unités d’encre au total.`};
+});
 export const getWorldLevel=(id:string):WorldLevel|undefined=>WORLD_LEVELS.find(level=>level.id===id);

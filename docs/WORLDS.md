@@ -1,93 +1,104 @@
-# Coup de Main — Les trois mondes de la version 2.0.0
+# Coup de Main — Les neuf énigmes de la version 2.1.0
 
-Le [projet Coup de Main](https://github.com/M4D135/Coup-de-Main) propose trois premiers stages, un par monde. Chaque stage commence avec douze compagnons autonomes. L’objectif est d’en conduire au moins dix au refuge, avec la possibilité de réunir les douze.
+Le [projet Coup de Main](https://github.com/M4D135/Coup-de-Main) propose un voyage dans chacun de ses trois mondes. Chaque voyage contient **trois actes successifs**, avec une situation, un objectif et une combinaison de mécanismes propres. Les trois artworks, les personnages et les matières visuelles restent ceux de la version précédente.
 
-## Règles communes
+Un voyage commence avec **douze compagnons autonomes**. Les survivants rejoignent le tableau suivant avec leurs identités ; les pertes restent comptées jusqu’à la fin du voyage. Les trois mondes sont accessibles dès l’accueil, mais leurs actes se parcourent dans l’ordre.
 
-Le joueur prépare des passages entre les appuis dessinés dans le décor, puis libère la troupe. Les personnages choisissent le chemin indiqué par les aiguillages. Ils attendent lorsqu’un passage manque ou qu’une condition mécanique n’est pas satisfaite.
+## Comprendre ce que le jeu attend
 
-Le trait reste un geste manuel : sa géométrie devient le parcours des personnages entre deux appuis. Le dessin fonctionne dans les deux sens, avec un lissage léger et une tolérance à la précision tactile. Les limites d’encre et le corridor de chaque passage empêchent de relier arbitrairement l’entrée à la sortie en contournant toute l’énigme.
+L’objectif du tableau et la progression du voyage restent accessibles pendant le jeu. Le décor signale les appuis, les mécanismes, le départ et l’arrivée. Les indications d’attente servent à distinguer un chemin manquant d’un réglage mécanique encore incomplet.
 
-Une pause suspend la simulation tout en laissant préparer le décor. Les mécanismes se commandent par un clic ou un toucher sur leur poignée. Les modes proposés, leurs conditions et leur état sont définis dans `lib/worlds/levels.ts` et évalués par le moteur. Les dessins et changements de réglage peuvent être annulés ; le jeu protège un passage encore occupé. L’annulation ne remonte pas le temps de la troupe.
+**Sélectionner un mécanisme ne le modifie pas.** Sa fiche explique son rôle et son état ; le joueur choisit ensuite une commande nommée. Une commande indisponible présente sa condition. Les mécanismes sont également sélectionnables depuis le panneau d’objectif, sans devoir trouver une poignée dans le décor.
 
-Les indices sont facultatifs et progressifs : observation, piste, puis solution. Ils ne diminuent pas les étoiles, et recommencer n’inflige pas de malus. Une étoile récompense le sauvetage d’au moins dix compagnons ; deux étoiles récompensent celui des douze ; la troisième exige aussi l’objectif de maîtrise affiché. Les menus et les parties sont en français. Les sauvegardes V2 sont distinctes de celles de l’aventure V1.
+Les bornes activées par une petite équipe sont **automatiques** : leur compteur indique les arrivées attendues. Elles changent d’état lorsque les deux éclaireurs ou porteurs requis sont arrivés ; le joueur n’a pas à cliquer pour déclencher le verrou ou le frein.
 
-Les compagnons bloqués sur une branche devenue inactive peuvent revenir à pied vers l’aiguillage, puis suivre la nouvelle orientation. Ce retour emprunte les chemins réellement construits ; il ne téléporte pas la troupe.
+Le trait reste un geste manuel. Il commence sur un appui et rejoint son partenaire ; sa géométrie devient le chemin des personnages. Le geste fonctionne dans les deux sens avec un lissage léger. La jauge d’encre indique la longueur du trait en cours. Le corridor et les limites de construction empêchent de relier arbitrairement l’entrée au refuge en contournant l’énigme.
+
+La **Gomme** présente les passages dessinés par leur nom. Retirer un trait libre rend son encre disponible. Un passage occupé ne peut pas être effacé ou remplacé. Un dessin refusé conserve le passage valide précédent. **Annuler** restaure le dernier dessin ou réglage sans rembobiner la position des personnages ; les manœuvres qui portent encore des compagnons restent protégées.
+
+La troupe attend le signal de départ et s’arrête devant un passage manquant ou fermé. La pause permet de préparer les dessins et les réglages. Lorsqu’un aiguillage change, les compagnons bloqués sur sa branche peuvent revenir à pied vers le croisement par les chemins réellement construits. Les indices sont facultatifs, propres au tableau et progressifs.
 
 ## I — Les Boucles
 
-**Premier stage : Le poids de l’entraide.** Papier crème, encre bleu nuit, accents corail et petites créatures en forme de boucles.
+Papier crème, encre bleu nuit, accents corail et petites créatures en forme de boucles. Ce voyage développe la coopération, puis le rôle des éclaireurs et le partage de l’encre.
 
-La troupe atteint un aiguillage. La route supérieure rejoint un pont à dessiner ; la route descendante mène à une nacelle. Le poids de trois Boucles permet au mécanisme de soutenir le passage. Le cliquet conserve ensuite ce réglage pour libérer les porteuses.
-
-Le problème à résoudre consiste à faire contribuer une partie du groupe sans la laisser dans la nacelle. Deux passages sont à dessiner : la passerelle supérieure et le retour des porteuses. Un pont dessiné ne suffit pas tant que son mécanisme n’a pas atteint la position nécessaire.
+| Acte | Énigme | Décision nouvelle |
+| --- | --- | --- |
+| 1 · **Le poids de l’entraide** | Trois Boucles chargent la nacelle ; le cliquet maintient ensuite le passage | Faire contribuer un groupe, puis récupérer ses porteuses |
+| 2 · **Les éclaireurs des rives** | Deux éclaireurs atteignent la borne par le chemin inférieur et ouvrent le pont des autres | Préparer un itinéraire pour une petite équipe avant de répartir le reste |
+| 3 · **Le dernier fil** | Deux éclaireurs empruntent la route haute ; son encre doit ensuite servir au passage inférieur | Attendre qu’un pont soit libre, le retirer et réutiliser son encre |
 
 <details>
-<summary>Solution du premier stage</summary>
+<summary>Le fil des solutions des Boucles</summary>
 
-1. Dessiner la passerelle supérieure et le retour depuis la nacelle.
-2. Orienter l’aiguillage vers la nacelle et libérer la troupe.
-3. Attendre que trois Boucles occupent la nacelle, puis enclencher le cliquet.
-4. Renvoyer la troupe restante vers la route supérieure.
-5. Laisser le mécanisme atteindre sa position et les porteuses rejoindre le refuge par leur trait de retour.
+**Acte 1.** Dessiner la passerelle supérieure et le retour de la nacelle. Envoyer trois Boucles vers la nacelle, enclencher le cliquet quand sa charge est suffisante, puis orienter les autres vers le pont. Le trait de retour permet aux porteuses de rejoindre le groupe.
+
+**Acte 2.** Préparer le chemin inférieur et y envoyer les deux éclaireurs. Leur arrivée active automatiquement la borne qui ouvre la traversée supérieure. Préparer ce pont et changer l’aiguillage pour réunir le reste de la troupe.
+
+**Acte 3.** Construire le passage supérieur nécessaire aux deux éclaireurs. Quand ils l’ont quitté, utiliser la Gomme pour récupérer son encre. Dessiner alors le passage inférieur et y orienter les compagnons restants. Garder les deux routes simultanément ne résout pas le partage d’encre demandé.
 
 </details>
-
-La maîtrise de ce stage demande les douze compagnons sauvés et au plus **930 unités d’encre** dans les traits validés.
 
 ## II — Petits Plis
 
-**Premier stage : Le vent a ses raisons.** Origamis, strates de papier, carton et teintes naturelles.
+Origamis, strates de papier, carton et teintes naturelles. Ce voyage passe du choix d’une route à une séquence mécanique, puis à la coordination de deux équipes.
 
-Le déflecteur propose trois orientations : vent de face, souffle vers le moulin, ou passage à l’abri. Le moulin peut relever le soutien du chemin supérieur. Son taquet maintient la corde afin de réorienter ensuite le vent. L’aiguillage permet aussi d’emprunter un détour inférieur.
-
-Ce stage propose deux solutions complètes pour sauver la troupe. La route haute demande une séquence de réglages. La route basse demande un autre trait et un souffle écarté. La sortie vérifie l’arrivée des compagnons, sans exiger l’utilisation d’un mécanisme qui n’appartient pas au chemin choisi.
+| Acte | Énigme | Décision nouvelle |
+| --- | --- | --- |
+| 1 · **Le vent a ses raisons** | Le déflecteur permet de choisir le détour inférieur ou la route du moulin | Comprendre qu’un souffle peut aider un mécanisme et gêner le passage |
+| 2 · **Le moulin et le verrou** | Deux passages accompagnent la montée du moulin, le blocage du taquet et la mise à l’abri | Garder un mécanisme en position avant de changer sa source d’énergie |
+| 3 · **Les deux équipes** | Deux éclaireurs passent en bas pour ouvrir le verrou ; les autres empruntent ensuite la route haute | Répartir la troupe et combiner un déclenchement distant avec la séquence du moulin |
 
 <details>
-<summary>Solutions du premier stage</summary>
+<summary>Le fil des solutions de Petits Plis</summary>
 
-**Route haute :** dessiner le pont de papier, diriger le souffle vers le moulin, lancer la simulation et attendre la montée. Bloquer le taquet, puis placer le déflecteur sur « À l’abri ». La troupe peut franchir le pont puis descendre vers le refuge.
+**Acte 1.** Pour la route basse, dessiner le détour, l’indiquer à l’aiguillage et placer le vent à l’abri. Pour la route haute, dessiner le pont, diriger le souffle vers le moulin, laisser monter la passerelle, bloquer le taquet puis écarter le vent. L’arrivée vérifie le chemin réellement emprunté.
 
-**Route basse :** dessiner la rampe du grand détour, orienter l’aiguillage vers le bas et placer le déflecteur sur « À l’abri ». Libérer la troupe ; le moulin et son taquet ne sont pas nécessaires à cette solution.
+**Acte 2.** Préparer les deux passages du tableau. Diriger le vent vers le moulin et attendre la montée indiquée par son état. Enclencher le taquet avant de placer le déflecteur à l’abri. Le maintien de la passerelle permet alors à toute la troupe de traverser.
+
+**Acte 3.** Mettre le déflecteur à l’abri, dessiner la rampe inférieure et y envoyer les deux éclaireurs ; leur arrivée ouvre automatiquement le verrou. Préparer ensuite la traversée supérieure, diriger le vent vers le moulin, conserver sa position avec le taquet puis remettre le vent à l’abri. Orienter le reste de la troupe vers le haut pour rejoindre le refuge.
 
 </details>
 
-La maîtrise demande les douze compagnons sauvés, au plus **660 unités d’encre**, le mécanisme du moulin relevé, le taquet bloqué et le vent à l’abri. La route basse seule permet de terminer et de sauver les douze ; obtenir la troisième étoile demande aussi de résoudre le mécanisme du moulin.
+Le premier acte conserve deux itinéraires possibles. Le voyage complet demande également de résoudre le moulin et de coordonner les deux équipes dans les actes suivants.
 
 ## III — Les Veilleurs
 
-**Premier stage : La mécanique du soir.** Atelier nocturne en bois et laiton, petits automates lumineux et éclairage chaud.
+Atelier nocturne en bois et laiton, petits automates lumineux et éclairage chaud. Ce voyage distingue l’entraide mécanique, l’observation du danger et la réunion de deux itinéraires.
 
-Le répartiteur mène vers la balance, l’ascenseur ou le passage inférieur. Deux Veilleurs sur la balance libèrent le frein de l’ascenseur. Le cran conserve ce réglage et un trait de retour permet de récupérer les deux porteuses.
-
-L’ascenseur transporte au maximum trois compagnons à la fois. Le joueur doit le faire monter, laisser sortir les passagers et le rappeler. La route supérieure rejoint le refuge par une passerelle lumineuse. Le trajet inférieur comporte une barrière et un balancier : ce chemin demande d’observer le rythme du danger et de libérer de petits groupes lorsque le balancier s’éloigne, en refermant la barrière entre deux passages, puis de dessiner la remontée vers le refuge.
+| Acte | Énigme | Décision nouvelle |
+| --- | --- | --- |
+| 1 · **La mécanique du soir** | Deux Veilleurs libèrent la balance ; le reste utilise l’ascenseur | Charger, sécuriser puis rappeler un transport à capacité limitée |
+| 2 · **Le passage du balancier** | Deux éclaireurs traversent le passage dangereux et permettent d’activer son frein | Observer un danger, faire passer un petit groupe puis sécuriser la route |
+| 3 · **L’atelier à l’unisson** | Deux porteurs passent par le haut et serrent le frein du balancier ; les autres doivent passer en bas | Résoudre des itinéraires complémentaires et réunir la troupe |
 
 <details>
-<summary>Solution par la route supérieure</summary>
+<summary>Le fil des solutions des Veilleurs</summary>
 
-1. Dessiner la rampe d’accès à la balance, le retour des deux porteuses et le pont lumineux vers la maison.
-2. Envoyer les premiers compagnons vers la balance et libérer la troupe.
-3. Avec deux Veilleurs sur le plateau, enclencher le cran de sécurité puis orienter le répartiteur vers l’ascenseur.
-4. Attendre l’arrivée des passagers sur l’ascenseur ; monter avec un groupe de trois lorsque possible.
-5. Laisser les passagers sortir en haut, puis redescendre chercher le groupe suivant. Le dernier voyage peut compter moins de trois passagers.
-6. Laisser les deux porteuses rejoindre le palier par leur trait de retour et réunir tout le monde au refuge.
+**Acte 1.** Préparer l’accès à la balance et le retour des porteuses. Envoyer deux Veilleurs sur le plateau, puis enclencher le cran de sécurité. L’accès à la balance se ferme pour les suivants : orienter ceux-ci vers l’ascenseur, faire monter ses passagers puis rappeler la cabine. Dessiner le pont qui mène à la maison et récupérer les deux porteuses.
+
+**Acte 2.** Observer le balancier puis choisir « Laisser passer un éclaireur » au bon moment. La barrière se referme automatiquement derrière lui ; répéter pour le second. Leur arrivée enclenche le frein. Attendre que le balancier soit rangé sur le côté, puis laisser passer toute la troupe et construire la remontée vers le refuge.
+
+**Acte 3.** Préparer la route supérieure et y faire passer les deux porteurs. Leur arrivée enclenche automatiquement le frein et ouvre le trajet inférieur une fois le balancier rangé. Construire le passage du bas et y envoyer les autres compagnons. Les deux routes ont des rôles complémentaires dans la résolution.
 
 </details>
 
-La maîtrise demande les douze compagnons sauvés et au plus **1 150 unités d’encre**.
+Le balancier utilise la même géométrie pour son dessin et les collisions. Sa barrière sert à retenir un groupe ; ouvrir la barrière ne signifie pas que le danger est déjà neutralisé. Les fiches permettent de distinguer la position de la barrière de l’état du frein.
 
-## Ressources et animation
+## Enchaînement, étoiles et reprise
 
-Chaque monde possède un artwork de référence, un décor jouable, un atlas de huit poses et des accessoires séparés. L’animation combine ces ressources avec les états réels de la simulation. Les images fixes de référence restent visibles dans le carnet ; les scènes jouables sont des adaptations pour le jeu.
+Un acte terminé propose de poursuivre le voyage. La transition est manuelle : le joueur peut lire le résultat avant de découvrir le nouveau tableau. Les survivants, les pertes et les résultats des actes achevés sont conservés. **Recommencer le tableau** remet en place sa troupe d’entrée et ses réglages initiaux, sans imposer de rejouer les actes précédents.
 
-Le moteur partage la géométrie du balancier entre le rendu et la collision. Les compagnons sur une plateforme ou un trait suivent le trajet utilisé par la simulation. Les petites voix et effets de matière sont synthétisés localement ; aucun enregistrement issu d’un autre jeu n’est requis.
+Une perte héritée d’un acte précédent ne peut pas être récupérée en recommençant seulement le tableau courant. **Recommencer le voyage entier**, dans le menu, remplace la partie en cours par un départ au premier tableau avec les douze compagnons. Une confirmation distingue ce choix de la reprise du tableau ; le meilleur résultat est conservé.
 
-## Étendre l’univers
+Les étoiles finales sont calculées après les trois actes. Une étoile récompense l’arrivée d’au moins dix compagnons ; deux récompensent les douze ; la troisième demande en plus de respecter le budget d’encre **cumulé du voyage**, annoncé par l’interface. L’encre comptée est celle des traits encore présents à la fin de chaque tableau. Les repères d’économie locaux aident à gérer cette somme ; les dépasser ne crée pas de malus caché si le budget final est respecté. Les indices et les nouvelles tentatives ne diminuent pas le résultat.
 
-Cette livraison contient **un stage par monde**, et non une campagne complète de plusieurs stages dans chacun. Les niveaux, indices, règles de mécanismes et ressources visuelles sont séparés afin de permettre cet enrichissement. Une extension à plusieurs stages par monde devra également donner à chaque stage sa propre identité de sauvegarde et son entrée dans l’interface : les sauvegardes actuelles sont identifiées par le monde.
+La sauvegarde conserve le tableau en cours et les actes achevés. Une reprise se fait en pause. Les parties et records 2.0 ne sont pas assimilés à une nouvelle campagne terminée : une ancienne partie est reconnue et redémarre prudemment au début du voyage avec un message explicatif. Les résultats historiques sont distingués des records des trois actes. Les données restent locales au navigateur et à l’adresse du jeu.
 
-## Vérification
+## Ressources et vérification
 
-La suite distribuée contient **24 tests** : 16 dans `tests/worlds-engine.test.ts` et 8 dans `tests/worlds-camera.test.ts`. Elle exerce les parcours complets, les deux solutions de Petits Plis, les routes des Veilleurs, les retours vers les aiguillages, les files d’attente, les dessins, les annulations protégées, la sauvegarde et la reprise. La simulation est comparée à différentes fréquences d’affichage. La caméra est contrôlée en portrait et en paysage, notamment pour atteindre les appuis après un zoom et déplacer la vue pendant un tracé. Les tests du projet historique ne sont pas inclus dans cette distribution.
+Chaque monde garde son artwork de référence, sa scène jouable, son atlas de huit poses et ses accessoires séparés. Les actes changent les parcours, les mécanismes et leurs objectifs dans ces univers. Les références fixes du carnet conservent leurs pixels ; les scènes jouables sont des adaptations animées. Les voix et effets de matière sont synthétisés localement.
 
-Les vérifications du moteur ne suffisent pas à juger la lisibilité visuelle, la précision sur écran tactile ou l’équilibre subjectif de la difficulté. Les résultats de validation d’une livraison doivent préciser séparément les contrôles automatisés et les essais réalisés dans le navigateur.
+Les tests publics couvrent la simulation, les parcours, les gestes protégés, les états de progression et la reprise. Les contrôles de caméra vérifient l’accès aux appuis après zoom et le déplacement du décor pendant un tracé. Les tests de `renderer-guidance.ts` vérifient que les étiquettes gardent une taille lisible, restent dans la zone visible en portrait et en paysage, correspondent à leurs zones de sélection et ne déplacent pas l’explication sélectionnée quand une file d’attente apparaît.
+
+La validation d’une livraison distingue les contrôles automatisés des essais dans le navigateur. Les tests ne mesurent pas à eux seuls la compréhension d’un nouveau joueur ni la durée d’une première découverte. Cette version annonce **trois énigmes par voyage**, sans déduire un nombre de minutes de la seule vitesse de déplacement des personnages.

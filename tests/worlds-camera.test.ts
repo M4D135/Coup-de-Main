@@ -2,13 +2,16 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {autoPanWorldView,getWorldView} from '../lib/worlds/camera';
 import {WORLD_LEVELS} from '../lib/worlds/levels';
+import {getActiveAct,getActCount} from '../lib/worlds/engine';
+
+const TABLEAUX=WORLD_LEVELS.flatMap(world=>Array.from({length:getActCount(world)},(_,actIndex)=>getActiveAct(world,{actIndex})));
 
 const clamp=(value:number)=>Math.max(0,Math.min(1,value));
 const close=(actual:number,expected:number)=>assert(Math.abs(actual-expected)<1e-7,`${actual} != ${expected}`);
 
 for(const [width,height] of [[375,812],[844,390]]){
   test(`all authored drawing anchors and mechanisms stay reachable at 100% and 300% in ${width} × ${height}`,()=>{
-    for(const level of WORLD_LEVELS)for(const zoom of [1,3]){
+    for(const level of TABLEAUX)for(const zoom of [1,3]){
       const fitted=getWorldView(level.width,level.height,width,height,zoom,.5,.5);
       const points=[...level.drawings.flatMap(drawing=>[drawing.from,drawing.to]),...level.devices.filter(device=>device.modes.length>1)];
       for(const point of points){
@@ -34,7 +37,7 @@ for(const [width,height] of [[375,812],[844,390]]){
 }
 
 test('a held drawing pointer can reveal the lower Veilleurs return anchor in landscape',()=>{
-  const level=WORLD_LEVELS[2],anchor=level.drawings.find(drawing=>drawing.id==='lower-return')!.from;
+  const level=getActiveAct(WORLD_LEVELS[2],{actIndex:1}),anchor=level.drawings.find(drawing=>drawing.id==='lower-return')!.from;
   let panX=.5,panY=.5;
   let view=getWorldView(level.width,level.height,844,390,3,panX,panY);
   assert(anchor.y*view.scale+view.y>view.height,'this regression starts with the anchor off screen');

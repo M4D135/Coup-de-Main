@@ -73,14 +73,20 @@ jobs:
           test -s dist/index.html
           test -s dist/offline-play.html
           node --input-type=module <<'NODE'
-          import {copyFileSync, mkdirSync, writeFileSync} from 'node:fs';
+          import {copyFileSync, mkdirSync, readFileSync, writeFileSync} from 'node:fs';
           import {join} from 'node:path';
           const version = process.env.RELEASE_VERSION;
           const folder = join(process.env.RUNNER_TEMP, 'coup-de-main-release');
           mkdirSync(folder, {recursive: true});
           copyFileSync('dist/offline-play.html', join(folder, `Coup-de-Main-${version}.html`));
+          const releaseEntry = readFileSync('CHANGELOG.md', 'utf8').split(/^## /m)
+            .find(section => section.split('\n', 1)[0].startsWith(`[${version}]`));
+          const changes = releaseEntry?.split('\n').slice(1).join('\n').trim();
+          if (!changes) throw new Error(`CHANGELOG.md doit décrire la version ${version}.`);
           const notes = [
             `# Coup de Main ${version}`,
+            '',
+            changes,
             '',
             '## Fichiers prêts à lancer',
             '',
