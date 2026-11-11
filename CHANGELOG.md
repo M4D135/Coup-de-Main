@@ -2,6 +2,26 @@
 
 Les sources et les fichiers prêts à jouer sont publiés dans le [dépôt Coup de Main](https://github.com/M4D135/Coup-de-Main).
 
+## [3.1.1]
+
+### Les compagnons repartent après un changement de route
+
+- Un compagnon revenu à un aiguillage quitte maintenant réellement son ancien chemin. Il ne peut plus bloquer le retour du suivant tout en conservant une place dans le quota des porteurs.
+- Les sauvegardes déjà touchées par ce blocage reprennent sur leur carrefour, sans déplacer la troupe, changer les mécanismes ni recommencer le monde.
+- Les messages des balances distinguent un cran verrouillé d’une sortie encore retenue par un relais. Toucher un compagnon qui attend affiche brièvement son état réel, en conservant son coucou.
+
+### Commandes accessibles sur téléphone
+
+- La réserve d’encre est placée dans le cartouche du titre : elle ne recouvre plus la molette sous le plateau.
+- Les éléments d’affichage passifs et les espaces entre les boutons laissent passer les gestes vers le décor.
+- Toucher le visage d’un porteur s’adresse au compagnon. Toucher la molette ou un bord du plateau agit sur la balance ; un simple tap ne démarre plus un faux trait depuis le bord.
+
+### Parcours éprouvés
+
+- Une nouvelle matrice de régression traverse les quinze tableaux après des dessins inversés, des effacements, des annulations, des changements répétés d’aiguillage, des inversions de nacelle et des reprises de sauvegarde.
+- Les doubles balances sont reprises en charge partielle, et les balanciers sont testés après une sauvegarde pendant la traversée ainsi qu’après la perte réelle d’un éclaireur. Les survivants doivent rejoindre le refuge sans perte supplémentaire ni recommencement.
+- Les trois mondes conservent leurs quinze illustrations, leurs personnages et leur difficulté. Les résultats exacts des tests et les essais effectués dans le navigateur sont consignés dans `docs/BUILD.md`.
+
 ## [3.1.0]
 
 ### Retrouver les trois mondes illustrés

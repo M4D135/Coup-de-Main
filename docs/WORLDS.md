@@ -1,4 +1,4 @@
-# Coup de Main — Les mondes illustrés de la version 3.1.0
+# Coup de Main — Les mondes illustrés de la version 3.1.1
 
 Chaque monde est un parcours de **16 000 × 1 800 unités**, présenté en **cinq tableaux complets de 3 200 × 1 800 unités**. Douze compagnons traversent les cinq réseaux de mécanismes jusqu’au refuge final. Les groupes, dessins et réglages restent présents entre les tableaux ; tourner une page ne recommence pas la partie.
 

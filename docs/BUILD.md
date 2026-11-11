@@ -1,4 +1,4 @@
-# Coup de Main — Compilation autonome de la version 3.1.0
+# Coup de Main — Compilation autonome de la version 3.1.1
 
 [Dépôt public Coup de Main](https://github.com/M4D135/Coup-de-Main)
 
@@ -85,7 +85,31 @@ Avant livraison, vérifier également dans le navigateur :
 - Les trois volumes, la coupure générale, le déverrouillage audio et le retour d’un onglet masqué.
 - L’absence d’erreurs de console et le chargement correct des images dans le build web et le HTML autonome.
 
-### Résultats de la livraison 3.1.0
+### Résultats de la livraison 3.1.1
+
+La suite complète du projet de création réussit **321 tests sur 321**, sans test ignoré. La vérification TypeScript et le contrôle des espaces du diff réussissent également. Les tests publics sont inclus dans cette suite ; l’export autonome reçoit ensuite sa propre installation et sa propre vérification.
+
+La nouvelle matrice de jouabilité comprend **60 scénarios sur les quinze tableaux**. Chaque point de départ est une sauvegarde obtenue en parcourant réellement la simulation depuis le début ; les tests ne déplacent aucun compagnon et n’activent pas les relais par affectation directe. Les perturbations sont effectuées par les mêmes commandes que le jeu, puis un contrôleur de parcours reprend ces commandes pour vérifier l’arrivée au refuge.
+
+| Situation vérifiée | Scénarios | Résultat |
+| --- | ---: | --- |
+| Dessin dans l’autre sens, gomme, annulation et rechargement | 15 | Douze sauvés, aucune perte |
+| Changements répétés de routes et de commandes pendant les déplacements | 15 | Douze sauvés, aucune perte |
+| Vent et taquet pendant la montée en puissance | 6 | Douze sauvés, aucune perte |
+| Nacelle inversée à l’embarquement, à mi-course ou au palier haut | 12 | Douze sauvés, aucune perte |
+| Doubles balances partiellement chargées, traits et aiguillages modifiés, deux rechargements | 6 | Douze sauvés, aucune perte |
+| Pause et rechargement pendant un passage sous un balancier | 3 | Douze sauvés, aucune perte |
+| Un éclaireur volontairement libéré au mauvais moment sous un balancier | 3 | Onze sauvés après une collision réelle, aucune perte supplémentaire |
+
+Les **60 cas aboutissent sans recommencer**. Cinq régressions ciblées vérifient en plus les changements rapides à ×1 et ×2, les refus de déverrouillage sous une troupe engagée, les raisons d’attente et la reprise d’une sauvegarde qui bloquait effectivement avant le correctif. Cette dernière conserve le temps et les coordonnées, libère l’ancien chemin occupé à tort, puis finit à **12/12**. La balance reste à actionner par le joueur. Sept tests de sélection et de caméra couvrent les commandes des trois mondes et le cas de trois porteurs en attente dans quatre formats de téléphone.
+
+Dans le navigateur, le premier réseau des Boucles a été manipulé avec dessin des passages, charge des trois porteurs, verrouillage de la molette, toucher d’un visage et changement d’aiguillage. Le diagnostic « Le relais plus loin retient encore les porteurs » est apparu sans modifier le cran. Dans le deuxième tableau, les deux passages ont été tracés et le moulin puis son taquet actionnés. Le retour au premier tableau a permis de constater le plateau vide et le départ de ses anciens porteurs sur leur trait de retour. Le cadrage, le glissement, le retour vers un groupe et les commandes ont été vérifiés en portrait **375 × 812** et paysage **844 × 390**, dans un navigateur Chromium avec un cadre aux dimensions mobiles.
+
+Cette validation tactile ne constitue pas un essai sur un iPhone physique. Les parcours exhaustifs des quinze tableaux décrits ci-dessus sont des simulations automatisées ; ils ne démontrent pas l’absence de tout état imprévu possible. Les images de production et les règles de difficulté restent identiques à celles de la version 3.1.0.
+
+L’export public 3.1.1 a été installé dans un dossier neuf avec `npm ci --ignore-scripts` (**48 paquets**), puis vérifié avec `npm run check` : TypeScript, **164 tests réussis sur 164**, aucun ignoré, et compilation Vite réussie. Le HTML autonome contient les mêmes **25 images** que la distribution web. Les dernières mises à jour du présent compte rendu sont ensuite recopiées dans l’export, son manifeste est recalculé et les fichiers de distribution sont reconstruits sans modifier le code testé.
+
+### Résultats de la livraison précédente 3.1.0
 
 La validation du projet de création comprend **249 tests réussis sur 249** dans la suite complète et **60 sur 60** dans la suite ciblée du moteur. Les parcours simulés des trois mondes se terminent avec **12 compagnons sur 12**. Neuf parties enregistrées avec l’ancienne géométrie ont été reprises et terminées avec **12 sur 12** ; 99 traversées anciennes sûres ont été contrôlées sans décès induit ; trois situations devenues dangereuses après le recalage reprennent en attente sur leur rive et demandent une nouvelle libération au bon moment.
 
@@ -111,7 +135,7 @@ npm run public:export -- /chemin/absolu/vers/un-dossier-vide
 
 Le premier script produit `work/public-dist/`. L’exporteur suit les imports actifs de l’interface et des tests publics, puis copie une liste explicite de scripts, documents, prompts de génération et médias. Les fichiers intermédiaires `*-tableau-*.png` ne sont pas exportés : seuls les douze tableaux finaux WebP sont retenus. Il refuse de remplacer un dossier non vide.
 
-Le paquet ne contient ni historique Git, identité d’hébergement, variables d’environnement, connecteurs, ancien moteur, médias audio historiques ni archives de création. Les anciennes sources restent dans leurs projets et historiques. `PUBLIC-MANIFEST.json` énumère les fichiers, tailles et SHA-256. Son champ `version` désigne le format du manifeste ; `gameVersion` reprend **3.1.0**, comme le package, le lock et le manifeste des médias.
+Le paquet ne contient ni historique Git, identité d’hébergement, variables d’environnement, connecteurs, ancien moteur, médias audio historiques ni archives de création. Les anciennes sources restent dans leurs projets et historiques. `PUBLIC-MANIFEST.json` énumère les fichiers, tailles et SHA-256. Son champ `version` désigne le format du manifeste ; `gameVersion` reprend **3.1.1**, comme le package, le lock et le manifeste des médias.
 
 Dans un export neuf, `npm ci && npm run check` vérifie la distribution publique. L’export et le build locaux ne publient ni release ni site à eux seuls.
 

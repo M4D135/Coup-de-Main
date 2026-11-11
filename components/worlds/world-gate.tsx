@@ -7,7 +7,7 @@ export interface WorldRecord {rescued:number; stars:number; time:number; complet
 export type WorldRecords = Record<string, WorldRecord>;
 
 declare const __GAME_VERSION__: string | undefined;
-const GAME_VERSION = typeof __GAME_VERSION__ === 'undefined' ? '3.1.0' : __GAME_VERSION__;
+const GAME_VERSION = typeof __GAME_VERSION__ === 'undefined' ? '3.1.1' : __GAME_VERSION__;
 
 export function WorldGate({onEnter,onSettings,records,muted,onMute,resumeAt}: {
   onEnter:(index:number)=>void; onSettings:()=>void;

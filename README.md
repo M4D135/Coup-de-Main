@@ -1,6 +1,6 @@
 # Coup de Main
 
-**Version 3.1.0 · Un crayon. Trois mondes. Douze compagnons à guider.**
+**Version 3.1.1 · Un crayon. Trois mondes. Douze compagnons à guider.**
 
 [Sources et versions publiques](https://github.com/M4D135/Coup-de-Main)
 
@@ -20,7 +20,7 @@ Les trois mondes sont accessibles dès l’accueil. Chacun commence avec **12 co
 - **Tracer depuis un appui** jusqu’à son partenaire pour construire un passage. Le dessin peut commencer des deux côtés ; sa géométrie devient le chemin parcouru.
 - **Glisser le décor** pour explorer le tableau. Pincer avec deux doigts ou utiliser la molette pour zoomer. Les flèches et les cinq petits repères tournent les pages ; un glissement prolongé au bord fait de même.
 - **Retrouver les compagnons** grâce aux petites pastilles latérales signalant les groupes en attente hors champ, ou au bouton de recentrage.
-- **Toucher un compagnon** pour lui faire faire un coucou. Ses petites réactions ne modifient pas la solution du puzzle.
+- **Toucher un compagnon** pour lui faire faire un coucou et lire brièvement la raison de son attente. Ses petites réactions ne modifient pas la solution du puzzle.
 - **Mettre en pause** pour réfléchir et préparer les dessins. La vitesse ×2 accélère les déplacements.
 - **Activer la Gomme**, puis toucher un trait libre pour récupérer son encre. Un passage occupé ou nécessaire à un retour déjà engagé reste protégé.
 
@@ -46,6 +46,8 @@ Tourner une page conserve la troupe et l’état du voyage. Le titre montre le t
 **Recommencer** repart au début du monde avec les douze compagnons, après confirmation. Le meilleur résultat reste conservé. Une partie retrouvée dans ce navigateur reprend au calme. Les parties 3.0 compatibles sont recalées sur les nouvelles illustrations en conservant les mêmes chemins, compagnons, dessins et réglages. Les anciennes parties V1/V2, construites sur d’autres parcours, repartent du début avec un message explicatif.
 
 Un taquet qui a déjà soutenu le passage de la troupe reste engagé : une annulation ne peut plus couper cet appui derrière un groupe déjà avancé. La reprise d’une partie concernée rétablit seulement les appuis dont l’utilisation avait été enregistrée, sans résoudre les mécanismes encore intacts.
+
+La version 3.1.1 répare aussi les parties où un compagnon revenu à un aiguillage occupait encore son ancien chemin : il libère ce passage au chargement, sans changer de position ni résoudre le mécanisme. Les autres compagnons peuvent alors terminer leur retour.
 
 Les étoiles dépendent uniquement du nombre de compagnons arrivés au refuge :
 

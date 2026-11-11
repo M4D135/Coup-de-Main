@@ -433,6 +433,14 @@ function recallStranded(run:WorldRun,level:WorldLevel,unit:Creature,nodeId:strin
   return true;
 }
 
+/** Reaching a junction finishes the return even if its selected exit is full.
+ * Keeping the old edge here would block the next returning porter, whose
+ * reserved place is precisely what this waiting companion needs to depart. */
+function settleReturnedCompanion(unit:Creature,nodeId:string):void {
+  unit.nodeId=nodeId;unit.edgeId=null;unit.distance=0;unit.returning=false;unit.returnEdges=[];
+  unit.formationSlot=null;unit.state='waiting';
+}
+
 function arrive(run:WorldRun,level:WorldLevel,unit:Creature,edge:RouteEdge):void {
   if(unit.returning){
     // A physically recalled scout gives its unfinished reservation back.
@@ -445,8 +453,9 @@ function arrive(run:WorldRun,level:WorldLevel,unit:Creature,edge:RouteEdge):void
       if(next.drawingId&&!run.drawings[next.drawingId]){unit.state='waiting';return;}
       unit.nodeId=nodeId;unit.edgeId=remaining[0];unit.distance=0;
       unit.returnEdges=remaining;unit.state='walking';unit.waitTime=0;
-    }else if(!depart(run,level,unit,nodeId)){
-      unit.state='waiting';unit.waitTime+=FIXED_STEP;
+    }else{
+      settleReturnedCompanion(unit,nodeId);
+      if(!depart(run,level,unit,nodeId))unit.waitTime+=FIXED_STEP;
     }
     return;
   }
@@ -797,6 +806,12 @@ export function restoreRun(raw:unknown,level:WorldLevel,restoreCheckpoint=true):
     if(returning&&edge?.drawingId&&!run.drawings[edge.drawingId]){
       const bank=nodeFor(level,edge.to);Object.assign(run.units[index],{x:bank.x,y:bank.y,distance:0,state:'waiting'});
     }
+    const restored=run.units[index];
+    if(restored.returning&&edge&&restored.returnEdges.length===1
+      &&restored.distance>=pathLength(getEdgePath(run,level,edge))-.05){
+      if(edge.maxPassages!==undefined)run.passages[edge.id]=(run.passages[edge.id]??[]).filter(id=>id!==restored.id);
+      settleReturnedCompanion(restored,edge.from);
+    }
   }
   run.saved=run.units.filter(unit=>unit.state==='saved').length;run.lost=run.units.filter(unit=>unit.state==='lost').length;
   run.spawned=run.units.filter(unit=>unit.state!=='queued').length;
@@ -864,6 +879,22 @@ function deviceActionReason(run:WorldRun,level:WorldLevel,definition:DeviceDefin
   return '';
 }
 
+function counterweightWaitingReason(run:WorldRun,level:WorldLevel,definition:DeviceDefinition):string {
+  const state=run.devices[definition.id],required=definition.requiredLoad??1;
+  if(state.mode===0)return state.load>=required?'Le plateau est chargé, mais son cran est encore libre.':`${state.load}/${required} porteurs sont installés sur le plateau.`;
+  const stations=new Set(definition.weightNodes??[]);
+  if(!run.units.some(unit=>stations.has(unit.nodeId)&&unit.edgeId===null&&unit.state==='waiting'))return 'Le cran reste engagé pour soutenir la passerelle.';
+  const exits=level.edges.filter(edge=>stations.has(edge.from));
+  const missing=exits.flatMap(edge=>edge.gates??[]).filter(gate=>!gateSatisfied(run,gate));
+  if(missing.some(gate=>deviceFor(level,gate.deviceId)?.playerControlled===false))return 'Le relais plus loin retient encore les porteurs.';
+  if(state.progress<.98)return 'Le plateau n’a pas fini son mouvement.';
+  if(missing.length)return `${deviceFor(level,missing[0].deviceId)?.label??'Un mécanisme'} retient encore la sortie.`;
+  const ready=exits.filter(edge=>(!edge.drawingId||!!run.drawings[edge.drawingId])&&(!edge.route||run.devices[edge.route.deviceId]?.mode===edge.route.mode));
+  if(!ready.length)return exits.some(edge=>edge.drawingId&&!run.drawings[edge.drawingId])?'Il manque encore le passage de retour.':'La sortie du plateau est encore fermée.';
+  if(ready.every(edge=>run.units.some(unit=>unit.edgeId===edge.id&&!['lost','saved'].includes(unit.state)&&unit.distance<SPACING*geometryScale(level))))return 'Les porteurs attendent que le passage se libère.';
+  return 'Le passage est libre ; les porteurs se mettent en route.';
+}
+
 export function getDeviceStatus(run:WorldRun,level:WorldLevel,id:string):DeviceStatus {
   level=getActiveAct(level,run);
   const definition=deviceFor(level,id),state=run.devices[id];
@@ -879,7 +910,7 @@ export function getDeviceStatus(run:WorldRun,level:WorldLevel,id:string):DeviceS
   let stateLabel=definition.modes[state.mode],reason=definition.description;
   if(definition.kind==='counterweight'&&definition.modes.length>1){
     stateLabel=state.mode===1?'Cran verrouillé':`${state.load}/${definition.requiredLoad??1} porteurs`;
-    reason=state.mode===1?'Le réglage est maintenu. Les porteurs peuvent sortir ; l’entrée du plateau est refermée.':state.load>=(definition.requiredLoad??1)?'La charge est suffisante : tu peux verrouiller le cran.':`Oriente ${Math.max(0,(definition.requiredLoad??1)-state.load)} compagnon(s) de plus vers le plateau.`;
+    reason=counterweightWaitingReason(run,level,definition);
   }else if(definition.kind==='lift'){
     const capacity=level.edges.find(edge=>edge.deviceId===id&&edge.kind==='lift')?.capacity??3;
     const moving=state.progress>.02&&state.progress<.98;
@@ -904,22 +935,48 @@ export function getDeviceStatus(run:WorldRun,level:WorldLevel,id:string):DeviceS
     actionable:modes.some(mode=>mode.enabled),nextMode,actionLabel:nextMode===null?'Observer':modeLabel(nextMode),reason,modes};
 }
 
-export function getWaitingReason(run:WorldRun,level:WorldLevel,unit:Creature):string|null {
+export function getWaitingReason(run:WorldRun,level:WorldLevel,unit:Creature,brief=false):string|null {
   level=getActiveAct(level,run);
-  if(unit.state!=='waiting')return null;
+  if(unit.state!=='waiting'&&unit.state!=='riding')return null;
   const current=edgeFor(level,unit.edgeId);
-  if(current&&unit.distance<pathLength(getEdgePath(run,level,current))-.1)return 'La troupe attend son tour sur le chemin.';
+  if(current?.kind==='lift'){
+    const definition=deviceFor(level,current.deviceId!)!,state=run.devices[definition.id];
+    if(!brief)return getDeviceStatus(run,level,definition.id).reason;
+    if(definition.gates?.some(gate=>!gateSatisfied(run,gate)))return 'Un mécanisme retient encore la nacelle.';
+    if(state.progress>.02&&state.progress<.98)return 'La nacelle est en mouvement.';
+    return state.progress>=.98?'Le palier n’est pas encore libre.':'La nacelle attend au palier bas.';
+  }
+  if(unit.returning){
+    const next=edgeFor(level,unit.returnEdges?.[1]??null);
+    if((current?.drawingId&&!run.drawings[current.drawingId])
+      ||(current&&unit.distance>=pathLength(getEdgePath(run,level,current))-.1&&next?.drawingId&&!run.drawings[next.drawingId]))return 'Le passage de retour est interrompu.';
+  }
+  if(current&&unit.distance<pathLength(getEdgePath(run,level,current))-.1)return brief?'Un compagnon attend devant.':'La troupe attend son tour sur le chemin.';
   const nodeId=current?(unit.returning?current.from:current.to):unit.nodeId,node=nodeFor(level,nodeId);
   if(node.kind==='weight'&&node.deviceId)return getDeviceStatus(run,level,node.deviceId).reason;
   const options=level.edges.filter(edge=>edge.from===nodeId&&(!edge.route||run.devices[edge.route.deviceId]?.mode===edge.route.mode));
   for(const edge of options){
-    if(edge.maxPassages!==undefined&&(run.passages[edge.id]?.length??0)>=edge.maxPassages)return 'Les éclaireurs sont passés. Oriente maintenant le reste vers l’autre chemin.';
-    if(edge.drawingId&&!run.drawings[edge.drawingId])return `Dessine « ${level.drawings.find(drawing=>drawing.id===edge.drawingId)?.label??'le passage'} » entre ses deux appuis.`;
+    if(edge.maxPassages!==undefined&&(run.passages[edge.id]?.length??0)>=edge.maxPassages)return brief?'Ce chemin a déjà son groupe.':'Les éclaireurs sont passés. Oriente maintenant le reste vers l’autre chemin.';
+    if(edge.drawingId&&!run.drawings[edge.drawingId])return brief?'Il manque un passage devant la troupe.':`Dessine « ${level.drawings.find(drawing=>drawing.id===edge.drawingId)?.label??'le passage'} » entre ses deux appuis.`;
     const missing=edge.gates?.find(gate=>!gateSatisfied(run,gate));
-    if(missing){const device=deviceFor(level,missing.deviceId);return device?.playerControlled===false?getDeviceStatus(run,level,missing.deviceId).reason:gateReason(run,level,missing);}
-    if(edge.kind==='lift')return getDeviceStatus(run,level,edge.deviceId!).reason;
+    if(missing){
+      const device=deviceFor(level,missing.deviceId);
+      if(brief){
+        if(device?.playerControlled===false)return 'Le relais attend encore des compagnons.';
+        if(device?.kind==='counterweight')return run.devices[device.id].mode===0?counterweightWaitingReason(run,level,device):'Le plateau n’a pas fini son mouvement.';
+        if(device?.kind==='wind')return missing.minProgress!==undefined&&run.devices[device.id].progress<missing.minProgress?'Le moulin n’a pas encore levé le support.':'Le vent retient encore ce passage.';
+        if(device?.kind==='latch')return 'Le support n’est pas encore retenu.';
+        return 'Un mécanisme retient encore le passage.';
+      }
+      return device?.playerControlled===false?getDeviceStatus(run,level,missing.deviceId).reason:gateReason(run,level,missing);
+    }
+    if(edge.kind==='lift'){
+      if(!brief)return getDeviceStatus(run,level,edge.deviceId!).reason;
+      const state=run.devices[edge.deviceId!];
+      return state.progress>.02?'La nacelle n’est pas au palier.':'La nacelle accueille déjà un groupe.';
+    }
   }
-  return options.length?'Le prochain passage accueille déjà des compagnons.':'Choisis une autre direction avec l’aiguillage.';
+  return options.length?(brief?'Le passage devant est occupé.':'Le prochain passage accueille déjà des compagnons.'):(brief?'La voie est fermée.':'Choisis une autre direction avec l’aiguillage.');
 }
 
 function recordAct(run:WorldRun,level:WorldLevel):void {

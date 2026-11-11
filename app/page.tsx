@@ -3,9 +3,10 @@
 import {useCallback,useEffect,useRef,useState,type PointerEvent as ReactPointerEvent,type ReactNode} from 'react';
 import {ArrowLeft,ArrowRight,Eraser,Flag,Hand,Home,LocateFixed,Maximize2,Music2,Pause,Pencil,Play,RotateCcw,Settings2,ShieldCheck,Sparkles,Star,Undo2,Users,Volume2,VolumeX,X} from 'lucide-react';
 import {WORLD_LEVELS} from '../lib/worlds/levels';
-import {createRun,updateRun,applyAction,beginStroke,appendStroke,finishStroke,cancelStroke,saveRun,restoreRun,getRunSummary,getJourneySummary,getDeviceStatus,getStageProgress,isJourneyComplete} from '../lib/worlds/engine';
-import {loadWorldAssets,renderWorld,hitTestWorld,hitTestDrawing,type WorldAssets,type WorldHit} from '../lib/worlds/renderer';
+import {createRun,updateRun,applyAction,beginStroke,appendStroke,finishStroke,cancelStroke,saveRun,restoreRun,getRunSummary,getJourneySummary,getDeviceStatus,getWaitingReason,getStageProgress,isJourneyComplete} from '../lib/worlds/engine';
+import {loadWorldAssets,renderWorld,hitTestDrawing,type WorldAssets} from '../lib/worlds/renderer';
 import {reactCompanion} from '../lib/worlds/renderer-characters';
+import {hitTestPlayTarget,tappedPlatform,type PlayTarget} from '../lib/worlds/interaction';
 import {WorldAudio,type WorldSound} from '../lib/worlds/audio';
 import {getWorldAsset} from '../lib/worlds/assets';
 import {getExpeditionView,autoPanWorldView,panAroundPoint,type WorldView} from '../lib/worlds/camera';
@@ -34,7 +35,7 @@ function mergeSessionPatch(stored:unknown,fallback:Session,patch:Partial<Session
   return merged;
 }
 type Panel='pause'|'sound'|'restart'|null;
-type Gesture={id:number;kind:'pending'|'pan'|'draw'|'pinch';start:Point;panX:number;panY:number;hit:WorldHit;eraseId?:string|null;companionId?:number;distance?:number;zoom?:number;anchor?:Point;pagePull?:number};
+type Gesture={id:number;kind:'pending'|'pan'|'draw'|'pinch';start:Point;panX:number;panY:number;hit:PlayTarget;eraseId?:string|null;distance?:number;zoom?:number;anchor?:Point;pagePull?:number};
 const audioEvents:Partial<Record<GameEvent['type'],WorldSound>>={spawn:'start',step:'step',wait:'wait',draw:'draw-end',device:'device',saved:'save',lost:'loss',win:'win',retry:'undo',undo:'undo'};
 const makeView=(run:WorldRun,level:WorldLevel)=>({
   phase:run.phase,saved:run.saved,lost:run.lost,time:run.time,speed:run.speed,undo:run.history.length,
@@ -121,6 +122,8 @@ export default function HomePage(){
     if(!result.ok)flash(result.message);
     else if(action.type==='device'){
       setSelected(action.id);if(focusTimerRef.current)clearTimeout(focusTimerRef.current);focusTimerRef.current=setTimeout(()=>setSelected(null),900);
+      const status=getDeviceStatus(runRef.current,WORLD_LEVELS[latest.current.worldIndex],action.id);
+      flash(`${status.label} · ${status.stateLabel}${runRef.current.phase==='paused'?' · En pause':''}`);
     }
     refresh();persist();return result;
   },[unlock,releaseGesture,flash,refresh,persist,playGestureEvents]);
@@ -222,12 +225,9 @@ export default function HomePage(){
     const p=localPoint(event);pointersRef.current.set(event.pointerId,p);setFollowing(false);
     if(pointersRef.current.size===2){cancelStroke(runRef.current);audioRef.current?.endPencil();setDrawing(false);handRef.current=null;pointerRef.current=null;const [a,b]=[...pointersRef.current.values()],mid={x:(a.x+b.x)/2,y:(a.y+b.y)/2};gestureRef.current={id:event.pointerId,kind:'pinch',start:mid,panX:latest.current.panX,panY:latest.current.panY,hit:null,distance:Math.max(1,Math.hypot(a.x-b.x,a.y-b.y)),zoom:latest.current.zoom,anchor:worldPoint(mid)};setPanning(true);return;}
     if(pointersRef.current.size>2)return;
-    const wp=worldPoint(p),run=runRef.current,hit=hitTestWorld(level,run,wp,24/cameraRef.current.scale);
+    const wp=worldPoint(p),run=runRef.current,hit=erasing?null:hitTestPlayTarget(level,run,wp,cameraRef.current.scale);
     const c=cameraRef.current,radius=24/c.scale;
-    const companion=!hit&&!erasing?run.units.filter(u=>u.state!=='queued'&&u.state!=='saved'&&u.state!=='lost')
-      .map(u=>({id:u.id,distance:Math.hypot(wp.x-u.x,wp.y-(u.y-level.creatureHeight*.5))}))
-      .filter(u=>u.distance<=Math.max(radius,level.creatureHeight*.5)).sort((a,b)=>a.distance-b.distance)[0]:undefined;
-    const gesture:Gesture={id:event.pointerId,kind:'pending',start:p,panX:c.overflowX?-c.x/c.overflowX:0,panY:latest.current.panY,hit,companionId:companion?.id,eraseId:erasing?hitTestDrawing(level,run,wp,radius):null};gestureRef.current=gesture;
+    const gesture:Gesture={id:event.pointerId,kind:'pending',start:p,panX:c.overflowX?-c.x/c.overflowX:0,panY:latest.current.panY,hit,eraseId:erasing?hitTestDrawing(level,run,wp,radius):null};gestureRef.current=gesture;
     if(!erasing&&hit?.kind==='drawing'){const d=level.drawings.find(item=>item.id===hit.id),endpoint=d?.[hit.end];if(endpoint&&beginStroke(run,level,endpoint).ok){gesture.kind='draw';pointerRef.current=p;setDrawing(true);handRef.current=endpoint;lastStrokeRef.current={point:endpoint,at:performance.now()};audioRef.current?.beginPencil();}}
   };
   const pointerMove=(event:ReactPointerEvent<HTMLCanvasElement>)=>{
@@ -247,19 +247,22 @@ export default function HomePage(){
       if(Math.hypot(local.x-g.start.x,local.y-g.start.y)<8){
         // A tap on a loaded pan operates its crank; dragging its rim draws a
         // bridge. Touch users do not need to hit a tiny handle beside an anchor.
-        const device=level.devices.find(d=>{
-          if(d.kind!=='counterweight'&&d.kind!=='lift')return false;
-          const low=d.low??d,high=d.high??low,t=d.kind==='lift'?(runRef.current.devices[d.id]?.progress??0):0;
-          return Math.hypot(point.x-low.x-(high.x-low.x)*t,point.y-low.y-(high.y-low.y)*t)<26/cameraRef.current.scale;
-        });
-        releaseGesture();if(device)takeAction({type:'device',id:device.id});return;
+        const device=tappedPlatform(level,runRef.current,point,cameraRef.current.scale);
+        releaseGesture();if(device)takeAction({type:'device',id:device});return;
       }
       appendStroke(runRef.current,level,point);runRef.current.events.length=0;const result=finishStroke(runRef.current,level);playGestureEvents();if(!result.ok)flash(result.message);refresh();persist();releaseGesture(false);return;
     }
     if(g.kind==='pending'){
       if(erasing){if(g.eraseId){const result=takeAction({type:'erase',id:g.eraseId});if(result.ok)setErasing(false);}else flash('Touche un trait libre pour l’effacer.');}
       else if(g.hit?.kind==='device')takeAction({type:'device',id:g.hit.id});
-      else if(g.companionId!==undefined&&reactCompanion(runRef.current,g.companionId)){const unit=runRef.current.units.find(u=>u.id===g.companionId);audioRef.current?.play('wait',{unitId:g.companionId,x:unit?.x,y:unit?.y});}
+      else if(g.hit?.kind==='companion'){
+        const unit=runRef.current.units.find(unit=>unit.id===g.hit!.id);
+        if(unit){
+          if(reactCompanion(runRef.current,unit.id))audioRef.current?.play('wait',{unitId:unit.id,x:unit.x,y:unit.y});
+          const reason=runRef.current.phase==='paused'?'Le temps est en pause.':getWaitingReason(runRef.current,level,unit,true);
+          if(reason)flash(reason);
+        }
+      }
     }releaseGesture();
     if(g.kind==='pan'&&Math.abs(g.pagePull??0)>Math.min(72,cameraRef.current.width*.16))goToTableau((cameraRef.current.tableauIndex??0)+((g.pagePull??0)>0?1:-1));
   };
@@ -285,14 +288,13 @@ export default function HomePage(){
   return <main ref={shellRef} className={`universe-shell world-${screen==='gate'?'boucles':level.id}`}>
     {screen==='gate'?<WorldGate onEnter={i=>void enterWorld(i)} onSettings={()=>{unlock();setPanel('sound');}} records={records} muted={muted} onMute={toggleMute} resumeAt={resumeAt}/>:<section className={`expedition ${erasing?'erasing':''}`} aria-label={`${level.name} — ${level.stageName}`}>
       <canvas ref={canvasRef} role="application" tabIndex={0} aria-label={`${level.name}. Touche un mécanisme pour agir. Trace depuis un appui. Glisse le décor pour explorer. Pince pour zoomer.`} className={drawing?'drawing':panning?'panning':''} onPointerDown={pointerDown} onPointerMove={pointerMove} onPointerUp={pointerUp} onPointerCancel={()=>releaseGesture()} onLostPointerCapture={event=>{if(pointersRef.current.has(event.pointerId))releaseGesture();}} onPointerLeave={()=>{if(!gestureRef.current)hoverRef.current=null;}} onWheel={event=>{if(panel||intro)return;setFollowing(false);changeZoom(latest.current.zoom*(event.deltaY>0?.92:1.08),{x:event.clientX-event.currentTarget.getBoundingClientRect().left,y:event.clientY-event.currentTarget.getBoundingClientRect().top});}}/>
-      <header className="play-header"><button className="game-icon home-icon" onClick={goHome} aria-label="Revenir aux mondes"><ArrowLeft size={21}/></button><div className="place-name"><small>{level.name}<span className="place-page">{tableauIndex+1}/{tableauCount}</span></small><h1>{areaName}</h1></div>{(tableauIndex===tableauCount-1||view.saved>0)&&<div className="play-count" aria-label={`${view.saved} compagnons arrivés au refuge sur 12`}><Users size={20}/><span><em>Au refuge</em>{view.saved}<small>/12</small></span></div>}<button className="game-icon" onClick={openPause} aria-label="Pause et son"><Settings2 size={20}/></button></header>
+      <header className="play-header"><button className="game-icon home-icon" onClick={goHome} aria-label="Revenir aux mondes"><ArrowLeft size={21}/></button><div className="place-name"><small>{level.name}<span className="place-page">{tableauIndex+1}/{tableauCount}</span>{!loading&&!intro&&!finished&&<span className="ink-ribbon" role="meter" aria-label="Encre disponible" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(inkLeft*100)}><Pencil size={11}/><span><i style={{width:`${inkLeft*100}%`}}/></span></span>}</small><h1>{areaName}</h1></div>{(tableauIndex===tableauCount-1||view.saved>0)&&<div className="play-count" aria-label={`${view.saved} compagnons arrivés au refuge sur 12`}><Users size={20}/><span><em>Au refuge</em>{view.saved}<small>/12</small></span></div>}<button className="game-icon" onClick={openPause} aria-label="Pause et son"><Settings2 size={20}/></button></header>
       {view.phase==='paused'&&!panel&&!intro&&<div className="time-still"><Pause size={11}/>Pause</div>}
       {!loading&&!intro&&!finished&&<>
         {tableauIndex>0&&<button className="page-arrow page-arrow-left" onClick={()=>goToTableau(tableauIndex-1)} aria-label="Tableau précédent"><ArrowLeft size={21}/></button>}
         {tableauIndex<tableauCount-1&&<button className="page-arrow page-arrow-right" onClick={()=>goToTableau(tableauIndex+1)} aria-label="Tableau suivant"><ArrowRight size={21}/></button>}
         {waitingLeft>0&&<button className="waiting-group waiting-group-left" onClick={()=>findWaitingGroup('left')} aria-label={`${waitingLeft} compagnons attendent à gauche, les retrouver`}><ArrowLeft size={14}/><Users size={16}/><b>{waitingLeft}</b></button>}
         {waitingRight>0&&<button className="waiting-group waiting-group-right" onClick={()=>findWaitingGroup('right')} aria-label={`${waitingRight} compagnons attendent à droite, les retrouver`}><b>{waitingRight}</b><Users size={16}/><ArrowRight size={14}/></button>}
-        <div className="ink-ribbon" aria-label={`${Math.round(inkLeft*100)} pour cent d’encre disponible`}><Pencil size={15}/><span><i style={{width:`${inkLeft*100}%`}}/></span></div>
         <div className="game-tools" role="toolbar" aria-label="Commandes du jeu">
           <button className="game-icon" onClick={()=>takeAction({type:'undo'})} disabled={!view.undo} aria-label="Annuler le dernier geste" title="Annuler"><Undo2 size={22}/></button>
           <button className={`game-icon ${erasing?'active':''}`} onClick={()=>{releaseGesture();setErasing(v=>!v);}} aria-label={erasing?'Reprendre le crayon':'Gomme : toucher un trait pour l’effacer'} aria-pressed={erasing} title="Gomme">{erasing?<Pencil size={23}/>:<Eraser size={23}/>}</button>
