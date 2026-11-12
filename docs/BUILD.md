@@ -1,4 +1,4 @@
-# Coup de Main — Compilation autonome de la version 3.1.1
+# Coup de Main — Compilation autonome de la version 3.1.2
 
 [Dépôt public Coup de Main](https://github.com/M4D135/Coup-de-Main)
 
@@ -85,7 +85,30 @@ Avant livraison, vérifier également dans le navigateur :
 - Les trois volumes, la coupure générale, le déverrouillage audio et le retour d’un onglet masqué.
 - L’absence d’erreurs de console et le chargement correct des images dans le build web et le HTML autonome.
 
-### Résultats de la livraison 3.1.1
+### Résultats de la livraison 3.1.2
+
+La suite complète du projet de création réussit **365 tests sur 365**, sans échec ni test ignoré. La vérification TypeScript et `git diff --check` réussissent. Les quinze illustrations, les atlas et les données de géométrie sont inchangés.
+
+Le cas signalé sur la capture de « Le premier nœud » a été reproduit sous 3.1.1 avec trois vrais tracés courbes, trois porteurs sur le plateau, neuf compagnons devant et la borne locale allumée. La sauvegarde est conservée dans `tests/fixtures/worlds-playability-curved-v311.json`. Rejouer cette même sauvegarde avec les anciennes règles laisse les trois porteurs derrière après cent secondes supplémentaires. Avec les règles 3.1.2, les douze franchissent le souvenir du premier tableau, sans nouveau clic de puzzle, sans changement de position au chargement et sans actionner le moulin du tableau suivant.
+
+Un second blocage a été reproduit après le remplissage du deuxième plateau d’une double balance avant le premier. Le rappel s’arrêtait à l’aiguillage intermédiaire. `tests/fixtures/worlds-double-balance-stuck-v4.json` conserve la partie réellement bloquée ; la reprise corrigée fait revenir le porteur manquant à pied, puis le parcours peut se terminer à douze. Le premier plateau reste à verrouiller par le joueur.
+
+| Contrôle ajouté | Cas | Résultat |
+| --- | ---: | --- |
+| Sauvegarde 3.1.1 avec borne locale allumée ; courbes larges et en S ; reprises pendant charge, activation et retour ; dessin tardif inversé et Undo | 12 | Réunion locale sans commande suivante |
+| Doubles balances : trois mondes × deux positions du second aiguillage, plus sauvegarde réellement bloquée | 7 | Douze sauvés, aucun recommencement |
+| Contrôleur séquentiel limité au tableau courant, courbes et sauvegarde à chaque transition | 15 tableaux dans 3 parcours | Trois mondes terminés à 12/12, aucune perte |
+| Messages d’attente : causes distinctes, file courbe, pause, huit secondes, absence de répétition et pendule hors champ | 7 | États observés sans mutation du jeu |
+
+Les **60 scénarios de perturbation conservés de 3.1.1** passent également : 57 arrivent à 12/12 ; les trois scénarios qui libèrent volontairement un éclaireur dans le balancier arrivent à 11/12, sans perte supplémentaire. Un audit exploratoire de **90 séquences sur les quinze réseaux** a aussi exercé 4 326 traits validés, 2 947 redessins et 1 956 annulations ; 89 redessins ont été refusés normalement parce qu’un compagnon avait rejoint le passage pendant le geste. Les régressions ciblées et les sauvegardes restent dans le dépôt.
+
+Le parcours séquentiel n’actionne pas les tableaux futurs. Quatorze tableaux regroupent les douze au souvenir avant tout geste dans le suivant. À la sortie du premier tableau des Veilleurs, les douze ont quitté le pont et les plateaux ; la file devant la porte suivante peut remonter avant le souvenir (11/12 l’ont franchi dans ce parcours). Aucun porteur ne reste isolé. Après reprise, l’ouverture de cette porte, devenue le mécanisme du tableau courant, fait repartir toute la troupe. Ce cas de congestion est explicitement vérifié ; il n’est ni compté comme un souvenir acquis prématurément, ni corrigé en déplaçant les personnages.
+
+Ces parcours sont des simulations automatisées utilisant les actions publiques du jeu. Ils complètent les essais de sélection et de caméra en formats mobiles ; ils ne constituent pas des essais sur un iPhone physique. La vérification manuelle de cette livraison n’a pas pu être menée dans cette session : la prévisualisation locale annoncée par l’environnement a affiché un autre projet dans le navigateur, y compris après rechargement, puis l’accès au Site privé publié a demandé une connexion ChatGPT absente du navigateur de test. Les résultats ci-dessus ne sont donc pas présentés comme trois parcours manuels complets.
+
+L’export public 3.1.2 a reçu une installation neuve avec `npm ci --ignore-scripts` (**48 paquets**). `npm run check` réussit : TypeScript, **208 tests sur 208**, aucun ignoré, puis compilation Vite. Le HTML autonome embarque les mêmes **25 images** que la distribution web. La mise à jour finale de ce compte rendu est recopiée dans l’export et son manifeste est recalculé ; elle ne modifie pas le code validé.
+
+### Résultats de la livraison précédente 3.1.1
 
 La suite complète du projet de création réussit **321 tests sur 321**, sans test ignoré. La vérification TypeScript et le contrôle des espaces du diff réussissent également. Les tests publics sont inclus dans cette suite ; l’export autonome reçoit ensuite sa propre installation et sa propre vérification.
 
@@ -135,7 +158,7 @@ npm run public:export -- /chemin/absolu/vers/un-dossier-vide
 
 Le premier script produit `work/public-dist/`. L’exporteur suit les imports actifs de l’interface et des tests publics, puis copie une liste explicite de scripts, documents, prompts de génération et médias. Les fichiers intermédiaires `*-tableau-*.png` ne sont pas exportés : seuls les douze tableaux finaux WebP sont retenus. Il refuse de remplacer un dossier non vide.
 
-Le paquet ne contient ni historique Git, identité d’hébergement, variables d’environnement, connecteurs, ancien moteur, médias audio historiques ni archives de création. Les anciennes sources restent dans leurs projets et historiques. `PUBLIC-MANIFEST.json` énumère les fichiers, tailles et SHA-256. Son champ `version` désigne le format du manifeste ; `gameVersion` reprend **3.1.1**, comme le package, le lock et le manifeste des médias.
+Le paquet ne contient ni historique Git, identité d’hébergement, variables d’environnement, connecteurs, ancien moteur, médias audio historiques ni archives de création. Les anciennes sources restent dans leurs projets et historiques. `PUBLIC-MANIFEST.json` énumère les fichiers, tailles et SHA-256. Son champ `version` désigne le format du manifeste ; `gameVersion` reprend **3.1.2**, comme le package, le lock et le manifeste des médias.
 
 Dans un export neuf, `npm ci && npm run check` vérifie la distribution publique. L’export et le build locaux ne publient ni release ni site à eux seuls.
 

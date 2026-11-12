@@ -71,19 +71,21 @@ test('V1 and V2 saves reset safely into the continuous V3 graph',()=>{
   }
 });
 
-test('the distant mill must release the original porters before the first physical souvenir is safe',()=>{
+test('the visible first relay reunites every porter before any action in the following tableau',()=>{
   const level=WORLD_LEVELS[0],run=createRun(level),network=WORLD_NETWORKS.boucles[0];
   for(const id of network.drawings)drawExpedition(run,level,id);
   assert(applyAction(run,level,{type:'device',id:'s0:fork'}).ok);applyAction(run,level,{type:'start'});
   for(let i=0;i<400&&run.devices['s0:balance'].load<3;i++)updateRun(run,level,.1);
   assert.equal(run.devices['s0:balance'].load,3);assert(applyAction(run,level,{type:'device',id:'s0:balance'}).ok);
   assert(applyAction(run,level,{type:'device',id:'s0:fork'}).ok);
+  assert.equal(run.units.filter(unit=>unit.nodeId==='s0:pan'&&unit.edgeId===null).length,3);
+  assert.equal(run.autoCheckpointId,null,'the loaded porters still have to return before a souvenir can be recorded');
   for(let i=0;i<700;i++)updateRun(run,level,.1);
   assert.equal(run.devices['s0:relay'].mode,1);assert.equal(run.devices['s2:relay'].mode,0);
-  assert.equal(run.units.filter(unit=>unit.nodeId==='s0:pan'&&unit.edgeId===null).length,3);
-  assert.equal(run.autoCheckpointId,null,'nine forward scouts cannot abandon three porters in a checkpoint');
-  assert(getStageProgress(run,level).furthestX>4000);
-  assert(getStageProgress(run,level).rearmostX<level.nodes.find(node=>node.id==='s0:far')!.x,'the original porters remain behind the first high bridge');
+  assert.equal(run.units.filter(unit=>unit.nodeId==='s0:pan'&&unit.edgeId===null).length,0);
+  assert.equal(run.visits[network.end]?.length,12,'every companion physically leaves the solved tableau');
+  assert.equal(run.autoCheckpointId,network.end,'the reunited troupe has its first safe souvenir');
+  assert.equal(run.devices['s2:wind'].mode,0);assert.equal(run.devices['s2:cleat'].mode,0);
   assert.equal(applyAction(run,level,{type:'device',id:'s2:relay'}).ok,false,'distant arrival mechanisms cannot be clicked open');
   solveExpedition(run,level);assert.equal(run.saved,12);
 });

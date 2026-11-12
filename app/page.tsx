@@ -3,10 +3,11 @@
 import {useCallback,useEffect,useRef,useState,type PointerEvent as ReactPointerEvent,type ReactNode} from 'react';
 import {ArrowLeft,ArrowRight,Eraser,Flag,Hand,Home,LocateFixed,Maximize2,Music2,Pause,Pencil,Play,RotateCcw,Settings2,ShieldCheck,Sparkles,Star,Undo2,Users,Volume2,VolumeX,X} from 'lucide-react';
 import {WORLD_LEVELS} from '../lib/worlds/levels';
-import {createRun,updateRun,applyAction,beginStroke,appendStroke,finishStroke,cancelStroke,saveRun,restoreRun,getRunSummary,getJourneySummary,getDeviceStatus,getWaitingReason,getStageProgress,isJourneyComplete} from '../lib/worlds/engine';
+import {createRun,updateRun,applyAction,beginStroke,appendStroke,finishStroke,cancelStroke,saveRun,restoreRun,getRunSummary,getJourneySummary,getDeviceStatus,getStageProgress,isJourneyComplete} from '../lib/worlds/engine';
 import {loadWorldAssets,renderWorld,hitTestDrawing,type WorldAssets} from '../lib/worlds/renderer';
 import {reactCompanion} from '../lib/worlds/renderer-characters';
 import {hitTestPlayTarget,tappedPlatform,type PlayTarget} from '../lib/worlds/interaction';
+import {companionFeedback,deviceFeedback,waitingGroupFeedback,createStillnessWatch,observeStillness} from '../lib/worlds/feedback';
 import {WorldAudio,type WorldSound} from '../lib/worlds/audio';
 import {getWorldAsset} from '../lib/worlds/assets';
 import {getExpeditionView,autoPanWorldView,panAroundPoint,type WorldView} from '../lib/worlds/camera';
@@ -71,11 +72,12 @@ export default function HomePage(){
   const checkpointRef=useRef<string|null>(null),toastTimerRef=useRef<ReturnType<typeof setTimeout>|null>(null),focusTimerRef=useRef<ReturnType<typeof setTimeout>|null>(null);
   const groupRef=useRef(-1),arrowKeysRef=useRef(new Set<string>());
   const tableauRef=useRef({index:-1,changedAt:-1000});
+  const stillnessRef=useRef(createStillnessWatch());
   const latest=useRef({screen,worldIndex,panel,intro,loading,erasing,zoom,panX,panY,following,selected,reduced:reduced||systemReduced});
   latest.current={screen,worldIndex,panel,intro,loading,erasing,zoom,panX,panY,following,selected,reduced:reduced||systemReduced};
   const level=WORLD_LEVELS[worldIndex],finished=view.phase==='won'||view.phase==='lost';
 
-  const flash=useCallback((message:string)=>{setToast(message);if(toastTimerRef.current)clearTimeout(toastTimerRef.current);toastTimerRef.current=setTimeout(()=>setToast(''),3000);},[]);
+  const flash=useCallback((message:string)=>{setToast(message);stillnessRef.current.seconds=0;if(toastTimerRef.current)clearTimeout(toastTimerRef.current);toastTimerRef.current=setTimeout(()=>setToast(''),Math.min(6500,Math.max(3000,message.length*42)));},[]);
   const flush=useCallback((patch:Partial<Session>)=>{
     try{
       let stored:unknown=null;try{stored=JSON.parse(localStorage.getItem(SESSION_KEY)??'null');}catch{}
@@ -113,7 +115,9 @@ export default function HomePage(){
     const nearest=waiting[0];if(!nearest)return;
     const group=waiting.filter(u=>Math.abs(u.x-nearest.x)<450&&Math.abs(u.y-nearest.y)<180);
     focusPoint({x:group.reduce((sum,u)=>sum+u.x,0)/group.length,y:group.reduce((sum,u)=>sum+u.y,0)/group.length});
-  },[releaseGesture,focusPoint]);
+    const notice=waitingGroupFeedback(runRef.current,WORLD_LEVELS[latest.current.worldIndex],group);
+    if(notice)flash(notice.message);
+  },[releaseGesture,focusPoint,flash]);
   const takeAction=useCallback((action:GameAction)=>{
     unlock();if(['pause','undo','erase','restart','retry'].includes(action.type))releaseGesture();
     runRef.current.events.length=0;
@@ -122,8 +126,7 @@ export default function HomePage(){
     if(!result.ok)flash(result.message);
     else if(action.type==='device'){
       setSelected(action.id);if(focusTimerRef.current)clearTimeout(focusTimerRef.current);focusTimerRef.current=setTimeout(()=>setSelected(null),900);
-      const status=getDeviceStatus(runRef.current,WORLD_LEVELS[latest.current.worldIndex],action.id);
-      flash(`${status.label} · ${status.stateLabel}${runRef.current.phase==='paused'?' · En pause':''}`);
+      flash(deviceFeedback(runRef.current,WORLD_LEVELS[latest.current.worldIndex],action.id));
     }
     refresh();persist();return result;
   },[unlock,releaseGesture,flash,refresh,persist,playGestureEvents]);
@@ -211,7 +214,13 @@ export default function HomePage(){
       // pictures are never stretched, blended together or shown as a seam.
       const pageAge=at-tableauRef.current.changedAt;
       if(!state.reduced&&pageAge>=0&&pageAge<180){context.save();context.setTransform(ratio,0,0,ratio,0,0);context.globalAlpha=1-pageAge/180;context.fillStyle=world.palette.paper;context.fillRect(0,0,rect.width,rect.height);context.restore();}
-      if(at-lastUi>110){setView(makeView(run,world));setCamera({...c});lastUi=at;const checkpoint=getStageProgress(run,world).checkpoint?.id??null;if(checkpoint&&checkpoint!==checkpointRef.current){checkpointRef.current=checkpoint;flash('Un souvenir conservé.');persist();}}
+      if(at-lastUi>110){
+        const visible=run.units.filter(unit=>{const x=unit.x*c.scale+c.x,y=(unit.y-world.creatureHeight*.6)*c.scale+c.y;return x>=20&&x<=c.width-20&&y>=70&&y<=c.height-115;})
+          .sort((a,b)=>Math.hypot(a.x*c.scale+c.x-c.width/2,a.y*c.scale+c.y-c.height/2)-Math.hypot(b.x*c.scale+c.x-c.width/2,b.y*c.scale+c.y-c.height/2));
+        const notice=observeStillness(stillnessRef.current,run,world,(at-lastUi)/1000,visible,!blocked&&!gestureRef.current&&!state.erasing&&!arrowKeysRef.current.size);
+        if(notice)flash(notice.message);
+        setView(makeView(run,world));setCamera({...c});lastUi=at;const checkpoint=getStageProgress(run,world).checkpoint?.id??null;if(checkpoint&&checkpoint!==checkpointRef.current){checkpointRef.current=checkpoint;flash('Un souvenir conservé.');persist();}
+      }
       if(isJourneyComplete(world,run)&&!wonRef.current){wonRef.current=true;const s=getJourneySummary(run,world),record={rescued:s.saved,time:s.time,stars:s.stars,completed:true,revision:3};flush({records:{[world.id]:record}});setRecords({...sessionRef.current.records});persist();}
     };id=requestAnimationFrame(frame);return()=>cancelAnimationFrame(id);
   },[setPosition,persist,flash,flush]);
@@ -259,7 +268,7 @@ export default function HomePage(){
         const unit=runRef.current.units.find(unit=>unit.id===g.hit!.id);
         if(unit){
           if(reactCompanion(runRef.current,unit.id))audioRef.current?.play('wait',{unitId:unit.id,x:unit.x,y:unit.y});
-          const reason=runRef.current.phase==='paused'?'Le temps est en pause.':getWaitingReason(runRef.current,level,unit,true);
+          const reason=companionFeedback(runRef.current,level,unit);
           if(reason)flash(reason);
         }
       }

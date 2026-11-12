@@ -1,6 +1,6 @@
 # Coup de Main
 
-**Version 3.1.1 · Un crayon. Trois mondes. Douze compagnons à guider.**
+**Version 3.1.2 · Un crayon. Trois mondes. Douze compagnons à guider.**
 
 [Sources et versions publiques](https://github.com/M4D135/Coup-de-Main)
 
@@ -48,6 +48,8 @@ Tourner une page conserve la troupe et l’état du voyage. Le titre montre le t
 Un taquet qui a déjà soutenu le passage de la troupe reste engagé : une annulation ne peut plus couper cet appui derrière un groupe déjà avancé. La reprise d’une partie concernée rétablit seulement les appuis dont l’utilisation avait été enregistrée, sans résoudre les mécanismes encore intacts.
 
 La version 3.1.1 répare aussi les parties où un compagnon revenu à un aiguillage occupait encore son ancien chemin : il libère ce passage au chargement, sans changer de position ni résoudre le mécanisme. Les autres compagnons peuvent alors terminer leur retour.
+
+La version 3.1.2 corrige les balances qui retenaient leurs porteurs malgré la borne locale allumée : leur libération dépend désormais de cette borne visible, du cran verrouillé et du passage de retour tracé. Aucune action dans le tableau suivant n’est nécessaire. Une partie déjà enregistrée dans cette situation reprend avec ses personnages, ses tracés et ses réglages.
 
 Les étoiles dépendent uniquement du nombre de compagnons arrivés au refuge :
 

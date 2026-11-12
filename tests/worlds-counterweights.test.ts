@@ -55,19 +55,16 @@ test('clicking or undoing an occupied counterweight cannot drop its support; cha
   solveExpedition(run,level,600);assert.equal(run.saved,12);assert.equal(run.lost,0);assert.equal(run.retries,0);
 });
 
-test('three retained porters report the actual remote relay, then the missing return span, without changing the puzzle',()=>{
+test('three retained porters report their local relay, then the missing return span, without solving either for the player',()=>{
   const run=loadedPlateau();applyAction(run,level,{type:'device',id:'s0:balance',mode:1});applyAction(run,level,{type:'device',id:'s0:fork',mode:0});
-  assert(applyAction(run,level,{type:'erase',id:'s0:return-thread'}).ok);advance(run,45);
+  assert(applyAction(run,level,{type:'erase',id:'s0:return-thread'}).ok);
   const porters=run.units.filter(unit=>unit.nodeId==='s0:pan'&&unit.edgeId===null);assert.equal(porters.length,3);
-  assert.equal(run.devices['s2:relay'].mode,0);
+  assert.equal(run.devices['s0:relay'].mode,0);assert.equal(run.devices['s2:relay'].mode,0);
   const before=JSON.stringify(saveRun(run)),reason=getDeviceStatus(run,level,'s0:balance').reason;
-  assert.match(reason,/relais/);assert.doesNotMatch(reason,/peuvent sortir|Dessine|Oriente|Choisis/);
+  assert.equal(reason,'La borne attend encore des compagnons.');assert.doesNotMatch(reason,/peuvent sortir|Dessine|Oriente|Choisis/);
   assert.equal(getWaitingReason(run,level,porters[0],true),reason);assert.equal(JSON.stringify(saveRun(run)),before);
-  for(const id of WORLD_NETWORKS.boucles[1].drawings)drawExpedition(run,level,id);
-  applyAction(run,level,{type:'device',id:'s2:wind',mode:1});advance(run,3);
-  assert(applyAction(run,level,{type:'device',id:'s2:cleat',mode:1}).ok);applyAction(run,level,{type:'device',id:'s2:wind',mode:0});
-  for(let frame=0;frame<1600&&run.devices['s2:relay'].progress<.98;frame++)updateRun(run,level,.1);
-  assert(run.devices['s2:relay'].progress>=.98);
+  for(let frame=0;frame<600&&run.devices['s0:relay'].progress<.98;frame++)updateRun(run,level,.1);
+  assert(run.devices['s0:relay'].progress>=.98);assert.equal(run.devices['s2:relay'].mode,0);
   assert.equal(run.units.filter(unit=>unit.nodeId==='s0:pan'&&unit.edgeId===null).length,3);
   assert.match(getWaitingReason(run,level,porters[0],true)!,/passage de retour/);
   drawExpedition(run,level,'s0:return-thread');

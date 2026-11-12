@@ -2,6 +2,30 @@
 
 Les sources et les fichiers prêts à jouer sont publiés dans le [dépôt Coup de Main](https://github.com/M4D135/Coup-de-Main).
 
+## [3.1.2]
+
+### Réunir les porteurs dans leur propre tableau
+
+- Les balances des Boucles, des Petits Plis et des Veilleurs libèrent maintenant leurs porteurs lorsque leur borne locale est allumée, leur cran verrouillé et leur passage de retour tracé. Une borne allumée ne cache plus une dépendance à un relais dans le tableau suivant.
+- Une sauvegarde déjà dans cette situation reprend avec les mêmes personnages et les mêmes courbes. La correction ne recommence pas le monde et n’actionne aucun mécanisme à la place du joueur.
+
+### Récupérer une mauvaise répartition entre deux balances
+
+- Un groupe ayant dépassé deux aiguillages peut revenir charger le premier plateau resté vide après sa réorientation. Le rappel ne s’arrête plus au second aiguillage demeuré inchangé.
+- Le retour suit uniquement les chemins réellement parcourus par ces compagnons. Les souvenirs, les plateaux occupés ou verrouillés et les mécanismes à sens unique restent des limites ; personne n’est téléporté.
+
+### Comprendre une attente sans ouvrir de panneau
+
+- Actionner une balance affiche brièvement son état et la condition qui retient encore ses porteurs. Retrouver un groupe hors champ indique aussi sa raison d’attendre.
+- Lorsque toute la troupe est immobile, un message discret décrit l’obstacle après huit secondes. Il ne se répète pas tant que la situation reste identique et ne résout aucune énigme.
+- La tête d’une file est déterminée par l’avancée sur le vrai tracé, y compris une courbe qui revient vers la gauche. La pause conserve le diagnostic d’un compagnon déjà arrêté.
+
+### Vérification des situations signalées
+
+- Deux sauvegardes réellement bloquées avant correction sont conservées comme régressions : les trois premiers porteurs avec leur borne allumée, et une double balance incomplète après changements d’aiguillage.
+- Les parcours sont éprouvés avec courbes larges, tracés en S, dessins inversés ou tardifs, annulations et reprises pendant les déplacements. Un contrôleur séquentiel vérifie aussi les trois voyages en agissant sur un tableau à la fois.
+- Les quinze illustrations et les atlas de personnages sont conservés. Le détail des résultats et les limites des essais sont dans `docs/BUILD.md`.
+
 ## [3.1.1]
 
 ### Les compagnons repartent après un changement de route

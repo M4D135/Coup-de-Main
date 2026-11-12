@@ -396,10 +396,12 @@ function returnPath(run:WorldRun,level:WorldLevel,nodeId:string,incomingId:strin
       if(!run.passages[edge.id]?.includes(unitId))continue;
       if(!['ground','drawn'].includes(edge.kind)||(edge.drawingId&&!run.drawings[edge.drawingId]))continue;
       const edges=[...current.edges,edge.id];
-      if(edge.route){
-        if(run.devices[edge.route.deviceId]?.mode!==edge.route.mode)return edges;
-        continue;
-      }
+      if(edge.route&&run.devices[edge.route.deviceId]?.mode!==edge.route.mode)return edges;
+      // A still-selected junction can lie between this dead end and an older
+      // junction that the player has changed. In a double balance, stopping
+      // at the second fork would strand every possible porter beyond the
+      // first, unfilled plateau. Follow only this companion's real route;
+      // checkpoints, weight stations and one-way mechanisms still bound it.
       pending.push({nodeId:edge.from,edges});
     }
   }
@@ -407,9 +409,6 @@ function returnPath(run:WorldRun,level:WorldLevel,nodeId:string,incomingId:strin
 }
 
 function recallStranded(run:WorldRun,level:WorldLevel,unit:Creature,nodeId:string):boolean {
-  // At an actual junction a full scout/porter quota is a local queue, not a
-  // reason to search backwards through completed chapters for an old fork.
-  if(level.edges.some(edge=>edge.from===nodeId&&edge.route))return false;
   // A prepared exit with a queue or a travelling lift is not a dead end.
   // Recalling at a merge would otherwise send a companion along a branch it
   // never used simply because that other branch's selector has changed.
@@ -886,7 +885,7 @@ function counterweightWaitingReason(run:WorldRun,level:WorldLevel,definition:Dev
   if(!run.units.some(unit=>stations.has(unit.nodeId)&&unit.edgeId===null&&unit.state==='waiting'))return 'Le cran reste engagé pour soutenir la passerelle.';
   const exits=level.edges.filter(edge=>stations.has(edge.from));
   const missing=exits.flatMap(edge=>edge.gates??[]).filter(gate=>!gateSatisfied(run,gate));
-  if(missing.some(gate=>deviceFor(level,gate.deviceId)?.playerControlled===false))return 'Le relais plus loin retient encore les porteurs.';
+  if(missing.some(gate=>deviceFor(level,gate.deviceId)?.playerControlled===false))return 'La borne attend encore des compagnons.';
   if(state.progress<.98)return 'Le plateau n’a pas fini son mouvement.';
   if(missing.length)return `${deviceFor(level,missing[0].deviceId)?.label??'Un mécanisme'} retient encore la sortie.`;
   const ready=exits.filter(edge=>(!edge.drawingId||!!run.drawings[edge.drawingId])&&(!edge.route||run.devices[edge.route.deviceId]?.mode===edge.route.mode));
@@ -962,7 +961,7 @@ export function getWaitingReason(run:WorldRun,level:WorldLevel,unit:Creature,bri
     if(missing){
       const device=deviceFor(level,missing.deviceId);
       if(brief){
-        if(device?.playerControlled===false)return 'Le relais attend encore des compagnons.';
+        if(device?.playerControlled===false)return 'La borne attend encore des compagnons.';
         if(device?.kind==='counterweight')return run.devices[device.id].mode===0?counterweightWaitingReason(run,level,device):'Le plateau n’a pas fini son mouvement.';
         if(device?.kind==='wind')return missing.minProgress!==undefined&&run.devices[device.id].progress<missing.minProgress?'Le moulin n’a pas encore levé le support.':'Le vent retient encore ce passage.';
         if(device?.kind==='latch')return 'Le support n’est pas encore retenu.';

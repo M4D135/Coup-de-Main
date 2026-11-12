@@ -15,6 +15,7 @@ function waitingPorters(){
   for(let i=0;i<400&&run.devices['s0:balance'].load<3;i++)updateRun(run,level,.1);
   assert.equal(run.devices['s0:balance'].load,3);
   assert(applyAction(run,level,{type:'device',id:'s0:balance'}).ok);
+  assert(applyAction(run,level,{type:'erase',id:'s0:return-thread'}).ok);
   assert(applyAction(run,level,{type:'device',id:'s0:fork'}).ok);
   for(let i=0;i<700;i++)updateRun(run,level,.1);
   return {level,run};
@@ -32,7 +33,7 @@ for(const [width,height] of [[393,700],[375,812],[320,568],[844,390]]){
     for(const unit of porters){
       const face={x:unit.x,y:unit.y-level.creatureHeight*.59};
       assert.deepEqual(hitTestPlayTarget(level,run,face,view.scale),{kind:'companion',id:unit.id});
-      assert.match(getWaitingReason(run,level,unit,true)??'',/relais/i);
+      assert.match(getWaitingReason(run,level,unit,true)??'',/passage de retour/i);
     }
     assert.deepEqual(hitTestPlayTarget(level,run,balance,view.scale),{kind:'device',id:balance.id});
     const panBody=deviceBody(level,run,balance);
@@ -47,7 +48,7 @@ for(const [width,height] of [[393,700],[375,812],[320,568],[844,390]]){
 test('a visible bridge support stays drawable when a companion is standing on its platform',()=>{
   const {level,run}=waitingPorters(),pan=level.nodes.find(node=>node.id==='s0:pan')!;
   const drawing=level.drawings.find(drawing=>drawing.from.x===pan.x&&drawing.from.y===pan.y)!;
-  assert(drawing);delete run.drawings[drawing.id];
+  assert(drawing);assert.equal(run.drawings[drawing.id],undefined);
   for(const scale of [.315,.45,1]){
     assert.deepEqual(hitTestPlayTarget(level,run,drawing.from,scale),{kind:'drawing',id:drawing.id,end:'from'});
     assert.equal(tappedPlatform(level,run,drawing.from,scale),'s0:balance','a tap operates the pan; a drag from the same support remains a drawing');

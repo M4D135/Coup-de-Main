@@ -1,4 +1,4 @@
-# Coup de Main — Les mondes illustrés de la version 3.1.1
+# Coup de Main — Les mondes illustrés de la version 3.1.2
 
 Chaque monde est un parcours de **16 000 × 1 800 unités**, présenté en **cinq tableaux complets de 3 200 × 1 800 unités**. Douze compagnons traversent les cinq réseaux de mécanismes jusqu’au refuge final. Les groupes, dessins et réglages restent présents entre les tableaux ; tourner une page ne recommence pas la partie.
 
@@ -8,7 +8,7 @@ Le premier tableau de chaque famille utilise sa scène complète d’origine. Qu
 
 Les personnages avancent seuls sur les chemins disponibles. Le joueur trace entre les appuis, touche les mécanismes pour changer leur position et explore le décor en déplaçant la caméra. Les mouvements, charges, relais et repères donnent les informations nécessaires dans la scène.
 
-Chaque réseau occupe deux secteurs et relie plusieurs fonctions : aiguillages, porteurs, verrous, souffle, ascenseurs ou passages dangereux. Certains réglages dépendent d’un mécanisme situé plus loin. Une petite équipe peut donc ouvrir une route pour les autres ou permettre aux porteurs restés en arrière de rejoindre le groupe.
+Chaque réseau occupe deux secteurs et relie plusieurs fonctions : aiguillages, porteurs, verrous, souffle, ascenseurs ou passages dangereux. Une petite équipe peut ouvrir la route pour les autres. Les porteurs d’une balance sont libérés par la borne de leur propre tableau, avec le cran verrouillé et leur retour tracé. Les appuis gagnés dans un tableau peuvent alimenter les mécanismes suivants ; aucune commande dans le tableau suivant n’est nécessaire pour libérer les porteurs du précédent. Une file peut toutefois remonter devant la porte fermée du passage suivant.
 
 Une réserve de construction accompagne tout le monde ; la jauge du crayon montre l’encre encore disponible. Les traits ont également leur propre limite de longueur et leur corridor. La Gomme rend l’encre d’un passage retiré ; les traits occupés ou déjà réservés au retour d’un compagnon sont protégés. Les personnages suivent la géométrie effectivement dessinée. Les conditions des mécanismes restent nécessaires pour traverser.
 
@@ -20,7 +20,7 @@ Le papier crème, l’encre bleu nuit et les touches corail accueillent un parco
 
 | Tableau | Région | Réseau principal |
 | --- | --- | --- |
-| 1 | Le premier nœud · Les porteurs du ciel | Charger une balance avec trois porteurs et préparer leur libération à distance |
+| 1 | Le premier nœud · Les porteurs du ciel | Charger une balance avec trois porteurs puis les réunir à la borne locale |
 | 2 | Le souffle en réserve · Les liens lointains | Faire travailler le vent et conserver le réglage du moulin |
 | 3 | La rivière dédoublée · Les sentinelles d’encre | Envoyer des éclaireurs et réorienter les suivants |
 | 4 | Le grand balancement · La remontée bleue | Alimenter une nacelle et transporter la troupe |
@@ -50,7 +50,7 @@ Le bois, le laiton et les lumières de l’atelier accompagnent des réseaux de 
 | --- | --- | --- |
 | 1 | La clef de la nacelle · Le premier atelier | Charger une balance puis commander le transport |
 | 2 | Les battements du cuivre · Les deux éclaireurs | Faire traverser les éclaireurs et immobiliser le balancier |
-| 3 | Le poids des étoiles · Les chaînes croisées | Coordonner deux balances et un relais distant |
+| 3 | Le poids des étoiles · Les chaînes croisées | Coordonner deux balances et leur borne de réunion |
 | 4 | Le souffle des braises · Les quatre retrouvailles | Alimenter moulin et ascenseur avec les réglages précédents |
 | 5 | Les horloges jumelles · La veilleuse du bout | Franchir deux balanciers et réunir la troupe au refuge |
 

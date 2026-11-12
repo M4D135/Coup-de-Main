@@ -8,7 +8,6 @@ export interface ExpeditionNetwork {
   start:string;end:string;relay:string;drawings:string[];forks:string[];weights:string[];
   wind?:string;cleat?:string;lift?:string;
   hazards:Array<{gate:string;pendulum:string;brake:string;edge:string;approach:string}>;
-  remoteRelease?:string;
 }
 interface Builder {level:WorldLevel;networks:ExpeditionNetwork[]}
 
@@ -56,9 +55,10 @@ function wind(b:Builder,n:ExpeditionNetwork,x:number,y:number,power:Gate[]=[]):v
   device(b,n.cleat,'latch',x+150,y+70,'Le taquet',{modes:['Libre','Bloqué'],powerDeviceId:n.wind,gates:[{deviceId:n.wind,minProgress:.98},...power]});
 }
 
-/** Porters are indispensable, and must later be reunited with the leading group. */
-function weightNetwork(b:Builder,index:number,count:number,release:string,power:Gate[]=[]):void {
-  const {n,x,k}=makeNetwork(b,index,'weight');n.remoteRelease=release;
+/** The visible local relay frees the porters once the leading group crosses.
+ * A later tableau must never retain companions behind an already lit relay. */
+function weightNetwork(b:Builder,index:number,count:number,power:Gate[]=[]):void {
+  const {n,x,k}=makeNetwork(b,index,'weight');
   const junction=node(b,`${k}:fork-node`,x+380,650),pan=node(b,`${k}:pan`,x+800,770);
   const near=node(b,`${k}:near`,x+1200,445),far=node(b,`${k}:far`,x+1820,445),returnBank=node(b,`${k}:return-bank`,x+1430,770);
   const selector=`${k}:fork`,balance=`${k}:balance`;fork(b,n,selector,junction);weight(b,n,balance,pan,count);
@@ -67,7 +67,7 @@ function weightNetwork(b:Builder,index:number,count:number,release:string,power:
   edge(b,`${k}:upper-road`,junction,near,{route:{deviceId:selector,mode:0},terrain:'platform'});
   draw(b,n,`${k}:high-thread`,near,far,{gates:[on(balance),...power]});
   edge(b,`${k}:far-road`,far,n.end,{terrain:'platform'});
-  draw(b,n,`${k}:return-thread`,pan,returnBank,{gates:[on(balance),on(release)]});
+  draw(b,n,`${k}:return-thread`,pan,returnBank,{gates:[on(balance),on(n.relay)]});
   edge(b,`${k}:low-road`,returnBank,n.end);relay(b,n,far,2);
 }
 
@@ -124,8 +124,8 @@ function liftNetwork(b:Builder,index:number,power:Gate[]=[]):void {
 }
 
 /** Two separately loaded balances power the central span; one-sided routing cannot work. */
-function doubleNetwork(b:Builder,index:number,release:string,withWind=false):void {
-  const {n,x,k}=makeNetwork(b,index,'double');n.remoteRelease=release;
+function doubleNetwork(b:Builder,index:number,withWind=false):void {
+  const {n,x,k}=makeNetwork(b,index,'double');
   const junctionA=node(b,`${k}:fork-a-node`,x+350,650),junctionB=node(b,`${k}:fork-b-node`,x+900,520);
   const panA=node(b,`${k}:pan-a`,x+790,770),panB=node(b,`${k}:pan-b`,x+1300,620);
   const returnA=node(b,`${k}:return-a`,x+1430,770),returnB=node(b,`${k}:return-b`,x+1920,620);
@@ -140,8 +140,8 @@ function doubleNetwork(b:Builder,index:number,release:string,withWind=false):voi
   edge(b,`${k}:upper-road`,junctionB,near,{route:{deviceId:forkB,mode:0},terrain:'platform'});
   draw(b,n,`${k}:high-thread`,near,far,{gates:[on(balanceA),on(balanceB),...(withWind?[{deviceId:n.wind!,mode:0}]:[])]});
   edge(b,`${k}:far-road`,far,n.end,{terrain:'platform'});
-  draw(b,n,`${k}:return-a-thread`,panA,returnA,{gates:[on(balanceA),on(release)]});
-  draw(b,n,`${k}:return-b-thread`,panB,returnB,{gates:[on(balanceB),on(release)]});
+  draw(b,n,`${k}:return-a-thread`,panA,returnA,{gates:[on(balanceA),on(n.relay)]});
+  draw(b,n,`${k}:return-b-thread`,panB,returnB,{gates:[on(balanceB),on(n.relay)]});
   edge(b,`${k}:low-a-road`,returnA,n.end);edge(b,`${k}:low-b-road`,returnB,n.end,{terrain:'platform'});relay(b,n,far,2);
 }
 
@@ -191,13 +191,13 @@ function buildWorld(id:WorldId):Builder {
     masteryGoal:'Réunis les douze compagnons. Récupère l’encre des passages quittés pour continuer.',
     sectors:names[id].map((name,index)=>({id:`s${index}`,x:index*1600,width:1600,name,style:id}))},networks:[]};
   if(id==='boucles'){
-    weightNetwork(b,0,3,'s2:relay');windNetwork(b,1,[on('s0:balance')]);
-    scoutNetwork(b,2);liftNetwork(b,3,[on('s4:relay')]);doubleNetwork(b,4,'s8:relay');
+    weightNetwork(b,0,3);windNetwork(b,1,[on('s0:balance')]);
+    scoutNetwork(b,2);liftNetwork(b,3,[on('s4:relay')]);doubleNetwork(b,4);
   }else if(id==='plis'){
-    windNetwork(b,0);scoutNetwork(b,1,true,[on('s0:cleat')]);weightNetwork(b,2,3,'s6:relay',[on('s2:relay')]);
-    windNetwork(b,3,[on('s4:balance')],true);doubleNetwork(b,4,'s8:relay',true);
+    windNetwork(b,0);scoutNetwork(b,1,true,[on('s0:cleat')]);weightNetwork(b,2,3,[on('s2:relay')]);
+    windNetwork(b,3,[on('s4:balance')],true);doubleNetwork(b,4,true);
   }else{
-    liftNetwork(b,0);hazardNetwork(b,1);doubleNetwork(b,2,'s6:relay');
+    liftNetwork(b,0);hazardNetwork(b,1);doubleNetwork(b,2);
     windNetwork(b,3,[on('s4:balance-a'),on('s4:balance-b')],true);hazardNetwork(b,4,true);
   }
   for(let i=1;i<b.networks.length;i++)edge(b,`link:${i}`,b.networks[i-1].end,b.networks[i].start);
