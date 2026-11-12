@@ -1,4 +1,4 @@
-# Coup de Main — Compilation autonome de la version 3.1.2
+# Coup de Main — Compilation autonome de la version 3.1.3
 
 [Dépôt public Coup de Main](https://github.com/M4D135/Coup-de-Main)
 
@@ -85,7 +85,21 @@ Avant livraison, vérifier également dans le navigateur :
 - Les trois volumes, la coupure générale, le déverrouillage audio et le retour d’un onglet masqué.
 - L’absence d’erreurs de console et le chargement correct des images dans le build web et le HTML autonome.
 
-### Résultats de la livraison 3.1.2
+### Résultats de la livraison 3.1.3
+
+La suite complète du projet de création réussit **374 tests sur 374**, sans échec ni test ignoré. La vérification TypeScript réussit. Les neuf nouvelles régressions concernent les ventilateurs ; les parcours séquentiels des quinze tableaux et les sauvegardes auparavant bloquées restent validés. Les trois mondes simulés se terminent à **12 sauvés sur 12**, sans recommencement.
+
+Les tests de rendu enregistrent les commandes Canvas effectivement émises. Ils vérifient l’absence de souffle à l’arrêt même après verrouillage du taquet, son immobilité en pause, sa direction, le maintien de la pose en mouvements doux, le pivot des sprites et le découpage des pales sur plusieurs angles. Les centres visibles des ventilateurs des Petits Plis 2 et des Veilleurs 4 restent sélectionnables aux échelles mobiles testées. Le premier ventilateur des Petits Plis conserve sa commande par le déflecteur.
+
+Les positions mesurées sont aussi contrôlées visuellement dans le navigateur : les tests géométriques seuls ne prouvent pas l’alignement avec une illustration. Les fichiers d’images et les coordonnées de simulation sont inchangés.
+
+Cette reprise a permis d’ouvrir le bon projet dans Chromium. Les deux ponts du premier tableau des Petits Plis ont été dessinés avec les gestes de l’interface ; le moulin a été actionné, le taquet verrouillé et le moulin arrêté, puis la troupe a emprunté les passages. Le ventilateur du quatrième tableau des Veilleurs a été activé et arrêté en touchant son moyeu visible. L’accueil, la navigation et la pause ont aussi été examinés dans des cadres **375 × 812** et **844 × 390**. En paysage, le deuxième ventilateur des Petits Plis a été commandé directement sur son moyeu : son souffle part vers la gauche et disparaît à l’arrêt. La coupure générale et le réglage Musique ont été manipulés dans la pause, puis le retour aux mondes et la reprise de la partie ont été vérifiés.
+
+L’export autonome 3.1.3 a reçu une installation neuve avec `npm ci --ignore-scripts`. `npm run check` réussit : TypeScript, **217 tests sur 217**, aucun ignoré, puis compilation Vite. Le HTML autonome embarque les mêmes **25 images** que le paquet web. La présente mise à jour documentaire est recopiée dans l’export et ses empreintes sont recalculées ; elle ne modifie aucun code déjà validé. Les captures de contrôle restent dans le projet de création.
+
+Ces contrôles sont des interactions de navigateur et des simulations automatisées. Ils ne sont pas présentés comme quinze parcours manuels, un essai sur iPhone physique ou une écoute subjective complète des trois musiques. La nuance de congestion devant la porte suivante des Veilleurs décrite en 3.1.2 reste valable.
+
+### Résultats de la livraison précédente 3.1.2
 
 La suite complète du projet de création réussit **365 tests sur 365**, sans échec ni test ignoré. La vérification TypeScript et `git diff --check` réussissent. Les quinze illustrations, les atlas et les données de géométrie sont inchangés.
 
@@ -158,7 +172,7 @@ npm run public:export -- /chemin/absolu/vers/un-dossier-vide
 
 Le premier script produit `work/public-dist/`. L’exporteur suit les imports actifs de l’interface et des tests publics, puis copie une liste explicite de scripts, documents, prompts de génération et médias. Les fichiers intermédiaires `*-tableau-*.png` ne sont pas exportés : seuls les douze tableaux finaux WebP sont retenus. Il refuse de remplacer un dossier non vide.
 
-Le paquet ne contient ni historique Git, identité d’hébergement, variables d’environnement, connecteurs, ancien moteur, médias audio historiques ni archives de création. Les anciennes sources restent dans leurs projets et historiques. `PUBLIC-MANIFEST.json` énumère les fichiers, tailles et SHA-256. Son champ `version` désigne le format du manifeste ; `gameVersion` reprend **3.1.2**, comme le package, le lock et le manifeste des médias.
+Le paquet ne contient ni historique Git, identité d’hébergement, variables d’environnement, connecteurs, ancien moteur, médias audio historiques ni archives de création. Les anciennes sources restent dans leurs projets et historiques. `PUBLIC-MANIFEST.json` énumère les fichiers, tailles et SHA-256. Son champ `version` désigne le format du manifeste ; `gameVersion` reprend **3.1.3**, comme le package, le lock et le manifeste des médias.
 
 Dans un export neuf, `npm ci && npm run check` vérifie la distribution publique. L’export et le build locaux ne publient ni release ni site à eux seuls.
 

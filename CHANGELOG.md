@@ -2,6 +2,21 @@
 
 Les sources et les fichiers prêts à jouer sont publiés dans le [dépôt Coup de Main](https://github.com/M4D135/Coup-de-Main).
 
+## [3.1.3]
+
+### Ventilateurs raccordés à leur état réel
+
+- Le souffle apparaît uniquement quand le ventilateur est alimenté. Un taquet qui maintient le support levé ne produit plus de vent après l’arrêt du moulin.
+- Les traits de vent se figent avec la pause. Activer les mouvements doux conserve la position de l’hélice sans la faire revenir brusquement à zéro.
+- Les petits ventilateurs des deux premiers tableaux des Petits Plis tournent autour du moyeu de leur carter peint. Les pales restent dans l’ouverture ; le deuxième souffle du bon côté, vers la gauche.
+- Dans « Le souffle des braises », l’hélice en laiton est recentrée et réduite pour rester dans le logement du ventilateur. Le grand moulin de papier et les quinze illustrations sont conservés.
+
+### Reprise et validation
+
+- Une erreur de chargement ou de rendu permet de revenir aux trois mondes grâce au bouton « Les mondes », en plus de « Réessayer ».
+- Les corrections de porteurs, de doubles balances et de reprise de la version 3.1.2 sont conservées et vérifiées sur les quinze tableaux.
+- Des régressions Canvas contrôlent le souffle marche/arrêt avec un taquet engagé, la pause, les mouvements doux, les pivots, la découpe des pales et les cibles tactiles. Les résultats automatisés et les interactions réellement essayées sont détaillés dans `docs/BUILD.md`.
+
 ## [3.1.2]
 
 ### Réunir les porteurs dans leur propre tableau

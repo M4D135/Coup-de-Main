@@ -1,6 +1,6 @@
 # Coup de Main
 
-**Version 3.1.2 · Un crayon. Trois mondes. Douze compagnons à guider.**
+**Version 3.1.3 · Un crayon. Trois mondes. Douze compagnons à guider.**
 
 [Sources et versions publiques](https://github.com/M4D135/Coup-de-Main)
 

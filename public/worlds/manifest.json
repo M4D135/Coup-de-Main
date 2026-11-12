@@ -1,7 +1,7 @@
 {
   "project": "Coup de Main",
-  "version": "3.1.2",
-  "updated_at": "2026-11-11",
+  "version": "3.1.3",
+  "updated_at": "2026-11-12",
   "provenance": {
     "references": "Three artworks supplied and approved by the user. The art files retain exactly the same decoded pixels as the uploaded references; only PNG RGB/RGBA encoding differs.",
     "playable_assets": "The three original clean scene plates, character atlases and prop atlases are retained unchanged. Each clean scene is restored as the first complete tableau of its world. Twelve new complete AI-generated illustrations extend the worlds; interactive characters, mechanisms and player strokes are rendered separately.",

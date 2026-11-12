@@ -4,6 +4,7 @@ import type {DeviceDefinition,Point,WorldLevel,WorldRun} from './types';
 import {visiblePoint,type WorldBounds} from './renderer-landscape';
 import {brass,clamp,mix,pointAt,prop,rope,trace} from './renderer-primitives';
 import {authoredCounterweight,authoredLift,authoredWind} from './renderer-authored';
+import {drawWindFlow} from './wind-visuals';
 
 const fanMotion=new WeakMap<WorldRun,Map<string,{angle:number;speed:number;time:number}>>();
 
@@ -13,7 +14,7 @@ function fanAngle(run:WorldRun,device:DeviceDefinition,reduced:boolean):number {
   const powered=run.devices[device.id]?.mode===1;
   previous.speed+=(powered?3.2-previous.speed:-previous.speed)*(1-Math.exp(-dt*7));
   if(!reduced)previous.angle=(previous.angle+previous.speed*dt)%(Math.PI*2);
-  previous.time=run.time;fans.set(device.id,previous);return reduced?0:previous.angle;
+  previous.time=run.time;fans.set(device.id,previous);return previous.angle;
 }
 
 function loadCentre(level:WorldLevel,device:DeviceDefinition):Point {
@@ -80,7 +81,7 @@ export function drawMechanicalConnections(context:CanvasRenderingContext2D,level
   context.restore();
 }
 
-function fan(context:CanvasRenderingContext2D,level:WorldLevel,assets:WorldAssets,device:DeviceDefinition,progress:number,rotation:number,time:number,reduced:boolean) {
+function fan(context:CanvasRenderingContext2D,level:WorldLevel,run:WorldRun,assets:WorldAssets,device:DeviceDefinition,rotation:number,reduced:boolean) {
   const radius=(device.width??170)/2,cx=device.x,cy=device.y,base=floorAnchor(level,device),floor=base.y;
   context.save();
   const legFill=context.createLinearGradient(cx-radius,cy,cx+radius,floor);legFill.addColorStop(0,'#f0d9b2');legFill.addColorStop(1,'#b48e60');
@@ -105,14 +106,8 @@ function fan(context:CanvasRenderingContext2D,level:WorldLevel,assets:WorldAsset
     }brass(context,0,0,radius*.14,level.id);context.restore();
   }
   context.strokeStyle='#f9e6c6';context.lineWidth=2;context.beginPath();context.arc(cx-1,cy-1,radius+.5,Math.PI*1.05,Math.PI*1.8);context.stroke();
-  if(progress>.1&&!reduced){
-    context.strokeStyle=level.id==='veilleurs'?'#f4d4a0':'#fcf1dc';context.lineWidth=2;context.globalAlpha=.35*progress;
-    for(let i=0;i<3;i++){
-      const start=cx+radius+12+((time*65+i*35)%85),y=cy+(i-1)*31;
-      context.beginPath();context.moveTo(start,y);context.bezierCurveTo(start+20,y-9,start+52,y+8,start+84,y-5);context.stroke();
-    }
-  }
   context.restore();
+  drawWindFlow(context,level,run,device,{x:cx,y:cy},radius,1,reduced);
 }
 
 function pendulum(context:CanvasRenderingContext2D,level:WorldLevel,run:WorldRun,assets:WorldAssets,device:DeviceDefinition) {
@@ -180,7 +175,7 @@ export function drawMechanisms(context:CanvasRenderingContext2D,level:WorldLevel
     else if(device.kind==='lift')authoredLift(context,level,run,assets,device);
     else if(device.kind==='wind'){
       const angle=fanAngle(run,device,reduced);
-      if(!authoredWind(context,level,run,assets,device,angle,time,reduced))fan(context,level,assets,device,state.mode===1?state.progress:0,angle,time,reduced);
+      if(!authoredWind(context,level,run,assets,device,angle,time,reduced))fan(context,level,run,assets,device,angle,reduced);
     }
     else if(device.kind==='pendulum')pendulum(context,level,run,assets,device);
     control(context,level,run,assets,device,time,reduced);

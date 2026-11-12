@@ -2,12 +2,47 @@ import type {WorldAssets} from './renderer';
 import type {DeviceDefinition,WorldLevel,WorldRun,Point} from './types';
 import {brass,bridge,pointAt,prop,rope} from './renderer-primitives';
 import {tableauIndex,windArtwork} from './tableaux';
+import {drawWindFlow,insetWindRotor,type InsetWindRotor} from './wind-visuals';
 
 const imagePoint=(index:number,x:number,y:number):Point=>({x:index*3200+x*3200/1672,y:y*1800/941});
 
+function insetRotor(context:CanvasRenderingContext2D,level:WorldLevel,assets:WorldAssets,frame:InsetWindRotor,angle:number) {
+  const {center,radius,scaleX,shearY}=frame;
+  context.save();context.translate(center.x,center.y);context.transform(scaleX,shearY,0,1,0,0);
+  context.beginPath();context.arc(0,0,radius,0,Math.PI*2);context.clip();
+  if(frame.material==='paper'){
+    // The atlas pivot is the brass spindle, not the rectangular alpha bounds.
+    // A margin inside the circular clip contains all five blades at every angle.
+    prop(context,assets,2,0,0,radius*1.78,angle,.5,.5,{x:320,y:304});
+  }else{
+    context.rotate(angle);
+    for(let i=0;i<4;i++){
+      context.save();context.rotate(i*Math.PI/2);
+      const fill=context.createLinearGradient(-radius*.1,-radius,radius*.65,0);
+      fill.addColorStop(0,'#ebc779');fill.addColorStop(.45,'#ad7836');fill.addColorStop(1,'#62401f');
+      context.fillStyle=fill;context.strokeStyle='#67431e';context.lineWidth=2;
+      context.beginPath();context.moveTo(0,0);
+      context.bezierCurveTo(-radius*.18,-radius*.45,-radius*.19,-radius*.80,radius*.25,-radius*.82);
+      context.bezierCurveTo(radius*.59,-radius*.83,radius*.69,-radius*.43,0,0);context.fill();context.stroke();
+      context.strokeStyle='#f7dc9e80';context.lineWidth=1.5;context.beginPath();context.moveTo(radius*.10,-radius*.18);
+      context.quadraticCurveTo(radius*.16,-radius*.50,radius*.26,-radius*.71);context.stroke();context.restore();
+    }
+    brass(context,0,0,radius*.14,level.id);
+  }
+  context.restore();
+}
+
 /** The original dioramas already contain their housings, pillars and beams.
  * Only the moving cut-outs are placed on those real painted attachment points. */
-export function authoredWind(context:CanvasRenderingContext2D,level:WorldLevel,run:WorldRun,assets:WorldAssets,device:DeviceDefinition,angle:number,time:number,reduced:boolean):boolean {
+export function authoredWind(context:CanvasRenderingContext2D,level:WorldLevel,run:WorldRun,assets:WorldAssets,device:DeviceDefinition,angle:number,_time:number,reduced:boolean):boolean {
+  const inset=insetWindRotor(level,device);
+  if(inset){
+    insetRotor(context,level,assets,inset,angle);
+    drawWindFlow(context,level,run,device,inset.center,inset.radius*Math.abs(inset.scaleX),inset.direction,reduced);
+    // The first paper fan and its deflector share one control; retain the
+    // original flag, windmill, bridge and rope below.
+    if(level.id!=='plis'||tableauIndex(device.x)!==0)return true;
+  }
   const painted=windArtwork(level,device);
   if(painted){
     const radius=painted.width/2;
@@ -25,8 +60,6 @@ export function authoredWind(context:CanvasRenderingContext2D,level:WorldLevel,r
   if(level.id!=='plis')return false;
   const index=tableauIndex(device.x),state=run.devices[device.id];
   if(index===0){
-    context.save();context.translate(650,556);context.transform(.69,-.10,0,1,0,0);
-    prop(context,assets,2,0,0,256,angle,.5,.5,{x:320,y:304});context.restore();
     const flagAngle=state.mode===1?-.03:.88;
     prop(context,assets,3,1100,620,233,flagAngle,.5,.5,{x:154,y:444});
     const millAngle=(state.progress*.22+angle*.52);
@@ -34,16 +67,6 @@ export function authoredWind(context:CanvasRenderingContext2D,level:WorldLevel,r
     // The deck is carried by the mast in the original illustration.
     bridge(context,level,[{x:1950,y:910},{x:2200,y:910}]);
     rope(context,{x:2275,y:450},{x:2200,y:907},level.id,4);
-    if(!reduced){
-      context.save();context.strokeStyle='#fff4de';context.lineWidth=4;context.globalAlpha=.45;
-      for(let i=0;i<3;i++){
-        const x=755+(time*110+i*140)%330,y=550+(i-1)*48;
-        context.beginPath();context.moveTo(x,y);context.bezierCurveTo(x+60,y-22,x+130,y+22,x+205,y);context.stroke();
-      }context.restore();
-    }
-  }else if(index===1){
-    context.save();context.translate(device.x,device.y);context.transform(.66,-.06,0,1,0,0);
-    prop(context,assets,2,0,0,218,angle,.5,.5,{x:320,y:304});context.restore();
   }else if(index===3){
     const wheel=imagePoint(index,808,217);
     prop(context,assets,0,wheel.x,wheel.y,350,angle*.65,.5,.5,{x:312,y:309});

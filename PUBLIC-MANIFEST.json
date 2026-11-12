@@ -1,7 +1,7 @@
 {
   "version": 1,
   "project": "Coup de Main",
-  "gameVersion": "3.1.2",
+  "gameVersion": "3.1.3",
   "files": [
     {
       "path": ".github/workflows/public-ci.yml",
@@ -25,8 +25,8 @@
     },
     {
       "path": "CHANGELOG.md",
-      "bytes": 12355,
-      "sha256": "a4395a954cd9f947b51e2c99c71ececd8b09b4a6491f4b0da36331fda5ec349f"
+      "bytes": 13737,
+      "sha256": "a955192f01e765bed7c8d4e8c8fca06a8bdb67c6bd9893602e8f435e3e3aa9f6"
     },
     {
       "path": "CREDITS.md",
@@ -36,7 +36,7 @@
     {
       "path": "README.md",
       "bytes": 13375,
-      "sha256": "a522df8e3c622322445f2e3e9e0dd2e833eddc2ce75486119f6fe16c72b8e2cc"
+      "sha256": "cfcde2991668739d45227993fe8c6541645fa6d989dffa108bb8ed65071ca51d"
     },
     {
       "path": "app/globals.css",
@@ -45,18 +45,18 @@
     },
     {
       "path": "app/page.tsx",
-      "bytes": 42877,
-      "sha256": "5cc7be1b75ec3a60ffd377ad6e31c4c3447980c832ddc5eca12f929d8534ac43"
+      "bytes": 42945,
+      "sha256": "d8983030e79229f4322eb7bfd6d6451a8d26d880c6da015556624dc08402b3aa"
     },
     {
       "path": "components/worlds/world-gate.tsx",
       "bytes": 3258,
-      "sha256": "69a13f260b4fd71d1020566de160097b017495e3b72358bf20b5be7ed7781b1b"
+      "sha256": "f8675ee9205480424db719911beda6aa848c5a0959183272aeab54885324d265"
     },
     {
       "path": "docs/BUILD.md",
-      "bytes": 20790,
-      "sha256": "618060c73ca92244b5a4f373fd46dd746fe7e31b9f27b117b5bdc38c2f091670"
+      "bytes": 23633,
+      "sha256": "4a37f291c8bec5e2dd03c290d6ea4e37c0f7a89125d24ce15e5edd4520036e99"
     },
     {
       "path": "docs/THIRD-PARTY-NOTICES.md",
@@ -125,8 +125,8 @@
     },
     {
       "path": "lib/worlds/renderer-authored.ts",
-      "bytes": 5654,
-      "sha256": "eaa60fc92984d640dec1358f101c9b110b1b6654123187d2160b54754d0bcce3"
+      "bytes": 7001,
+      "sha256": "d8c2b5154fc6d218d97c768d86d85825cccd4516028d5f77c619259e4e035c82"
     },
     {
       "path": "lib/worlds/renderer-characters.ts",
@@ -145,8 +145,8 @@
     },
     {
       "path": "lib/worlds/renderer-mechanisms.ts",
-      "bytes": 17310,
-      "sha256": "13ce4c868ce694b175030f90fc6504109c8572970fcb195fa76af13045a03bef"
+      "bytes": 16986,
+      "sha256": "428b885044a2e0a3d8e788dd15edca95e6eca011ce690d3707a98d26ea015c15"
     },
     {
       "path": "lib/worlds/renderer-primitives.ts",
@@ -179,14 +179,19 @@
       "sha256": "afe74f6095a3defc8380b4d2c15fb1b5331441a28f2f54e753d06c99ac6ed25f"
     },
     {
+      "path": "lib/worlds/wind-visuals.ts",
+      "bytes": 2423,
+      "sha256": "720aa0270814c301186fc77c51bed7af788434937f64a7309d28d11ad22650ea"
+    },
+    {
       "path": "package-lock.json",
       "bytes": 56478,
-      "sha256": "02d6bb396f9a60866a79ba020ef7a0c3bab915c744ac2bca34906f9124f3a389"
+      "sha256": "10b5317e386cc60ac3c92790f8ba938d56eb65da1795fd1c6bc2a53363dd0a48"
     },
     {
       "path": "package.json",
       "bytes": 1034,
-      "sha256": "83ba308d12d279f4011377f704f18261e2e7282f28e41042cd233e85b07fccae"
+      "sha256": "a06cde19442bcd20030e4f26c001e34b10a8e030aa253198c423047fd6d9b28e"
     },
     {
       "path": "public/drawing-hand-hd-manifest.json",
@@ -246,7 +251,7 @@
     {
       "path": "public/worlds/manifest.json",
       "bytes": 12627,
-      "sha256": "7509721bcb199db7fd22145596c074199c7e5197c4a905400d99ea7b81fcd923"
+      "sha256": "ac4e94954ccbc45ec374d615dd85f4d919ab3defa159321540499e7ee4af88c7"
     },
     {
       "path": "public/worlds/plis-art.png",
@@ -467,6 +472,11 @@
       "path": "tests/worlds-walkthrough.ts",
       "bytes": 5574,
       "sha256": "28056187ad9fc2751defa3c095a480775aafc90fceb7f74fc18725b116d1c07a"
+    },
+    {
+      "path": "tests/worlds-wind-visuals.test.ts",
+      "bytes": 10265,
+      "sha256": "c04d920e68fb1e9b40bc6e8620551c9ce80a46b17edbe68f10baae4ac204ea59"
     },
     {
       "path": "tsconfig.json",
