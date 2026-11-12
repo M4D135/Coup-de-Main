@@ -1,6 +1,6 @@
 {
   "project": "Coup de Main",
-  "version": "3.2.1",
+  "version": "3.2.2",
   "updated_at": "2026-11-12",
   "provenance": {
     "references": "Three artworks supplied and approved by the user. The art files retain exactly the same decoded pixels as the uploaded references; only PNG RGB/RGBA encoding differs.",

@@ -6,8 +6,8 @@ import {WORLD_LEVELS,WORLD_NETWORKS} from '../lib/worlds/levels';
 import {createRun,updateRun,applyAction,beginStroke,appendStroke,finishStroke,cancelStroke,saveRun,restoreRun,getRunSummary,getJourneySummary,getDeviceStatus,getStageProgress,isJourneyComplete,getDrawingEndpoints} from '../lib/worlds/engine';
 import {loadWorldAssets,renderWorld,hitTestDrawing,type WorldAssets} from '../lib/worlds/renderer';
 import {reactCompanion} from '../lib/worlds/renderer-characters';
-import {hitTestPlayTarget,tappedPlatform,type PlayTarget} from '../lib/worlds/interaction';
-import {companionFeedback,deviceFeedback,waitingGroupFeedback,createStillnessWatch,observeStillness} from '../lib/worlds/feedback';
+import {hitTestDrawTarget,hitTestPlayTarget,tappedPlatform,type DrawingTarget,type PlayTarget} from '../lib/worlds/interaction';
+import {companionFeedback,deviceFeedback,waitingGroupFeedback,createStillnessWatch,getCurrentStillnessNotice,observeStillness} from '../lib/worlds/feedback';
 import {WorldAudio,type WorldSound} from '../lib/worlds/audio';
 import {getWorldAsset} from '../lib/worlds/assets';
 import {getExpeditionView,autoPanWorldView,panAroundPoint,type WorldView} from '../lib/worlds/camera';
@@ -36,7 +36,7 @@ function mergeSessionPatch(stored:unknown,fallback:Session,patch:Partial<Session
   return merged;
 }
 type Panel='pause'|'sound'|'restart'|null;
-type Gesture={id:number;kind:'pending'|'pan'|'draw'|'pinch';start:Point;panX:number;panY:number;hit:PlayTarget;eraseId?:string|null;distance?:number;zoom?:number;anchor?:Point;pagePull?:number};
+type Gesture={id:number;kind:'pending'|'pan'|'draw'|'pinch';start:Point;panX:number;panY:number;hit:PlayTarget;drawTarget?:DrawingTarget|null;eraseId?:string|null;distance?:number;zoom?:number;anchor?:Point;pagePull?:number};
 const audioEvents:Partial<Record<GameEvent['type'],WorldSound>>={spawn:'start',step:'step',wait:'wait',draw:'draw-end',device:'device',saved:'save',lost:'loss',win:'win',retry:'undo',undo:'undo'};
 const makeView=(run:WorldRun,level:WorldLevel)=>({
   phase:run.phase,saved:run.saved,lost:run.lost,time:run.time,speed:run.speed,undo:run.history.length,
@@ -70,6 +70,7 @@ export default function HomePage(){
   const [zoom,setZoom]=useState(1),[panX,setPanX]=useState(0),[panY,setPanY]=useState(.5),[following,setFollowing]=useState(true);
   const [camera,setCamera]=useState<WorldView>({scale:1,x:0,y:0,width:1400,height:900,overflowX:0,overflowY:0});
   const [toast,setToast]=useState(''),[storageOk,setStorageOk]=useState(true),[hydrated,setHydrated]=useState(false);
+  const [waitingMessage,setWaitingMessage]=useState('');
   const [selected,setSelected]=useState<string|null>(null),[migration,setMigration]=useState(false);
   const canvasRef=useRef<HTMLCanvasElement>(null),shellRef=useRef<HTMLElement>(null),dialogRef=useRef<HTMLDialogElement>(null);
   const runRef=useRef(createRun(WORLD_LEVELS[0])),assetsRef=useRef<WorldAssets|null>(null),audioRef=useRef<WorldAudio|null>(null);
@@ -229,6 +230,7 @@ export default function HomePage(){
           .sort((a,b)=>Math.hypot(a.x*c.scale+c.x-c.width/2,a.y*c.scale+c.y-c.height/2)-Math.hypot(b.x*c.scale+c.x-c.width/2,b.y*c.scale+c.y-c.height/2));
         const notice=observeStillness(stillnessRef.current,run,world,(at-lastUi)/1000,visible,!blocked&&!gestureRef.current&&!state.erasing&&!arrowKeysRef.current.size);
         if(notice)flash(notice.message);
+        setWaitingMessage(getCurrentStillnessNotice(stillnessRef.current)?.message??'');
         setView(makeView(run,world));setCamera({...c});lastUi=at;const checkpoint=getStageProgress(run,world).checkpoint?.id??null;if(checkpoint&&checkpoint!==checkpointRef.current){checkpointRef.current=checkpoint;flash('Un souvenir conservé.');persist();}
       }
       if(isJourneyComplete(world,run)&&!wonRef.current){wonRef.current=true;const s=getJourneySummary(run,world),record={rescued:s.saved,time:s.time,stars:s.stars,completed:true,revision:3};flush({records:{[world.id]:record}});setRecords({...sessionRef.current.records});persist();}
@@ -238,6 +240,13 @@ export default function HomePage(){
   const localPoint=(event:ReactPointerEvent<HTMLCanvasElement>):Point=>{const bounds=event.currentTarget.getBoundingClientRect();return {x:event.clientX-bounds.left,y:event.clientY-bounds.top};};
   const worldPoint=(p:Point):Point=>{const c=cameraRef.current;return {x:(p.x-c.x)/c.scale,y:(p.y-c.y)/c.scale};};
   const changeZoom=(value:number,screenPoint?:Point,anchor?:Point)=>{const c=cameraRef.current,z=clamp(value,1,3.4),point=screenPoint??{x:c.width/2,y:c.height/2},world=anchor??worldPoint(point);const next=getExpeditionView(level.width,level.height,c.width,c.height,z,panX,panY,TABLEAU_WIDTH),pos=panAroundPoint(next,world,point);latest.current.zoom=z;setZoom(z);setPosition(pos.panX,pos.panY);};
+  const startDrawing=(gesture:Gesture,p:Point,target:DrawingTarget):boolean=>{
+    const run=runRef.current,definition=level.drawings.find(drawing=>drawing.id===target.id);
+    const endpoint=definition?getDrawingEndpoints(run,level,definition)[target.end]:undefined;
+    if(!endpoint||!beginStroke(run,level,endpoint).ok)return false;
+    gesture.kind='draw';pointerRef.current=p;setDrawing(true);handRef.current=endpoint;
+    lastStrokeRef.current={point:endpoint,at:performance.now()};audioRef.current?.beginPencil();return true;
+  };
   const pointerDown=(event:ReactPointerEvent<HTMLCanvasElement>)=>{
     if(event.button!==0||panel||intro||loading||loadError||finished)return;event.preventDefault();unlock();event.currentTarget.focus({preventScroll:true});event.currentTarget.setPointerCapture(event.pointerId);
     tactileRef.current=event.pointerType==='touch'||event.pointerType==='pen';
@@ -246,14 +255,18 @@ export default function HomePage(){
     if(pointersRef.current.size>2)return;
     const wp=worldPoint(p),run=runRef.current,hit=erasing?null:hitTestPlayTarget(level,run,wp,cameraRef.current.scale);
     const c=cameraRef.current,radius=24/c.scale;
-    const gesture:Gesture={id:event.pointerId,kind:'pending',start:p,panX:c.overflowX?-c.x/c.overflowX:0,panY:latest.current.panY,hit,eraseId:erasing?hitTestDrawing(level,run,wp,radius):null};gestureRef.current=gesture;
-    if(!erasing&&hit?.kind==='drawing'){const d=level.drawings.find(item=>item.id===hit.id),endpoint=d?getDrawingEndpoints(run,level,d)[hit.end]:undefined;if(endpoint&&beginStroke(run,level,endpoint).ok){gesture.kind='draw';pointerRef.current=p;setDrawing(true);handRef.current=endpoint;lastStrokeRef.current={point:endpoint,at:performance.now()};audioRef.current?.beginPencil();}}
+    const gesture:Gesture={id:event.pointerId,kind:'pending',start:p,panX:c.overflowX?-c.x/c.overflowX:0,panY:latest.current.panY,hit,drawTarget:erasing?null:hitTestDrawTarget(level,run,wp,c.scale),eraseId:erasing?hitTestDrawing(level,run,wp,radius):null};gestureRef.current=gesture;
+    if(!erasing&&hit?.kind==='drawing')startDrawing(gesture,p,hit);
   };
   const pointerMove=(event:ReactPointerEvent<HTMLCanvasElement>)=>{
     const p=localPoint(event),wp=worldPoint(p);hoverRef.current=wp;if(!pointersRef.current.has(event.pointerId))return;pointersRef.current.set(event.pointerId,p);const g=gestureRef.current;if(!g)return;event.preventDefault();
     if(g.kind==='pinch'){const [a,b]=[...pointersRef.current.values()];if(a&&b)changeZoom((g.zoom??1)*Math.hypot(a.x-b.x,a.y-b.y)/(g.distance??1),{x:(a.x+b.x)/2,y:(a.y+b.y)/2},g.anchor);return;}
     if(g.id!==event.pointerId)return;
-    if(g.kind==='pending'&&Math.hypot(p.x-g.start.x,p.y-g.start.y)>8){g.kind='pan';setPanning(true);}
+    if(g.kind==='pending'&&Math.hypot(p.x-g.start.x,p.y-g.start.y)>8){
+      // The tap still belongs to its crank/companion; a deliberate drag near a
+      // shared support belongs to the drawing, at its current moving endpoint.
+      if(!g.drawTarget||!startDrawing(g,p,g.drawTarget)){g.kind='pan';setPanning(true);}
+    }
     if(g.kind==='pan'){const c=cameraRef.current,raw=g.panX-(c.overflowX?(p.x-g.start.x)/c.overflowX:0),bounded=clamp(raw,c.panMinX??0,c.panMaxX??1);g.pagePull=(raw-bounded)*c.overflowX;setPosition(bounded,g.panY-(c.overflowY?(p.y-g.start.y)/c.overflowY:0));return;}
     if(g.kind==='draw'){pointerRef.current=p;appendStroke(runRef.current,level,wp);handRef.current=runRef.current.activeStroke?.points.at(-1)??wp;const prev=lastStrokeRef.current,at=performance.now();if(prev)audioRef.current?.updatePencil(Math.hypot(wp.x-prev.point.x,wp.y-prev.point.y)/Math.max(.001,(at-prev.at)/1000));lastStrokeRef.current={point:wp,at};}
   };
@@ -329,6 +342,7 @@ export default function HomePage(){
       {view.stroke&&<div className={`stroke-ink ${view.stroke.used>view.stroke.limit?'empty':''}`} aria-label="Encre du trait"><Pencil size={16}/><progress value={Math.min(view.stroke.used,view.stroke.limit)} max={Math.max(1,view.stroke.limit)}/></div>}
       {erasing&&!drawing&&!panel&&<div className="game-toast mode-toast">Touche le trait à effacer</div>}
       {toast&&!panel&&!intro&&<div className="game-toast" role="status">{toast}</div>}
+      {!toast&&waitingMessage&&view.phase==='playing'&&!panel&&!intro&&!loading&&!loadError&&!drawing&&!panning&&!erasing&&<div className="game-toast waiting-toast" aria-live="off">{waitingMessage}</div>}
       {migration&&!loading&&!intro&&<button className="migration-note" onClick={()=>setMigration(false)}>La grande aventure commence ici.<X size={13}/></button>}
       {level.devices.filter(device=>device.playerControlled!==false&&device.modes.length>1).map(device=>{const x=device.x*camera.scale+camera.x,y=device.y*camera.scale+camera.y;if(x<0||x>camera.width||y<75||y>camera.height-115||intro||finished||loading||panel)return null;const status=getDeviceStatus(runRef.current,level,device.id);return <button key={device.id} className="mechanism-keyboard" style={{left:x-24,top:y-24}} onClick={()=>takeAction({type:'device',id:device.id})} onFocus={()=>setSelected(device.id)} onBlur={()=>setSelected(null)} aria-label={`${device.label} : ${status?.stateLabel??''}. ${status?.actionLabel??'Actionner'}`} title={device.label}/>;})}
       {loading&&<div className="loading-curtain"><img src={getWorldAsset(`worlds/${level.id}-art.png`)} alt=""/><div className="loading-copy"><span className="eyebrow">{level.name}</span><h2>Le voyage s’éveille</h2><div className="loading-line"><i/></div></div></div>}

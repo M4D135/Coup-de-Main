@@ -1,7 +1,7 @@
 {
   "version": 1,
   "project": "Coup de Main",
-  "gameVersion": "3.2.1",
+  "gameVersion": "3.2.2",
   "files": [
     {
       "path": ".github/workflows/public-ci.yml",
@@ -25,8 +25,8 @@
     },
     {
       "path": "CHANGELOG.md",
-      "bytes": 19609,
-      "sha256": "b99777229d8b12e988349e309f0c3c4418519ed7542f807f9e2c5f46176c4975"
+      "bytes": 20995,
+      "sha256": "01a97d36017e3ca7127b936d5fa88eefd5348dcc0b8c763a1b3681381a7c696b"
     },
     {
       "path": "CREDITS.md",
@@ -36,7 +36,7 @@
     {
       "path": "README.md",
       "bytes": 15240,
-      "sha256": "910ce16667ffe68a41146906b28ea0bf24f0c77c8723c4d3f82d010bf6111579"
+      "sha256": "0d8b9936caf318a1a1988b0897999f0bbcba62d84ccf1c6d4d24c3e155713fb9"
     },
     {
       "path": "app/globals.css",
@@ -45,18 +45,18 @@
     },
     {
       "path": "app/page.tsx",
-      "bytes": 44794,
-      "sha256": "5058b3fb69a71e0458d9f03eb37bd7690291d1c32d5d18fe7682f23ab0a286ac"
+      "bytes": 45751,
+      "sha256": "de50b34a3593be480a32a2f7f57e231655b52d84dd9d428642da7e6ff8cc46f4"
     },
     {
       "path": "components/worlds/world-gate.tsx",
       "bytes": 3258,
-      "sha256": "f46a5dbe8b421ec0a549dffcf39c2ea0ebfae7bc381288b506deffa41e1f9ffd"
+      "sha256": "ae6f91409e30b8b2e89bf76b21426f29e4a450874f6d13fd017251586f8dfca5"
     },
     {
       "path": "docs/BUILD.md",
-      "bytes": 33666,
-      "sha256": "d17962be28f217d78dfe2bea9461d9efd3c25f8e77410cbe7a6f105a83bcd3d5"
+      "bytes": 37197,
+      "sha256": "00b2b88607f9bea2e46ce65e4953f9a7fb511847a8a0af0f008d291d8a116cd1"
     },
     {
       "path": "docs/THIRD-PARTY-NOTICES.md",
@@ -110,13 +110,13 @@
     },
     {
       "path": "lib/worlds/feedback.ts",
-      "bytes": 4234,
-      "sha256": "cff9852e999ee9ebbe1e14f6163fe444c9dab2e6e2e71d58b0239ec0658e474e"
+      "bytes": 6237,
+      "sha256": "2312f19ed888a4dd6d12b7b1ee5f302e007c355355e26bbccfb9d752ada6b67b"
     },
     {
       "path": "lib/worlds/interaction.ts",
-      "bytes": 2422,
-      "sha256": "d1e731e71c3a4dd6cb38d31fefb100ee5a26b6799643c47fa7df39048968fe46"
+      "bytes": 3367,
+      "sha256": "a89fe36c54a1bb949210197d9c332e1218cfdc94de76e908fcb3f4fc0f0a8e30"
     },
     {
       "path": "lib/worlds/levels.ts",
@@ -191,12 +191,12 @@
     {
       "path": "package-lock.json",
       "bytes": 56478,
-      "sha256": "0507b616f08018f46c767ce61c94c1f7faa8e483cc0fc858775da90e2ed2d93e"
+      "sha256": "24f347a80375ad108102ecc22db88376803ef7e41e057d68a700d4231c9bbd86"
     },
     {
       "path": "package.json",
       "bytes": 1034,
-      "sha256": "f2b840df365f0635383e3c0f51c045097f9903cccff333fe9a0262f461603f8b"
+      "sha256": "892944e870b2167e7fb78e86af80a2af6f93fd37c96b6a29299d051f0eda16f9"
     },
     {
       "path": "public/drawing-hand-hd-manifest.json",
@@ -256,7 +256,7 @@
     {
       "path": "public/worlds/manifest.json",
       "bytes": 12683,
-      "sha256": "185dff3b882672917b9fdc0c9a6a48160cb6d663f4f2fb3d2e45c2f9a1f43dcf"
+      "sha256": "a2e8e4709c655aebcb6e75cda539e012a1fbded54fadc0a79358b205905ddc29"
     },
     {
       "path": "public/worlds/plis-art.png",
@@ -430,8 +430,8 @@
     },
     {
       "path": "tests/worlds-feedback.test.ts",
-      "bytes": 8325,
-      "sha256": "8c9380d3ac6914ce30c11a59fddc50031f83b3573621f5354310b45651d4a937"
+      "bytes": 12940,
+      "sha256": "de2c9bab4f849dc2ed1e40ab10651ecc988413602c926e5289005f99533bc68a"
     },
     {
       "path": "tests/worlds-geometry-migration.test.ts",
@@ -459,6 +459,11 @@
       "sha256": "cc34fbdd8f513a79c9c8e563556a7ab60c40258ef4b43a9019516581f1c789a7"
     },
     {
+      "path": "tests/worlds-no-deadlock.test.ts",
+      "bytes": 11773,
+      "sha256": "5bd9329898a8bd87f7904eb0dcf6d8988c89f57354f4a19743abc4547012ce8e"
+    },
+    {
       "path": "tests/worlds-playability-curves-support.ts",
       "bytes": 6686,
       "sha256": "bf787c677608723ec2eb2070a12bfa723053558393e039d51962188976cae777"
@@ -482,6 +487,16 @@
       "path": "tests/worlds-playability.test.ts",
       "bytes": 4956,
       "sha256": "a6e92f36cb2b02d56147166bfc9868445ec1b1b59a0c9ed14aaec5d3097d9e68"
+    },
+    {
+      "path": "tests/worlds-porter-return.test.ts",
+      "bytes": 4083,
+      "sha256": "c93fced78afbd51ff3c70b240aec9c2c85681d2734154f9cfec0ea788831d5fa"
+    },
+    {
+      "path": "tests/worlds-return-gesture.test.ts",
+      "bytes": 8225,
+      "sha256": "b81ac2338072456f77a64bd4c738dc0d82fdad6f3fb32b441e1d32a3f21fedcc"
     },
     {
       "path": "tests/worlds-walkthrough.ts",

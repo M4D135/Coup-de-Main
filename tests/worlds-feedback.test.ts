@@ -1,13 +1,19 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {WORLD_LEVELS} from '../lib/worlds/levels';
-import {appendStroke,applyAction,beginStroke,createRun,finishStroke,saveRun,updateRun} from '../lib/worlds/engine';
-import {companionFeedback,createStillnessWatch,deviceFeedback,observeStillness,waitingGroupFeedback,type WaitingNotice} from '../lib/worlds/feedback';
+import {appendStroke,applyAction,beginStroke,cancelStroke,createRun,finishStroke,saveRun,updateRun} from '../lib/worlds/engine';
+import {companionFeedback,createStillnessWatch,deviceFeedback,getCurrentStillnessNotice,observeStillness,waitingGroupFeedback,type StillnessWatch,type WaitingNotice} from '../lib/worlds/feedback';
 import type {Creature,WorldLevel,WorldRun} from '../lib/worlds/types';
 import {drawExpedition} from './worlds-expedition-walkthrough';
 
 function advance(run:WorldRun,level:WorldLevel,seconds:number){
   for(let i=0;i<seconds*10;i++)updateRun(run,level,.1);
+}
+
+function watchFor(watch:StillnessWatch,run:WorldRun,level:WorldLevel,group:readonly Creature[],seconds:number,enabled=true):WaitingNotice[]{
+  const notices:WaitingNotice[]=[];
+  for(let i=0;i<seconds*10;i++){const notice=observeStillness(watch,run,level,.1,group,enabled);if(notice)notices.push(notice);}
+  return notices;
 }
 
 function loadedBalance(level=WORLD_LEVELS[0]){
@@ -102,15 +108,64 @@ test('eight seconds of complete stillness emits once, remains silent across paus
     }
   };
   observe(7.9);assert.equal(notices.length,0);
-  observe(.3);assert.equal(notices.length,1);assert.match(notices[0],/Engage son cran/);
+  observe(.3);assert.equal(notices.length,1);assert.match(notices[0],/Le câble n’est pas retenu/);
+  const current=getCurrentStillnessNotice(watch);assert(current);assert.doesNotMatch(current.message,/Engage|Charge|Dessine/);
   observe(30);assert.equal(notices.length,1,'a stationary party does not produce a repeating hint');
-  applyAction(run,level,{type:'pause',paused:true});observe(20);assert.equal(notices.length,1);
+  assert.equal(getCurrentStillnessNotice(watch),current,'the visual notice remains stable beyond a toast timeout');
+  applyAction(run,level,{type:'pause',paused:true});observe(20);assert.equal(notices.length,1);assert.equal(getCurrentStillnessNotice(watch),null);
   applyAction(run,level,{type:'pause',paused:false});observe(12);assert.equal(notices.length,1,'pause/resume does not announce the same situation again');
+  assert.deepEqual(getCurrentStillnessNotice(watch),current,'the same real obstacle can become visible again silently');
   assert(applyAction(run,level,{type:'device',id:'s0:balance'}).ok);
   observe(11);assert.equal(notices.length,2);assert.match(notices[1],/passage de retour/);
   const before=JSON.stringify(saveRun(run));
-  for(let i=0;i<100;i++)observeStillness(watch,run,level,.1,porters);
+  for(let i=0;i<100;i++){observeStillness(watch,run,level,.1,porters);getCurrentStillnessNotice(watch);}
   assert.equal(JSON.stringify(saveRun(run)),before);
+});
+
+test('a passive notice disappears for a menu or drawing and returns without repeating its announcement',()=>{
+  const {run,level}=loadedBalance(),watch=createStillnessWatch(),porters=run.units.filter(unit=>unit.nodeId==='s0:pan'&&unit.edgeId===null);
+  assert.equal(watchFor(watch,run,level,porters,8.2).length,1);
+  const first=getCurrentStillnessNotice(watch);assert(first);
+  assert.equal(observeStillness(watch,run,level,.1,porters,false),null);assert.equal(getCurrentStillnessNotice(watch),null);
+  assert.equal(watchFor(watch,run,level,porters,7.9).length,0);assert.equal(getCurrentStillnessNotice(watch),null);
+  assert.equal(watchFor(watch,run,level,porters,.4).length,0);assert.deepEqual(getCurrentStillnessNotice(watch),first);
+  const drawing=level.drawings.find(drawing=>drawing.id==='s0:high-thread')!;
+  assert(beginStroke(run,level,drawing.from).ok);
+  assert.equal(observeStillness(watch,run,level,.1,porters),null);assert.equal(getCurrentStillnessNotice(watch),null);
+  cancelStroke(run);
+  assert.equal(watchFor(watch,run,level,porters,8.2).length,0);assert.deepEqual(getCurrentStillnessNotice(watch),first);
+  assert.equal(watch.reported.size,1);
+});
+
+test('a changed visible group clears the old notice and an empty viewport never describes an offscreen group',()=>{
+  const {run,level,porters,forward}=separatedGroups(),watch=createStillnessWatch();
+  assert.equal(watchFor(watch,run,level,porters,8.2).length,1);
+  const first=getCurrentStillnessNotice(watch);assert(first);assert.match(first.message,/passage de retour/);
+  assert.equal(observeStillness(watch,run,level,.1,[...porters].reverse()),null);
+  assert.equal(getCurrentStillnessNotice(watch),first,'proximity sorting does not reset a stable visible group');
+  assert.equal(observeStillness(watch,run,level,.1,forward),null);assert.equal(getCurrentStillnessNotice(watch),null);
+  assert.equal(watchFor(watch,run,level,forward,8.2).length,1);
+  const next=getCurrentStillnessNotice(watch);assert(next);assert(forward.some(unit=>unit.id===next.unitId));
+  assert.match(next.message,/Il manque un passage devant/);
+  assert.equal(observeStillness(watch,run,level,.1,[]),null);assert.equal(getCurrentStillnessNotice(watch),null);
+  assert.equal(watchFor(watch,run,level,[],30).length,0);assert.equal(getCurrentStillnessNotice(watch),null);
+  assert.equal(watchFor(watch,run,level,porters,8.2).length,0);assert.deepEqual(getCurrentStillnessNotice(watch),first);
+  assert.equal(watch.reported.size,2);
+});
+
+test('a real change to the obstacle or movement withdraws the passive notice without operating a mechanism',()=>{
+  const {run,level}=loadedBalance(),watch=createStillnessWatch(),porters=run.units.filter(unit=>unit.nodeId==='s0:pan'&&unit.edgeId===null);
+  const before=JSON.stringify(saveRun(run));
+  assert.equal(watchFor(watch,run,level,porters,8.2).length,1);assert(getCurrentStillnessNotice(watch));
+  assert.equal(JSON.stringify(saveRun(run)),before);
+  assert.match(companionFeedback(run,level,porters[0])??'',/Engage son cran/,'a requested explanation keeps its detail');
+  assert(applyAction(run,level,{type:'device',id:'s0:balance'}).ok);
+  assert.equal(observeStillness(watch,run,level,.1,porters),null);assert.equal(getCurrentStillnessNotice(watch),null);
+  assert.equal(watchFor(watch,run,level,porters,8.2).length,1);assert.match(getCurrentStillnessNotice(watch)?.message??'',/passage de retour/);
+  assert(drawExpedition(run,level,'s0:return-thread'));
+  assert.equal(observeStillness(watch,run,level,.1,porters),null);assert.equal(getCurrentStillnessNotice(watch),null);
+  advance(run,level,1);assert(porters.some(unit=>unit.state==='walking'));
+  assert.equal(watchFor(watch,run,level,porters,10).length,0);assert.equal(getCurrentStillnessNotice(watch),null);
 });
 
 test('movement, an open pause menu and the visible group govern the passive notice',()=>{

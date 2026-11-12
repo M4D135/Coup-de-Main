@@ -1,4 +1,4 @@
-# Coup de Main — Compilation autonome de la version 3.2.1
+# Coup de Main — Compilation autonome de la version 3.2.2
 
 [Dépôt public Coup de Main](https://github.com/M4D135/Coup-de-Main)
 
@@ -88,6 +88,22 @@ Avant livraison, vérifier également dans le navigateur :
 - La pause, la vitesse, le retour à un souvenir et le redémarrage complet.
 - Les trois volumes, la coupure générale, le déverrouillage audio et le retour d’un onglet masqué.
 - L’absence d’erreurs de console et le chargement correct des images dans le build web et le HTML autonome.
+
+### Résultats de la livraison 3.2.2
+
+La suite complète du projet de création réussit **426 tests sur 426**, sans échec ni test ignoré. La vérification TypeScript et le contrôle des espaces du diff passent. Les 26 nouvelles régressions couvrent le scénario signalé, les gestes de retour, les manipulations tardives et la persistance de l’information d’attente. Les parcours des **quinze tableaux** et les reprises déjà présentes restent validés.
+
+Le problème de sélection tactile est reproduit sur le plateau abaissé des Veilleurs 1 : l’appui de retour est à `(1180, 808)`, près du cran à `(1180, 780)`. Un départ huit pixels au-dessus de l’appui pouvait sélectionner le cran, puis déplacer le décor au glissement. Le candidat de dessin possède désormais sa propre zone de 24 pixels CSS ; le clic conserve son action et le glissement recalcule l’appui mobile. Les tests couvrent toute cette zone, les deux sens du trait, le déplacement du plateau, le défilement de caméra et quatre dimensions : **320 × 568, 375 × 812, 844 × 390 et 2048 × 1177**. Les huit variantes de retour terminent le monde à **12/12**, sans perte ni reprise au souvenir.
+
+Quatre séquences explicites reproduisent les deux porteurs restés sur le plateau et les dix compagnons déjà à droite, avec retour précoce ou tardif et cran précoce ou tardif. Elles sauvegardent et reprennent avant le geste manquant, puis vérifient le passage physique des deux porteurs d’origine. Aucun contrôleur ne dessine ou ne verrouille à leur place pendant cette récupération.
+
+Neuf essais supplémentaires couvrent les six autres tableaux à porteurs, les deux nacelles sans balance et un changement prématuré de l’aiguillage des Veilleurs 1. Ils comprennent des retours absents puis tracés en sens inverse, des effacements et retracés, des paliers saturés et une reprise pendant une descente chargée. Les porteurs et passagers franchissent leur tableau avant toute commande dans le suivant. Les parcours prolongés jusqu’au refuge terminent à **12/12**, sans perte ni reprise.
+
+Les dix tests de feedback vérifient que la raison d’attente reste visible après le délai initial, s’efface lors d’un changement réel et peut réapparaître sans nouvelle annonce d’accessibilité. L’information suit le groupe visible ; un écran vide ne décrit pas des compagnons hors champ. L’observation ne modifie aucun état de la partie.
+
+La vérification dans le navigateur de bureau a repris une sauvegarde, chargé et retenu le plateau, puis tracé le retour depuis la zone proche du cran. Le trait a été accepté et le décor n’a pas défilé à sa place. Les deux porteurs ont quitté le plateau et rejoint la rive droite par ce nouveau trait. Les dimensions mobiles ci-dessus sont vérifiées par des tests de géométrie et d’interaction ; elles ne constituent pas une session sur un iPhone physique. Le parcours complet des quinze tableaux relève des tests automatisés, pas d’une partie manuelle intégrale du navigateur.
+
+L’export autonome 3.2.2 a reçu une installation neuve avec `npm ci --ignore-scripts` (**48 paquets**). `npm run check` réussit : TypeScript, **269 tests sur 269**, aucun ignoré, puis compilation Vite. Le HTML autonome embarque **25 images**, identiques aux fichiers web. Les 24 images des mondes sont identiques octet pour octet à la version 3.2.1. Le compte rendu final est recopié dans l’export et son manifeste recalculé sans modification du code validé.
 
 ### Résultats de la livraison 3.2.1
 
@@ -216,7 +232,7 @@ npm run public:export -- /chemin/absolu/vers/un-dossier-vide
 
 Le premier script produit `work/public-dist/`. L’exporteur suit les imports actifs de l’interface et des tests publics, puis copie une liste explicite de scripts, documents, prompts de génération et médias. Les fichiers intermédiaires `*-tableau-*.png` ne sont pas exportés : seuls les douze tableaux finaux WebP sont retenus. Il refuse de remplacer un dossier non vide.
 
-Le paquet ne contient ni historique Git, identité d’hébergement, variables d’environnement, connecteurs, ancien moteur, médias audio historiques ni archives de création. Les anciennes sources restent dans leurs projets et historiques. `PUBLIC-MANIFEST.json` énumère les fichiers, tailles et SHA-256. Son champ `version` désigne le format du manifeste ; `gameVersion` reprend **3.2.0**, comme le package, le lock et le manifeste des médias.
+Le paquet ne contient ni historique Git, identité d’hébergement, variables d’environnement, connecteurs, ancien moteur, médias audio historiques ni archives de création. Les anciennes sources restent dans leurs projets et historiques. `PUBLIC-MANIFEST.json` énumère les fichiers, tailles et SHA-256. Son champ `version` désigne le format du manifeste ; `gameVersion` reprend **3.2.2**, comme le package, le lock et le manifeste des médias.
 
 Dans un export neuf, `npm ci && npm run check` vérifie la distribution publique. L’export et le build locaux ne publient ni release ni site à eux seuls.
 

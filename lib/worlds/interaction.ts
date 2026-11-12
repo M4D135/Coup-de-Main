@@ -4,6 +4,23 @@ import {getDrawingEndpoints} from './engine';
 import type {Point,WorldLevel,WorldRun} from './types';
 
 export type PlayTarget=Exclude<WorldHit,null>|{kind:'companion';id:number}|null;
+export type DrawingTarget=Extract<WorldHit,{kind:'drawing'}>;
+
+/** A drag can start at a missing support even when a crank or a companion wins
+ * the short-tap target. Keep the identity only: its current physical endpoint
+ * must be resolved when the finger actually starts drawing. */
+export function hitTestDrawTarget(level:WorldLevel,run:WorldRun,point:Point,scale:number):DrawingTarget|null {
+  const radius=24/Math.max(.01,scale);let nearest:{distance:number;target:DrawingTarget}|null=null;
+  for(const drawing of level.drawings){
+    if(run.drawings[drawing.id])continue;
+    const endpoints=getDrawingEndpoints(run,level,drawing);
+    for(const end of ['from','to'] as const){
+      const distance=Math.hypot(point.x-endpoints[end].x,point.y-endpoints[end].y);
+      if(distance<=radius+1e-6&&(!nearest||distance<nearest.distance))nearest={distance,target:{kind:'drawing',id:drawing.id,end}};
+    }
+  }
+  return nearest?.target??null;
+}
 
 /** Keep the visible face distinct from the broad touch area of its platform.
  * Feet remain available for anchors; the crank itself always remains a control. */

@@ -2,6 +2,17 @@
 
 Les sources et les fichiers prêts à jouer sont publiés dans le [dépôt Coup de Main](https://github.com/M4D135/Coup-de-Main).
 
+## [3.2.2]
+
+### Les porteurs peuvent repartir
+
+- Le geste de dessin possède sa propre zone tactile autour d’un appui manquant. Un glissement près du cran ou du visage d’un compagnon commence le trait ; un clic simple conserve l’action du mécanisme ou l’inspection du compagnon. L’appui est recalculé à sa position physique au début du glissement.
+- Le cas « deux porteurs sur le plateau, dix compagnons déjà à droite » des Veilleurs est reproduit avec plusieurs ordres de tracé et de verrouillage, puis une sauvegarde et une reprise. Les porteurs sortent par leur vrai chemin de retour, sans recommencer le tableau.
+- La couverture des retours tardifs est étendue aux autres balances et aux paliers de nacelle saturés. Les essais laissent volontairement un passage absent, puis le tracent après le départ du reste de la troupe.
+- Après une immobilité prolongée, la raison de l’attente reste visible tant que la situation persiste. Elle décrit le groupe à l’écran et disparaît au mouvement, au dessin ou à l’ouverture du menu. L’annonce sonore d’accessibilité n’est pas répétée ; le message passif décrit l’obstacle sans donner l’ordre des manipulations.
+
+Les illustrations, les musiques et les règles mécaniques de la version précédente sont conservées. Les résultats de vérification sont détaillés dans `docs/BUILD.md`.
+
 ## [3.2.1]
 
 ### Contact physique pendant la traversée
