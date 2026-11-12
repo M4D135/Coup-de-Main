@@ -100,6 +100,47 @@ export function getEdgePath(run:WorldRun,level:WorldLevel,edge:RouteEdge):Point[
   return getEdgeSupportPaths(run,level,edge).flat();
 }
 
+type TraversalSupport={points:Point[];length:number;pivot:Point;angularVelocity:number};
+type EdgeTraversal={supports:TraversalSupport[];length:number;barriers:number[];exitReady:boolean};
+const supportVelocity=(support:TraversalSupport,point:Point):Point=>({
+  x:-(point.y-support.pivot.y)*support.angularVelocity,
+  y:(point.x-support.pivot.x)*support.angularVelocity,
+});
+
+/** A gap between two leaves is not part of their walkable length. Keep the
+ * walker on the leaf already reached until its next real contact is steady. */
+function getEdgeTraversal(run:WorldRun,level:WorldLevel,edge:RouteEdge,returning=false):EdgeTraversal {
+  let supports=getEdgeSupportPaths(run,level,edge).map((points,index)=>({
+    points,length:pathLength(points),pivot:index===0?points[0]:points.at(-1)!,
+    angularVelocity:edge.mechanism?(index===0?-1:1)*edge.mechanism.restAngle
+      *(run.devices[edge.mechanism.drivers[index]]?.velocity??0):0,
+  }));
+  if(returning)supports=supports.reverse().map(support=>({...support,points:[...support.points].reverse()}));
+  const tolerance=Math.max(5,level.creatureHeight*.045),stationary={x:0,y:0};
+  const connected=(a:Point,b:Point,va:Point,vb=stationary)=>distance(a,b)<=tolerance&&distance(va,vb)<=tolerance*2;
+  let length=0;const barriers:number[]=[];
+  for(let index=0;index<supports.length;index++){
+    const support=supports[index];length+=support.length;
+    const next=supports[index+1];
+    if(next&&!connected(support.points.at(-1)!,next.points[0],supportVelocity(support,support.points.at(-1)!),supportVelocity(next,next.points[0])))barriers.push(length);
+  }
+  const last=supports.at(-1)!,end=last.points.at(-1)!;
+  return {supports,length,barriers,exitReady:!edge.mechanism
+    ||connected(end,nodePosition(run,level,returning?edge.from:edge.to),supportVelocity(last,end))};
+}
+
+function pointAlongSupports(supports:TraversalSupport[],at:number):Point&{direction:-1|1} {
+  let remaining=Math.max(0,at);
+  for(let index=0;index<supports.length;index++){
+    const support=supports[index];
+    if(remaining<=support.length+1e-8||index===supports.length-1)return pointAlongPath(support.points,remaining);
+    remaining-=support.length;
+  }
+  return {x:0,y:0,direction:1};
+}
+
+const edgeTravelLength=(run:WorldRun,level:WorldLevel,edge:RouteEdge)=>getEdgeSupportPaths(run,level,edge).reduce((sum,points)=>sum+pathLength(points),0);
+
 export function createRun(level:WorldLevel):WorldRun {
   return createActRun(canonicalWorld(level),Math.max(0,(level.actNumber??1)-1),[]);
 }
@@ -489,7 +530,7 @@ function recallStranded(run:WorldRun,level:WorldLevel,unit:Creature,nodeId:strin
   const incoming=edgeFor(level,unit.edgeId);
   const edges=returnPath(run,level,nodeId,incoming?.to===nodeId?incoming.id:null,unit.id);
   if(!edges?.length)return false;
-  const first=edgeFor(level,edges[0])!,length=pathLength(getEdgePath(run,level,first));
+  const first=edgeFor(level,edges[0])!,length=edgeTravelLength(run,level,first);
   // The companions queued on this same path turn together; their spacing and
   // their feet remain where they were rather than jumping back to the junction.
   for(const companion of run.units){
@@ -620,23 +661,28 @@ function simulateStep(run:WorldRun,level:WorldLevel,dt:number):void {
       }
       continue;
     }
-    const normalPath=getEdgePath(run,level,edge),points=unit.returning?[...normalPath].reverse():normalPath,length=pathLength(points);
-    const start=points[0];
+    const traversal=getEdgeTraversal(run,level,edge,unit.returning),{length}=traversal;
+    const start=traversal.supports[0].points[0];
     if(unit.distance===0&&distance(unit,start)>1){
       const gap=distance(unit,start),step=Math.min(gap,level.pace*dt);
       unit.direction=start.x>=unit.x?1:-1;unit.x+=(start.x-unit.x)*step/gap;unit.y+=(start.y-unit.y)*step/gap;
       unit.walkTime+=step/level.pace;unit.state='walking';continue;
     }
-    if(unit.distance>=length-.05){unit.waitTime+=dt;arrive(run,level,unit,edge);continue;}
+    if(unit.distance>=length-.05){
+      unit.distance=length;Object.assign(unit,pointAlongSupports(traversal.supports,length));unit.waitTime+=dt;
+      if(traversal.exitReady)arrive(run,level,unit,edge);else unit.state='waiting';
+      continue;
+    }
     const pace=level.pace*(.94+(unit.id%5)*.025)*(edge.kind==='hazard'?1.45:1);
     let target=Math.min(length,unit.distance+pace*dt);
     for(const other of run.units){
       if(other.id===unit.id||other.edgeId!==edge.id||!!other.returning!==!!unit.returning||['lost','saved','queued'].includes(other.state))continue;
       if(other.distance>unit.distance+.01||(Math.abs(other.distance-unit.distance)<.01&&other.id<unit.id))target=Math.min(target,Math.max(unit.distance,other.distance-SPACING*geometryScale(level)));
     }
+    for(const barrier of traversal.barriers)if(barrier>=unit.distance-1e-8)target=Math.min(target,barrier);
     const moved=target-unit.distance;
     unit.distance=target;
-    const position=pointAlongPath(points,target);unit.x=position.x;unit.y=position.y;unit.direction=position.direction;
+    const position=pointAlongSupports(traversal.supports,target);unit.x=position.x;unit.y=position.y;unit.direction=position.direction;
     if(moved>.001){unit.state='walking';unit.walkTime+=moved/level.pace;unit.waitTime=0;}else{unit.state='waiting';unit.waitTime+=dt;}
     if(edge.kind==='hazard'&&edge.deviceId){
       const definition=deviceFor(level,edge.deviceId)!;
@@ -644,7 +690,9 @@ function simulateStep(run:WorldRun,level:WorldLevel,dt:number):void {
       const body={x:unit.x,y:unit.y-level.creatureHeight*.4};
       if(distance(body,bob)<(definition.radius??40)+level.creatureHeight*.22){lose(run,unit);continue;}
     }
-    if(unit.distance>=length-.05)arrive(run,level,unit,edge);
+    if(unit.distance>=length-.05){
+      if(traversal.exitReady)arrive(run,level,unit,edge);else unit.state='waiting';
+    }
   }
   if(level.sectors)updatePhysicalCheckpoint(run,level);
   if(level.sectors&&run.lost>level.total-level.rescueTarget){
@@ -779,14 +827,13 @@ function migrateGeometry(raw:Record<string,unknown>,level:WorldLevel):Record<str
         next.x=low.x+(high.x-low.x)*state.progress+((unit.formationSlot??unit.id%3)-((edge.capacity??3)-1)/2)*36*geometryScale(level);
         next.y=low.y+(high.y-low.y)*state.progress;
       }else{
-        const oldPath=getEdgePath(oldRun,oldLevel,oldEdge),path=getEdgePath(migrated,level,edge);
-        const fraction=clamp(unit.distance/Math.max(1,pathLength(oldPath)),0,1);
-        next.distance=fraction*pathLength(path);
-        const oriented=unit.returning?[...path].reverse():path;
-        Object.assign(next,pointAlongPath(oriented,next.distance));
-        const oldStart=unit.returning?oldPath.at(-1)!:oldPath[0];
+        const oldTraversal=getEdgeTraversal(oldRun,oldLevel,oldEdge,unit.returning),traversal=getEdgeTraversal(migrated,level,edge,unit.returning);
+        const fraction=clamp(unit.distance/Math.max(1,oldTraversal.length),0,1);
+        next.distance=fraction*traversal.length;
+        Object.assign(next,pointAlongSupports(traversal.supports,next.distance));
+        const oldStart=oldTraversal.supports[0].points[0],start=traversal.supports[0].points[0];
         if(unit.distance===0&&distance(unit,oldStart)>1){
-          next.x=oriented[0].x+(unit.x-oldStart.x)*resize;next.y=oriented[0].y+(unit.y-oldStart.y)*resize;
+          next.x=start.x+(unit.x-oldStart.x)*resize;next.y=start.y+(unit.y-oldStart.y)*resize;
         }
       }
     }else{
@@ -905,7 +952,7 @@ export function restoreRun(raw:unknown,level:WorldLevel,restoreCheckpoint=true):
     if(!Number.isFinite(x)||!Number.isFinite(y)||x< -300||x>level.width+300||y< -300||y>level.height+500)return null;
     run.units[index]={...run.units[index],state:unit.state as Creature['state'],nodeId:unit.nodeId,edgeId,x,y,returning,returnEdges:returning?[...returnEdges]:[],
       formationSlot:Number.isInteger(unit.formationSlot)&&finite(unit.formationSlot,-1)>=0&&finite(unit.formationSlot)>=0&&finite(unit.formationSlot)<level.total?finite(unit.formationSlot):null,
-      distance:edge?clamp(finite(unit.distance),0,pathLength(getEdgePath(run,level,edge))):0,
+      distance:edge?clamp(finite(unit.distance),0,edgeTravelLength(run,level,edge)):0,
       direction:unit.direction===-1?-1:1,walkTime:Math.max(0,finite(unit.walkTime)),waitTime:Math.max(0,finite(unit.waitTime)),
       savedAt:typeof unit.savedAt==='number'&&Number.isFinite(unit.savedAt)?Math.max(0,unit.savedAt):null,
       lostAt:typeof unit.lostAt==='number'&&Number.isFinite(unit.lostAt)?Math.max(0,unit.lostAt):null,fallVelocity:clamp(finite(unit.fallVelocity),-500,2000)};
@@ -917,7 +964,7 @@ export function restoreRun(raw:unknown,level:WorldLevel,restoreCheckpoint=true):
     }
     const restored=run.units[index];
     if(restored.returning&&edge&&restored.returnEdges.length===1
-      &&restored.distance>=pathLength(getEdgePath(run,level,edge))-.05){
+      &&restored.distance>=edgeTravelLength(run,level,edge)-.05&&getEdgeTraversal(run,level,edge,true).exitReady){
       if(edge.maxPassages!==undefined)run.passages[edge.id]=(run.passages[edge.id]??[]).filter(id=>id!==restored.id);
       settleReturnedCompanion(restored,edge.from);
     }
@@ -1078,9 +1125,14 @@ export function getWaitingReason(run:WorldRun,level:WorldLevel,unit:Creature,bri
   if(unit.returning){
     const next=edgeFor(level,unit.returnEdges?.[1]??null);
     if((current?.drawingId&&!run.drawings[current.drawingId])
-      ||(current&&unit.distance>=pathLength(getEdgePath(run,level,current))-.1&&next?.drawingId&&!run.drawings[next.drawingId]))return 'Le passage de retour est interrompu.';
+      ||(current&&unit.distance>=edgeTravelLength(run,level,current)-.1&&next?.drawingId&&!run.drawings[next.drawingId]))return 'Le passage de retour est interrompu.';
   }
-  if(current&&unit.distance<pathLength(getEdgePath(run,level,current))-.1)return brief?'Un compagnon attend devant.':'La troupe attend son tour sur le chemin.';
+  if(current?.mechanism){
+    const traversal=getEdgeTraversal(run,level,current,unit.returning);
+    if(traversal.barriers.some(at=>Math.abs(unit.distance-at)<.1))return 'Les deux demi-ponts ne se touchent plus.';
+    if(unit.distance>=traversal.length-.1&&!traversal.exitReady)return 'Le bout du pont n’a pas encore rejoint le palier.';
+  }
+  if(current&&unit.distance<edgeTravelLength(run,level,current)-.1)return brief?'Un compagnon attend devant.':'La troupe attend son tour sur le chemin.';
   const nodeId=current?(unit.returning?current.from:current.to):unit.nodeId,node=nodeFor(level,nodeId);
   const station=stationDevice(level,nodeId);if(station)return getDeviceStatus(run,level,station.id).reason;
   const options=level.edges.filter(edge=>edge.from===nodeId&&(!edge.route||run.devices[edge.route.deviceId]?.mode===edge.route.mode));

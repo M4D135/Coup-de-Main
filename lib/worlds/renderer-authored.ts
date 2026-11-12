@@ -72,7 +72,6 @@ function windReceiver(context:CanvasRenderingContext2D,level:WorldLevel,run:Worl
 }
 
 export function windDrumAnchor(level:WorldLevel,device:DeviceDefinition):Point{
-  if(level.id==='veilleurs'&&device.id==='s6:wind')return level.devices.find(item=>item.id==='s6:lift')?.pivot??device.mechanics?.wind?.target??device;
   return level.devices.find(item=>item.id===device.lockDeviceId)??device.mechanics?.wind?.target??device;
 }
 
@@ -164,18 +163,28 @@ export function authoredWind(context:CanvasRenderingContext2D,level:WorldLevel,r
   return true;
 }
 
+/** The loaded strand is shared with the drum renderer: its measured payout,
+ * including a slanted suspension, is what turns the fixed wheel. */
+export function counterweightDriveRope(level:WorldLevel,device:DeviceDefinition,center:Point):[Point,Point]{
+  const width=device.width??330,rest=device.low??center,pivot=device.pivot??{x:rest.x,y:rest.y-440};
+  if(tableauIndex(device.x)===0&&level.id==='boucles')return [{...pivot},{x:center.x+width*.45,y:center.y-10}];
+  return [{x:pivot.x-16,y:pivot.y},{x:center.x-width*.43,y:center.y-12}];
+}
+
 export function authoredCounterweight(context:CanvasRenderingContext2D,level:WorldLevel,run:WorldRun,assets:WorldAssets,device:DeviceDefinition) {
   const center=getDeviceAnchor(run,device),width=device.width??330,state=run.devices[device.id],index=tableauIndex(device.x);
   const first=index===0,pivot=device.pivot??{x:center.x,y:center.y-440};
+  const [drivePivot,drivePan]=counterweightDriveRope(level,device,center);
   if(first&&level.id==='boucles'){
     rope(context,{x:1040,y:968},{x:center.x-width*.45,y:center.y-10},level.id,5);
-    rope(context,{x:center.x+width*.45,y:center.y-10},pivot,level.id,5);
+    rope(context,drivePan,drivePivot,level.id,5);
     const counter={x:2255,y:1130-(center.y-(device.low?.y??center.y))};
     rope(context,pivot,{x:counter.x,y:counter.y-105},level.id,5);
     prop(context,assets,1,counter.x,counter.y,210,0,.84);
   }else{
     // Rope is attached to a beam/overhang measured on the complete illustration.
-    for(const side of [-1,1])rope(context,{x:pivot.x+side*16,y:pivot.y},{x:center.x+side*width*.43,y:center.y-12},level.id,4);
+    rope(context,drivePivot,drivePan,level.id,4);
+    rope(context,{x:pivot.x+16,y:pivot.y},{x:center.x+width*.43,y:center.y-12},level.id,4);
     if(!first)brass(context,pivot.x,pivot.y,15,level.id);
   }
   if(level.id==='plis')prop(context,assets,1,center.x,center.y,width,0,.82);

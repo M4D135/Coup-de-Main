@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {applyAction,beginStroke,appendStroke,finishStroke,createRun,getDrawingEndpoints,getEdgeSupportPaths,getPendulumPosition,restoreRun,saveRun,updateRun} from '../lib/worlds/engine';
+import {applyAction,beginStroke,appendStroke,finishStroke,createRun,getDrawingEndpoints,getEdgeSupportPaths,getPendulumPosition,pathLength,pointAlongPath,restoreRun,saveRun,updateRun} from '../lib/worlds/engine';
 import {advanceMechanism,getDeviceAnchor,getSupportPaths,MECHANICAL_GRAVITY,supportReady,windTransfer} from '../lib/worlds/mechanics';
 import {WORLD_LEVELS} from '../lib/worlds/levels';
 import type {DeviceDefinition,WorldLevel,WorldRun} from '../lib/worlds/types';
@@ -151,4 +151,81 @@ test('an ideal clockwork pivot remains parkable after a long puzzle session with
   for(let tick=0;tick<60*30&&state.angularVelocity!==0;tick++)advanceMechanism(run,level,definition,1/60);
   assert.equal(state.angularVelocity,0);assert(Math.abs(state.angle!)>=.7);
   assert(energy(definition,state.angle!,state.angularVelocity!)<after);
+});
+
+const waitUntil=(run:WorldRun,level:WorldLevel,condition:()=>boolean,seconds=40)=>{
+  for(let tick=0;tick<seconds*60&&!condition();tick++)updateRun(run,level,1/60);
+  assert(condition(),'the expected physical state was not reached');
+};
+
+test('cutting the wind during a real crossing carries the waiting feet with the deck until its landing reconnects, including after resume',()=>{
+  const level=WORLD_LEVELS[1],run=createRun(level),edge=level.edges.find(edge=>edge.id==='s0:wind-thread')!;
+  for(const id of ['s0:wind-thread','s0:far-thread']){
+    const drawing=level.drawings.find(drawing=>drawing.id===id)!,ends=getDrawingEndpoints(run,level,drawing);
+    assert(beginStroke(run,level,ends.from).ok);appendStroke(run,level,ends.to);assert(finishStroke(run,level).ok);
+  }
+  assert(applyAction(run,level,{type:'device',id:'s0:wind',mode:1}).ok);assert(applyAction(run,level,{type:'start'}).ok);
+  waitUntil(run,level,()=>run.units[0].edgeId===edge.id&&run.units[0].distance>=100);
+  assert(applyAction(run,level,{type:'device',id:'s0:wind',mode:0}).ok);
+  play(run,level,3.5);
+  const unit=run.units[0],tip=getEdgeSupportPaths(run,level,edge)[0].at(-1)!;
+  assert.equal(unit.edgeId,edge.id);assert.equal(unit.state,'waiting');
+  assert(run.devices['s0:wind'].progress>0&&run.devices['s0:wind'].progress<.5);
+  close(unit.x,tip.x);close(unit.y,tip.y);assert.equal(run.visits[edge.to]?.length??0,0);
+  const restored=restoreRun(JSON.parse(JSON.stringify(saveRun(run))),level);assert(restored);
+  close(restored.units[0].x,unit.x);close(restored.units[0].y,unit.y);
+  assert.equal(restored.devices['s0:cleat'].mode,0);assert.equal(restored.devices['s0:wind'].mode,0);
+  assert(applyAction(restored,level,{type:'pause',paused:false}).ok);play(restored,level,.5);
+  const movingTip=getEdgeSupportPaths(restored,level,edge)[0].at(-1)!;
+  assert.notEqual(movingTip.y,tip.y);close(restored.units[0].x,movingTip.x);close(restored.units[0].y,movingTip.y);
+  assert.equal(restored.units[0].edgeId,edge.id);assert.equal(restored.visits[edge.to]?.length??0,0);
+  play(restored,level,5);assert.equal(restored.devices['s0:wind'].progress,0);
+  assert(applyAction(restored,level,{type:'device',id:'s0:wind',mode:1}).ok);
+  waitUntil(restored,level,()=>restored.units[0].edgeId!==edge.id);
+  const landing=level.nodes.find(node=>node.id===edge.to)!;
+  assert(Math.hypot(restored.units[0].x-landing.x,restored.units[0].y-landing.y)<=Math.max(5,level.creatureHeight*.045));
+  waitUntil(restored,level,()=>(restored.visits[edge.to]?.length??0)===level.total);
+  assert.equal(restored.lost,0);assert.equal(restored.devices['s0:cleat'].mode,0,'no retaining knot was engaged for the player');
+});
+
+function splitDeckLevel():WorldLevel {
+  const wind=(id:string):DeviceDefinition=>({id,kind:'wind',x:50,y:100,label:id,description:'',modes:['Arrêt','Souffle'],initialMode:0,
+    mechanics:{wind:{source:{x:50,y:100},target:{x:150,y:100},direction:{x:1,y:0},range:1000,cone:.16,radius:70}}});
+  return {...WORLD_LEVELS[1],width:850,height:900,creatureHeight:64,pace:80,total:1,rescueTarget:1,spawn:'start',goal:'goal',
+    sectors:undefined,acts:undefined,previousGeometry:undefined,
+    nodes:[{id:'start',x:100,y:500,kind:'spawn'},{id:'goal',x:700,y:500,kind:'goal'}],
+    edges:[{id:'deck',from:'start',to:'goal',kind:'ground',path:[{x:100,y:500},{x:700,y:500}],mechanism:{drivers:['left','right'],restAngle:.49}}],
+    devices:[wind('left'),wind('right')],drawings:[]};
+}
+
+for(const driver of ['left','right'])test(`an occupied split deck waits on its own first leaf when the ${driver} drive is released`,()=>{
+  const level=splitDeckLevel(),run=createRun(level),edge=level.edges[0];
+  for(const id of ['left','right'])assert(applyAction(run,level,{type:'device',id,mode:1}).ok);
+  assert(applyAction(run,level,{type:'start'}).ok);
+  waitUntil(run,level,()=>run.units[0].distance>=120);
+  assert(applyAction(run,level,{type:'device',id:driver,mode:0}).ok);
+  play(run,level,6);
+  const paths=getEdgeSupportPaths(run,level,edge),tip=paths[0].at(-1)!,unit=run.units[0];
+  assert(Math.hypot(tip.x-paths[1][0].x,tip.y-paths[1][0].y)>50);
+  assert.equal(unit.edgeId,edge.id);assert.equal(unit.state,'waiting');close(unit.distance,pathLength(paths[0]));
+  close(unit.x,tip.x);close(unit.y,tip.y);assert.equal(run.saved,0);
+  const restored=restoreRun(JSON.parse(JSON.stringify(saveRun(run))),level);assert(restored);
+  assert(applyAction(restored,level,{type:'pause',paused:false}).ok);play(restored,level,.2);
+  close(restored.units[0].x,tip.x);close(restored.units[0].y,tip.y);assert.equal(restored.saved,0);
+  assert(applyAction(restored,level,{type:'device',id:driver,mode:1}).ok);
+  waitUntil(restored,level,()=>restored.saved===1);assert.equal(restored.lost,0);
+});
+
+test('a passenger already on the second moving leaf can walk to its connected fixed hinge',()=>{
+  const level=splitDeckLevel(),run=createRun(level),edge=level.edges[0];
+  for(const id of ['left','right'])assert(applyAction(run,level,{type:'device',id,mode:1}).ok);
+  assert(applyAction(run,level,{type:'start'}).ok);
+  waitUntil(run,level,()=>run.units[0].distance>=360);
+  assert(applyAction(run,level,{type:'device',id:'right',mode:0}).ok);
+  play(run,level,1);
+  const paths=getEdgeSupportPaths(run,level,edge),unit=run.units[0];
+  assert(run.devices.right.progress<1);assert(unit.distance>pathLength(paths[0]));
+  const contact=pointAlongPath(paths[1],unit.distance-pathLength(paths[0]));close(unit.x,contact.x);close(unit.y,contact.y);
+  waitUntil(run,level,()=>run.saved===1);assert.equal(run.lost,0);
+  assert(run.devices.right.progress<1,'the fixed hinge remains an exit while the free end is lowered');
 });

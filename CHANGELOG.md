@@ -2,6 +2,28 @@
 
 Les sources et les fichiers prêts à jouer sont publiés dans le [dépôt Coup de Main](https://github.com/M4D135/Coup-de-Main).
 
+## [3.2.1]
+
+### Contact physique pendant la traversée
+
+- Couper le vent au milieu d’une traversée ne permet plus de quitter un pont abaissé pour rejoindre le palier en marchant dans l’air. Le compagnon reste sur le tablier, suit sa position et repart lorsque le contact est rétabli.
+- Les deux demi-tabliers sont parcourus séparément. Le vide entre leurs extrémités ne devient plus un segment de chemin implicite ; un compagnon déjà sur la seconde moitié peut rejoindre sa charnière fixe.
+- La sauvegarde et la reprise conservent cette attente. Les messages distinguent un palier encore éloigné et deux demi-ponts séparés.
+
+### Transmissions plus lisibles
+
+- Les câbles des deux pédales d’éclaireurs et des trois freins partent du moyeu effectivement dessiné sur leur plateau mobile. Les anciens tambours détachés disparaissent.
+- Dans le quatrième tableau des Veilleurs, le pont à vent possède son tambour et son renvoi distincts de la nacelle à manivelle. Les renvois proches d’une manivelle restent séparés visuellement, y compris dans Petits Plis 4.
+- Les dix tambours de contrepoids tournent selon la longueur du câble réellement déroulé. Les taquets superposés aux tambours reprennent leur rotation visible.
+
+### Musique et documentation
+
+- Les trois thèmes joyeux de 3.2.0 sont conservés. Un contrôle reproductible exécute les 32 mesures de chaque thème avec le moteur de synthèse et de programmation réel sur un contexte Web Audio instrumenté : aucune note manquante ou doublonnée et aucune rafale au retour d’un onglet masqué.
+- La musique reste active pendant la pause pour permettre le réglage du volume. Le script de contrôle décrit ses limites : il ne produit pas de PCM et ne remplace pas une écoute.
+- Le guide des trois mondes décrit désormais les transmissions locales et les nouvelles musiques. Les illustrations originales restent identiques.
+
+Les résultats de cette livraison et la limite rencontrée dans l’aperçu du navigateur sont détaillés dans `docs/BUILD.md`.
+
 ## [3.2.0]
 
 ### Des causes mécaniques visibles

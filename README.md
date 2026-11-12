@@ -1,6 +1,6 @@
 # Coup de Main
 
-**Version 3.2.0 · Un crayon. Trois mondes. Douze compagnons à guider.**
+**Version 3.2.1 · Un crayon. Trois mondes. Douze compagnons à guider.**
 
 [Sources et versions publiques](https://github.com/M4D135/Coup-de-Main)
 
@@ -46,6 +46,8 @@ Le monde dispose d’une réserve d’encre commune, visible sur la jauge du cra
 - **Nacelles** : une manivelle fournit la force de montée. La charge agit sur l’accélération, les compagnons suivent le plateau, et les entrées et sorties se font aux paliers.
 - **Éclaireurs** : deux compagnons appuient ensemble sur une pédale. Un câble ou une tringle relie cette pédale au pont ou à la retenue du balancier.
 - **Balanciers** : gravité et inertie gouvernent le mouvement. Le frein attend que le poids s’écarte du passage puis le retient, sans le tirer vers une position arbitraire.
+
+Si un pont redescend pendant une traversée, les compagnons restent sur son tablier et attendent le retour du contact avec le palier. Les deux moitiés d’un pont articulé gardent chacune leur propre appui : l’espace entre elles ne constitue pas un chemin.
 
 Il s’agit d’une simulation 2D de mécanismes guidés : courses, charnières et câbles ont des contraintes définies. Les personnages continuent de suivre les chemins dessinés ; le jeu n’est pas un bac à sable de corps libres. Le menu de pause explique la chaîne mécanique du tableau courant.
 

@@ -1,4 +1,4 @@
-# Coup de Main — Les mondes illustrés de la version 3.1.2
+# Coup de Main — Les mondes illustrés de la version 3.2.1
 
 Chaque monde est un parcours de **16 000 × 1 800 unités**, présenté en **cinq tableaux complets de 3 200 × 1 800 unités**. Douze compagnons traversent les cinq réseaux de mécanismes jusqu’au refuge final. Les groupes, dessins et réglages restent présents entre les tableaux ; tourner une page ne recommence pas la partie.
 
@@ -6,9 +6,11 @@ Le premier tableau de chaque famille utilise sa scène complète d’origine. Qu
 
 ## Règles communes
 
-Les personnages avancent seuls sur les chemins disponibles. Le joueur trace entre les appuis, touche les mécanismes pour changer leur position et explore le décor en déplaçant la caméra. Les mouvements, charges, relais et repères donnent les informations nécessaires dans la scène.
+Les personnages avancent seuls sur les chemins disponibles. Le joueur trace entre les appuis, touche les mécanismes pour changer leur position et explore le décor en déplaçant la caméra. Les mouvements, charges, cordes et repères donnent les informations nécessaires dans la scène.
 
-Chaque réseau occupe deux secteurs et relie plusieurs fonctions : aiguillages, porteurs, verrous, souffle, ascenseurs ou passages dangereux. Une petite équipe peut ouvrir la route pour les autres. Les porteurs d’une balance sont libérés par la borne de leur propre tableau, avec le cran verrouillé et leur retour tracé. Les appuis gagnés dans un tableau peuvent alimenter les mécanismes suivants ; aucune commande dans le tableau suivant n’est nécessaire pour libérer les porteurs du précédent. Une file peut toutefois remonter devant la porte fermée du passage suivant.
+Chaque réseau occupe deux secteurs et relie plusieurs fonctions : aiguillages, porteurs, verrous, souffle, treuils ou passages dangereux. Une petite équipe peut ouvrir la route pour les autres. Les porteurs d’une balance repartent dès que son cran est verrouillé et que leur retour est tracé. Chaque transmission mécanique reste dans son tableau. Les bornes de passage enregistrent la progression sans fournir d’énergie aux machines. Une file peut toutefois remonter devant la porte fermée du passage suivant.
+
+Le souffle entraîne une roue réceptrice reliée par un câble au pont. Un plateau descend sous la charge des compagnons ; deux plateaux indépendants entraînent deux demi-ponts. Une pédale demande deux occupants présents pour actionner son cliquet. Les nacelles se commandent à la manivelle et les balanciers oscillent jusqu’à ce que leur frein retienne une position effectivement atteinte. La simulation applique forces, inertie, gravité et amortissement à ces mécanismes guidés en 2D.
 
 Une réserve de construction accompagne tout le monde ; la jauge du crayon montre l’encre encore disponible. Les traits ont également leur propre limite de longueur et leur corridor. La Gomme rend l’encre d’un passage retiré ; les traits occupés ou déjà réservés au retour d’un compagnon sont protégés. Les personnages suivent la géométrie effectivement dessinée. Les conditions des mécanismes restent nécessaires pour traverser.
 
@@ -16,31 +18,31 @@ Un repère de fin de réseau devient un **souvenir** lorsque tous les compagnons
 
 ## I — Les Boucles : Le grand fil
 
-Le papier crème, l’encre bleu nuit et les touches corail accueillent un parcours d’équilibres et d’entraide. Le premier groupe de porteurs influence la route suivante ; les relais et les passages construits relient progressivement les équipes.
+Le papier crème, l’encre bleu nuit et les touches corail accueillent un parcours d’équilibres et d’entraide. Le premier groupe de porteurs soulève un pont, puis rejoint les autres par son chemin de retour. Les passages construits et les mécanismes locaux réunissent progressivement les équipes.
 
 | Tableau | Région | Réseau principal |
 | --- | --- | --- |
-| 1 | Le premier nœud · Les porteurs du ciel | Charger une balance avec trois porteurs puis les réunir à la borne locale |
-| 2 | Le souffle en réserve · Les liens lointains | Faire travailler le vent et conserver le réglage du moulin |
-| 3 | La rivière dédoublée · Les sentinelles d’encre | Envoyer des éclaireurs et réorienter les suivants |
-| 4 | Le grand balancement · La remontée bleue | Alimenter une nacelle et transporter la troupe |
+| 1 | Le premier nœud · Les porteurs du ciel | Charger une balance avec trois porteurs, bloquer le cran puis les faire revenir |
+| 2 | Le souffle en réserve · Les liens lointains | Faire travailler le vent et retenir le câble du pont |
+| 3 | La rivière dédoublée · Les sentinelles d’encre | Envoyer deux éclaireurs sur une pédale et réorienter les suivants |
+| 4 | Le grand balancement · La remontée bleue | Commander la nacelle au treuil et réunir les équipes |
 | 5 | Les deux plateaux · Le cercle retrouvé | Coordonner deux balances et réunir les groupes au bout du fil |
 
-La musique utilise un thème de piano doux à trois temps, soutenu par des cordes, une basse et un accompagnement pincé. La phrase principale possède une réponse et des respirations ; les nuances et les voicings varient sur les cycles suivants.
+La musique utilise un piano sautillant en ré majeur à quatre temps et 116 BPM, soutenu par une basse alternée, des accords pincés et des percussions légères. Les 32 mesures réunissent un thème et une réponse distincte, avec des respirations en fin de phrase.
 
 ## II — Petits Plis : Le pays des vents
 
-Origamis, carton et rubans de papier composent une carte où un souffle peut alimenter un mécanisme tout en gênant un passage. Conserver une position avant de changer le vent et coordonner les équipes relie les différentes régions.
+Origamis, carton et rubans de papier composent une carte où le souffle fait tourner une roue, qui enroule le câble d’un pont. Un ventilateur peut rester en marche pendant la traversée. Les taquets retiennent la position acquise lorsque le souffle s’arrête.
 
 | Tableau | Région | Réseau principal |
 | --- | --- | --- |
 | 1 | Le pli du vent · Le moulin immobile | Orienter le souffle puis bloquer le mécanisme soulevé |
-| 2 | Les deux messagers · Le courant contraire | Faire passer les messagers et utiliser leur relais |
-| 3 | Le poids du papier · Les promesses suspendues | Charger une balance dépendant du relais précédent |
-| 4 | La tour des souffles · Le retour des rubans | Combiner moulin, taquet et ascenseur |
-| 5 | La double pliure · La maison des feuilles | Accorder deux équipes, leurs charges et le vent |
+| 2 | Les deux messagers · Le courant contraire | Faire passer deux messagers et charger leur pédale |
+| 3 | Le poids du papier · Les promesses suspendues | Charger la balance locale et retenir son câble |
+| 4 | La tour des souffles · Le retour des rubans | Combiner pont à vent, taquet et nacelle à manivelle |
+| 5 | La double pliure · La maison des feuilles | Accorder deux équipes et les charges de deux demi-ponts |
 
-La musique associe une mélodie de flûte synthétique, des cordes pincées, une basse et un souffle discret. Les pas et les gestes de mécanismes utilisent des froissements et des plis procéduraux.
+La musique associe une flûte légère en sol majeur à 124 BPM, des accords pincés, une basse et des contretemps accompagnés de brosses douces. Les pas et les gestes de mécanismes utilisent des froissements et des plis procéduraux.
 
 ## III — Les Veilleurs : La longue veille
 
@@ -48,13 +50,13 @@ Le bois, le laiton et les lumières de l’atelier accompagnent des réseaux de 
 
 | Tableau | Région | Réseau principal |
 | --- | --- | --- |
-| 1 | La clef de la nacelle · Le premier atelier | Charger une balance puis commander le transport |
+| 1 | La clef de la nacelle · Le premier atelier | Coordonner la balance et le transport au treuil |
 | 2 | Les battements du cuivre · Les deux éclaireurs | Faire traverser les éclaireurs et immobiliser le balancier |
-| 3 | Le poids des étoiles · Les chaînes croisées | Coordonner deux balances et leur borne de réunion |
-| 4 | Le souffle des braises · Les quatre retrouvailles | Alimenter moulin et ascenseur avec les réglages précédents |
+| 3 | Le poids des étoiles · Les chaînes croisées | Coordonner deux balances et rejoindre les autres par les retours |
+| 4 | Le souffle des braises · Les quatre retrouvailles | Soulever un pont par le vent et commander une nacelle indépendante |
 | 5 | Les horloges jumelles · La veilleuse du bout | Franchir deux balanciers et réunir la troupe au refuge |
 
-Le célesta, les accords mineurs et les cordes synthétiques donnent une couleur nocturne au thème. Les pas et mécanismes mêlent impacts de bois, résonances et petits mouvements métalliques. Le rendu du balancier et ses collisions utilisent la même géométrie.
+Le piano-jouet en fa majeur à 108 BPM apporte un swing chaleureux, avec une basse alternée et de petites percussions de bois. Les pas et mécanismes mêlent impacts de bois, résonances et petits mouvements métalliques. Le rendu du balancier et ses collisions utilisent la même géométrie.
 
 ## Exploration et gestes
 
@@ -72,9 +74,9 @@ Les atlas approuvés fournissent les six poses de marche, la pose debout et les 
 
 Le refuge valide le monde avec au moins dix arrivées. **Dix compagnons donnent une étoile, onze en donnent deux et douze en donnent trois.** L’encre reste une ressource de construction ; le score final ne lui ajoute pas de seuil. Reprendre au dernier souvenir ou recommencer n’entraîne aucun malus d’étoiles.
 
-La sauvegarde garde le format V3 et identifie séparément la révision de géométrie. Lorsqu’une partie 3.0 compatible est reprise, ses compagnons sont replacés sur les mêmes chemins à la même avancée relative ; ses traits sont recalés entre les nouveaux appuis. Les identités, pertes, arrivées, mécanismes et souvenirs compatibles sont conservés. Les formats V1/V2 décrivent d’autres parcours et repartent du début, avec un message explicatif. Les données restent locales au navigateur et à l’adresse du jeu.
+La sauvegarde garde le format V3 et identifie séparément les révisions de géométrie et de mécanique. Lorsqu’une partie 3.0 compatible est reprise, ses compagnons sont replacés sur les mêmes chemins à la même avancée relative ; ses traits sont recalés entre les nouveaux appuis. Les positions, vitesses et angles utiles sont conservés dans les sauvegardes mécaniques récentes. Les identités, pertes, arrivées, mécanismes et souvenirs compatibles sont conservés. Les formats V1/V2 décrivent d’autres parcours et repartent du début, avec un message explicatif. Les données restent locales au navigateur et à l’adresse du jeu.
 
-Un taquet déjà utilisé pour soutenir une traversée reste engagé, y compris après une annulation. Cette protection empêche qu’un ancien moulin coupe un passage indispensable plusieurs tableaux plus loin. À la restauration, l’historique des passages permet de rétablir seulement les appuis déjà gagnés. Il n’active pas un mécanisme encore non résolu. Si une ancienne sauvegarde a perdu un pont nécessaire à un retour, le compagnon attend sur la rive correspondante.
+Un taquet déjà utilisé pour soutenir une traversée reste engagé, y compris après une annulation. Cette protection conserve les passages acquis et les retours nécessaires. À la restauration d’une ancienne partie, l’historique des passages permet de rétablir seulement les appuis déjà gagnés. Il n’active pas un mécanisme encore non résolu. Si une ancienne sauvegarde a perdu un pont nécessaire à un retour, le compagnon attend sur la rive correspondante.
 
 ## Ressources, musique et validation
 

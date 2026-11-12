@@ -3,14 +3,14 @@ import assert from 'node:assert/strict';
 import {WORLD_LEVELS} from '../lib/worlds/levels';
 import {applyAction,createRun,saveRun,updateRun,getEdgeSupportPaths,getDrawingEndpoints} from '../lib/worlds/engine';
 import {authoredWind,authoredCounterweight,authoredLift} from '../lib/worlds/renderer-authored';
-import {drawMechanisms} from '../lib/worlds/renderer-mechanisms';
+import {drawMechanicalConnections,drawMechanisms} from '../lib/worlds/renderer-mechanisms';
 import {hitTestPlayTarget} from '../lib/worlds/interaction';
 import {hitTestDrawing,type WorldAssets} from '../lib/worlds/renderer';
 import {getDeviceAnchor} from '../lib/worlds/mechanics';
 import type {DeviceDefinition,Point,WorldLevel,WorldRun} from '../lib/worlds/types';
 
 type Matrix=[number,number,number,number,number,number];
-type Segment={kind:string;points:Point[]};
+type Segment={kind:string;points:Point[];radius?:number};
 type Clip={matrix:Matrix;x:number;y:number;radius:number};
 const point=(m:Matrix,x:number,y:number):Point=>({x:m[0]*x+m[2]*y+m[4],y:m[1]*x+m[3]*y+m[5]});
 const product=(m:Matrix,n:Matrix):Matrix=>[
@@ -37,7 +37,8 @@ function canvasRecorder(){
     lineTo:(x:number,y:number)=>path.push({kind:'line',points:[point(state.matrix,x,y)]}),
     bezierCurveTo:(...p:number[])=>path.push({kind:'cubic',points:[point(state.matrix,p[0],p[1]),point(state.matrix,p[2],p[3]),point(state.matrix,p[4],p[5])]}),
     quadraticCurveTo:(...p:number[])=>path.push({kind:'quad',points:[point(state.matrix,p[0],p[1]),point(state.matrix,p[2],p[3])]}),
-    arc:(x:number,y:number,radius:number)=>{arc={x,y,radius};path.push({kind:'arc',points:[point(state.matrix,x,y)]});},
+    arc:(x:number,y:number,radius:number)=>{arc={x,y,radius};path.push({kind:'arc',points:[point(state.matrix,x,y)],radius});},
+    roundRect:(x:number,y:number,width:number,height:number)=>path.push({kind:'rect',points:[point(state.matrix,x,y),point(state.matrix,x+width,y+height)]}),
     clip:()=>{assert(arc,'rotor containment must use its fixed circular face');state.clip={...arc,matrix:[...state.matrix]};clips.push(state.clip);},
     stroke:()=>strokes.push({path:structuredClone(path),clip:state.clip,style:state.strokeStyle,alpha:state.globalAlpha}),
     drawImage:(_image:unknown,...args:number[])=>images.push({args,matrix:[...state.matrix],clip:state.clip}),
@@ -59,6 +60,23 @@ function render(level:WorldLevel,run:WorldRun,device:DeviceDefinition,angle=0,wa
   const canvas=canvasRecorder();authoredWind(canvas.context,level,run,assets,device,angle,wallTime,reduced);return canvas;
 }
 function tick(run:WorldRun,level:WorldLevel,seconds:number){for(let t=0;t<seconds;t+=.05)updateRun(run,level,.05);}
+const near=(a:Point,b:Point,tolerance=.001)=>Math.hypot(a.x-b.x,a.y-b.y)<tolerance;
+function renderTransmission(level:WorldLevel,run:WorldRun,tableau:number,withControls=false){
+  const output=canvasRecorder(),bounds={left:tableau*3200,right:(tableau+1)*3200,top:0,bottom:1800,scale:1,tableau};
+  drawMechanicalConnections(output.context,level,run,bounds,run.time,false);
+  if(withControls)drawMechanisms(output.context,level,run,assets,bounds,run.time,{});
+  return output;
+}
+function straightLines(output:ReturnType<typeof canvasRecorder>){
+  return output.strokes.filter(stroke=>stroke.path.length===2&&stroke.path[0].kind==='move'&&stroke.path[1].kind==='line')
+    .map(stroke=>({from:stroke.path[0].points[0],to:stroke.path[1].points[0]}));
+}
+function wheelSpoke(output:ReturnType<typeof canvasRecorder>,centre:Point,radius:number){
+  const spoke=straightLines(output).find(line=>Math.abs(Math.hypot(line.from.x-centre.x,line.from.y-centre.y)-radius*.27)<.001
+    &&Math.abs(Math.hypot(line.to.x-centre.x,line.to.y-centre.y)-radius*.82)<.001);
+  assert(spoke,`the wheel at ${centre.x},${centre.y} must have visible spokes`);
+  return {x:spoke.to.x-centre.x,y:spoke.to.y-centre.y};
+}
 function poweredPaper(){
   const level=WORLD_LEVELS.find(level=>level.id==='plis')!,run=createRun(level),device=wind(level,'s0:wind');
   assert(applyAction(run,level,{type:'device',id:device.id,mode:1}).ok);
@@ -143,6 +161,83 @@ test('every wind system draws its air all the way to a distinct local receiving 
     assert.equal(Math.floor(rig.source.x/3200),Math.floor(rig.target.x/3200));
     assert(Math.hypot(rig.source.x-rig.target.x,rig.source.y-rig.target.y)>200,'receiver must be visually separate from its source');
   }
+});
+
+test('scout and brake pedals visibly pull their mechanism through the hub on the actual moving plate',()=>{
+  let bridges=0,brakes=0;
+  for(const level of WORLD_LEVELS)for(const device of level.devices.filter(device=>device.kind==='gate'&&device.weightNodes?.length)){
+    const edge=level.edges.find(edge=>edge.mechanism?.drivers.includes(device.id));
+    const pendulum=level.devices.find(candidate=>candidate.kind==='pendulum'&&candidate.lockDeviceId===device.id);
+    assert(edge||pendulum);
+    const run=createRun(level),tableau=Math.floor(device.x/3200);
+    if(edge)run.drawings[edge.drawingId!]={points:edge.path.map(point=>({...point})),inkLength:700,createdAt:0};
+    for(const progress of [0,.5,1]){
+      run.devices[device.id].progress=progress;
+      const anchor=getDeviceAnchor(run,device),output=renderTransmission(level,run,tableau,true),lines=straightLines(output);
+      const plate=output.strokes.flatMap(stroke=>stroke.path).find(segment=>segment.kind==='rect'
+        &&Math.abs(segment.points[0].y-anchor.y)<.001&&Math.abs((segment.points[0].x+segment.points[1].x)/2-anchor.x)<.001
+        &&Math.abs(segment.points[1].x-segment.points[0].x-190)<.001);
+      assert(plate,'the loaded plate itself must be drawn at the actual support height');
+      const [a,b]=plate.points,hub=output.strokes.flatMap(stroke=>stroke.path).find(segment=>segment.kind==='arc'&&segment.radius===19
+        &&segment.points[0].x>b.x&&segment.points[0].x<b.x+30&&segment.points[0].y>b.y&&segment.points[0].y<b.y+30)?.points[0];
+      assert(hub,'the pressure plate has its own visible output hub');
+      assert(lines.some(line=>near(line.to,hub)&&line.from.x>=a.x&&line.from.x<=b.x&&line.from.y>=a.y&&line.from.y<=b.y),
+        'the plate must be physically connected to its hub');
+      const cable=lines.find(line=>near(line.from,hub)&&Math.hypot(line.to.x-hub.x,line.to.y-hub.y)>100);
+      assert(cable,'the transmission cable must start at that same hub, not at the former floating relay');
+      if(edge){
+        const tip=getEdgeSupportPaths(run,level,edge)[0].at(-1)!;
+        assert(lines.some(line=>near(line.from,cable.to)&&near(line.to,tip)),'the other side of the guide reaches the actual bridge tip');
+      }else{
+        const pivot=pendulum!.pivot??pendulum!;
+        assert(near(cable.to,{x:pivot.x+32,y:pivot.y+8}),'the brake cable reaches the real pendulum pivot');
+      }
+    }
+    if(edge)bridges++;else brakes++;
+  }
+  assert.equal(bridges,2);assert.equal(brakes,3);
+});
+
+test('the fourth Veilleurs wind bridge uses its own cleat and never shares a pulley with the manually cranked lift',()=>{
+  const level=WORLD_LEVELS.find(level=>level.id==='veilleurs')!,run=createRun(level),fan=wind(level,'s6:wind');
+  const cleat=level.devices.find(device=>device.id===fan.lockDeviceId)!,lift=level.devices.find(device=>device.id==='s6:lift')!,head=lift.pivot!;
+  const before=renderTransmission(level,run,3,true),oldHead=wheelSpoke(before,head,30);
+  assert(applyAction(run,level,{type:'device',id:fan.id,mode:1}).ok);assert(applyAction(run,level,{type:'start'}).ok);
+  for(let frame=0;frame<100&&run.devices[fan.id].progress<.4;frame++)updateRun(run,level,.05);
+  assert(run.devices[fan.id].progress>.1);assert.equal(run.devices[lift.id].progress,0);
+  const output=renderTransmission(level,run,3,true),arcs=output.strokes.flatMap(stroke=>stroke.path).filter(segment=>segment.kind==='arc');
+  assert(arcs.some(arc=>arc.radius===28&&near(arc.points[0],cleat)),'the wind drum is carried by its actual cleat');
+  assert(!arcs.some(arc=>arc.radius===28&&near(arc.points[0],head)),'only the lift owns the head pulley');
+  const windCable=straightLines(output).find(line=>near(line.from,cleat)&&Math.hypot(line.to.x-cleat.x,line.to.y-cleat.y)>100);
+  assert(windCable);assert(Math.hypot(windCable.to.x-lift.x,windCable.to.y-lift.y)>80,'the bridge guide must also stay clear of the lift crank');
+  assert.deepEqual(wheelSpoke(output,head,30),oldHead,'turning the fan must not turn the manual lift pulley');
+  assert.notDeepEqual(wheelSpoke(output,cleat,28),wheelSpoke(before,cleat,28),'the wind turns its own distinct drum');
+  assert.notDeepEqual(wheelSpoke(output,cleat,23),wheelSpoke(before,cleat,23),'the foreground cleat wheel must preserve the driven drum rotation');
+});
+
+test('all counterweight drums turn by the actual suspension cable payout while retaining the same axle',()=>{
+  let checked=0;
+  for(const level of WORLD_LEVELS)for(const device of level.devices.filter(device=>device.kind==='counterweight'&&device.mechanics)){
+    const run=createRun(level),pivot=device.pivot!,tableau=Math.floor(device.x/3200);let previous:{length:number;spoke:Point}|undefined;
+    assert.equal(run.devices[device.id].rotorAngle,0,'counterweight state has an initialized receiver field, but no powered rotor');
+    for(const progress of [0,.25,.5,.75,1]){
+      run.devices[device.id].progress=progress;
+      const anchor=getDeviceAnchor(run,device),output=renderTransmission(level,run,tableau),pan=canvasRecorder();
+      authoredCounterweight(pan.context,level,run,assets,device);
+      const cable=straightLines(pan).find(line=>(near(line.from,pivot,20)&&Math.abs(line.to.y-anchor.y)<20)
+        ||(near(line.to,pivot,20)&&Math.abs(line.from.y-anchor.y)<20));
+      assert(cable,'the measured payout comes from a rendered suspension strand');
+      const length=Math.hypot(cable.to.x-cable.from.x,cable.to.y-cable.from.y),spoke=wheelSpoke(output,pivot,28);
+      if(previous){
+        const turn=Math.atan2(previous.spoke.x*spoke.y-previous.spoke.y*spoke.x,previous.spoke.x*spoke.x+previous.spoke.y*spoke.y);
+        assert(turn<-.05,`${level.id} ${device.id}: a descending load must turn its drum`);
+        assert(Math.abs(-turn*28-(length-previous.length))<.001,'drum rim travel equals the cable drawn out of the actual suspension');
+      }
+      previous={length,spoke};
+    }
+    checked++;
+  }
+  assert.equal(checked,10);
 });
 
 test('counterweight sprites and their draw targets descend by the same physical travel',()=>{

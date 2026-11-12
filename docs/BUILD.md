@@ -1,4 +1,4 @@
-# Coup de Main — Compilation autonome de la version 3.2.0
+# Coup de Main — Compilation autonome de la version 3.2.1
 
 [Dépôt public Coup de Main](https://github.com/M4D135/Coup-de-Main)
 
@@ -89,7 +89,27 @@ Avant livraison, vérifier également dans le navigateur :
 - Les trois volumes, la coupure générale, le déverrouillage audio et le retour d’un onglet masqué.
 - L’absence d’erreurs de console et le chargement correct des images dans le build web et le HTML autonome.
 
-### Résultats de la livraison 3.2.0
+### Résultats de la livraison 3.2.1
+
+La suite complète du projet de création réussit **400 tests sur 400**, sans échec ni test ignoré. La vérification TypeScript passe. Les parcours automatisés des trois mondes restent terminables à **12/12**, avec les scénarios de perturbation et de reprise conservés.
+
+Un défaut a été reproduit dans le premier tableau des Petits Plis par les actions normales du jeu : après coupure du vent pendant la traversée, un compagnon quittait le tablier à 56,1 % de sa course, 86,47 unités sous le palier, puis marchait dans l’air. La sortie vérifie maintenant le contact et la vitesse de l’appui. Quatre nouvelles régressions contrôlent l’attente portée par le tablier, la reprise d’une sauvegarde dans cette position, les raccords des deux demi-ponts et la sortie par une charnière fixe encore accessible. Le jeu n’actionne pas de mécanisme à la place du joueur et aucun nouveau champ de sauvegarde n’est nécessaire.
+
+Trois nouveaux tests Canvas ont reproduit les défauts de transmission de la version 3.2.0, puis passent avec les corrections. Ils suivent les traits effectivement dessinés : les cinq pédales sont reliées à leur moyeu mobile ; le tambour du vent des Veilleurs 4 est distinct de la poulie et de la manivelle de la nacelle ; les dix tambours de contrepoids tournent selon l’allongement de leur véritable brin de suspension, même oblique. Les fichiers d’illustration ne sont pas modifiés.
+
+Le contrôle sonore complémentaire est reproductible dans le projet et l’export public :
+
+```sh
+node scripts/qa-audio-scheduler.mjs
+```
+
+Il exécute les vraies méthodes de synthèse et de programmation sur un contexte Web Audio instrumenté, en appelant deux fois chaque étape de programmation pour rechercher les doublons. Sur 32 mesures, les Boucles émettent **581 notes sur 581**, les Petits Plis **742 sur 742** et les Veilleurs **738 sur 738**. Aucune note ne manque ou n’est doublonnée ; les maxima sont respectivement 11, 13 et 13 voix. Le masquage arrête toutes les sources et le retour programme une fenêtre normale sans rattrapage. Le script ne produit aucun PCM : ses estimations d’enveloppe ne constituent ni une mesure d’écrêtage, ni une écoute subjective. Les thèmes et le comportement audio de 3.2.0 sont conservés, y compris la musique pendant le menu de pause pour régler son volume.
+
+La vérification visuelle de cette livraison est **partielle**. Les premier et quatrième tableaux des Veilleurs ont été inspectés dans le navigateur avant les corrections finales. L’aperçu local a ensuite refusé de servir des images existantes des Boucles et des Petits Plis ; une ouverture directe de `worlds/boucles-scene.png` a retourné « Cannot GET », alors que le fichier est présent dans le projet. La commande de nouvelle tentative n’a pas résolu ce problème. Les changements finaux de rendu sont donc couverts par les tests Canvas, sans nouvelle capture complète du navigateur. Cette limite de l’aperçu n’est pas présentée comme une validation visuelle réussie ni comme un défaut établi du paquet publié.
+
+L’export autonome 3.2.1 a reçu une installation neuve avec `npm ci --ignore-scripts` (**48 paquets**). `npm run check` réussit : TypeScript, **243 tests sur 243**, aucun ignoré, puis compilation Vite. Le HTML autonome embarque **25 images**, identiques aux fichiers web ; les 24 images des mondes sont également identiques octet pour octet aux fichiers publiés en 3.2.0. Le contrôle sonore complémentaire fonctionne dans cet export. Le compte rendu final est recopié et son manifeste recalculé sans modification du code validé.
+
+### Résultats de la livraison précédente 3.2.0
 
 La suite complète du projet de création réussit **393 tests sur 393**. La vérification TypeScript réussit également. Ces résultats concernent les sources du projet de création ; la vérification de l’export autonome est distincte.
 
