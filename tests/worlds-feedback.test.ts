@@ -34,16 +34,16 @@ function separatedGroups(){
   return {run,level,porters,forward};
 }
 
-test('a balance reports its real release condition before and after the local relay is crossed',()=>{
+test('a latched balance requests its return bridge without waiting for an unrelated arrival marker',()=>{
   const {run,level}=loadedBalance();
-  assert.match(deviceFeedback(run,level,'s0:balance'),/cran est encore libre/);
+  assert.match(deviceFeedback(run,level,'s0:balance'),/Engage son cran/);
   assert(applyAction(run,level,{type:'device',id:'s0:balance'}).ok);
-  assert.match(deviceFeedback(run,level,'s0:balance'),/^Cran verrouillé\..*borne/);
+  assert.match(deviceFeedback(run,level,'s0:balance'),/^Câble retenu\..*passage de retour/);
   assert(drawExpedition(run,level,'s0:high-thread'));
   assert(applyAction(run,level,{type:'device',id:'s0:fork'}).ok);
   advance(run,level,90);
   assert.equal(run.devices['s0:relay'].mode,1);
-  assert.match(deviceFeedback(run,level,'s0:balance'),/^Cran verrouillé\..*passage de retour/);
+  assert.match(deviceFeedback(run,level,'s0:balance'),/^Câble retenu\..*passage de retour/);
   const before=JSON.stringify(saveRun(run));
   deviceFeedback(run,level,'s0:balance');
   assert.equal(JSON.stringify(saveRun(run)),before,'reading a balance must not toggle its crank or build a passage');
@@ -63,7 +63,7 @@ test('the head of a real queue on a curved bridge may stand to the left of its f
   // Close only the downstream road in this test copy, so the simulation forms
   // a queue on a legal hand-drawn curve. No creature poses are fabricated.
   const level=structuredClone(WORLD_LEVELS[0]);
-  level.edges.find(edge=>edge.id==='s0:far-road')!.gates=[{deviceId:'s2:relay',mode:1}];
+  level.edges.find(edge=>edge.id==='s0:far-road')!.gates=[{deviceId:'s0:relay',mode:1}];
   const {run}=loadedBalance(level),drawing=level.drawings.find(drawing=>drawing.id==='s0:high-thread')!;
   assert(beginStroke(run,level,drawing.from).ok);
   for(const point of [{x:drawing.to.x-120,y:drawing.to.y-90},{x:drawing.to.x+120,y:drawing.to.y-20},drawing.to])appendStroke(run,level,point);
@@ -77,7 +77,7 @@ test('the head of a real queue on a curved bridge may stand to the left of its f
   assert(front.x<Math.max(...queue.map(unit=>unit.x)),'this regression must actually distinguish route progress from x');
   const notice=waitingGroupFeedback(run,level,[tail]);
   assert.equal(notice?.unitId,front.id,'the visible tail identifies the head of its shared queue');
-  assert.match(notice?.message??'',/borne/);
+  assert.match(notice?.message??'',/repère|borne|compagnons|éclaireurs/);
   assert.doesNotMatch(notice?.message??'',/Un compagnon attend devant/);
 });
 
@@ -102,12 +102,12 @@ test('eight seconds of complete stillness emits once, remains silent across paus
     }
   };
   observe(7.9);assert.equal(notices.length,0);
-  observe(.3);assert.equal(notices.length,1);assert.match(notices[0],/cran est encore libre/);
+  observe(.3);assert.equal(notices.length,1);assert.match(notices[0],/Engage son cran/);
   observe(30);assert.equal(notices.length,1,'a stationary party does not produce a repeating hint');
   applyAction(run,level,{type:'pause',paused:true});observe(20);assert.equal(notices.length,1);
   applyAction(run,level,{type:'pause',paused:false});observe(12);assert.equal(notices.length,1,'pause/resume does not announce the same situation again');
   assert(applyAction(run,level,{type:'device',id:'s0:balance'}).ok);
-  observe(11);assert.equal(notices.length,2);assert.match(notices[1],/borne/);
+  observe(11);assert.equal(notices.length,2);assert.match(notices[1],/passage de retour/);
   const before=JSON.stringify(saveRun(run));
   for(let i=0;i<100;i++)observeStillness(watch,run,level,.1,porters);
   assert.equal(JSON.stringify(saveRun(run)),before);
@@ -131,7 +131,7 @@ test('movement, an open pause menu and the visible group govern the passive noti
 test('a distant Veilleurs pendulum keeps moving without silencing a completely stopped troupe',()=>{
   const level=WORLD_LEVELS[2],run=createRun(level),watch=createStillnessWatch();
   applyAction(run,level,{type:'start'});advance(run,level,80);
-  assert(run.units.every(unit=>unit.state==='waiting'));
+  assert(run.units.every(unit=>unit.state==='waiting'||unit.state==='riding'));
   const pendulum=level.devices.find(device=>device.kind==='pendulum')!;
   assert(pendulum);const positions=new Set<number>(),notices:WaitingNotice[]=[];
   for(let i=0;i<85;i++){

@@ -1,4 +1,5 @@
 import type {ActionResult, ActResult, Creature, DeviceDefinition, DeviceStatus, DrawingDefinition, DrawnRoute, EditSnapshot, GameAction, GameEvent, Gate, Point, RouteEdge, RunSnapshot, StageProgress, WorldLevel, WorldRun} from './types';
+import {advanceMechanism,getDeviceAnchor,getSupportPaths,initializeMechanism,MECHANICS_REVISION,predictPendulum,supportReady,windTransfer} from './mechanics';
 
 export const WORLD_SAVE_KEY='coup-de-main-v3';
 export const FIXED_STEP=1/60;
@@ -31,10 +32,33 @@ export function getActiveAct(level:WorldLevel,run:Pick<WorldRun,'actIndex'>):Wor
 const copyActResults=(results:ActResult[]):ActResult[]=>results.map(result=>({...result,lostIds:[...result.lostIds]}));
 const copyVisits=(visits:Record<string,number[]>):Record<string,number[]>=>Object.fromEntries(Object.entries(visits).map(([id,units])=>[id,[...units]]));
 const geometryScale=(level:WorldLevel):number=>level.height/900;
-const stationPosition=(level:WorldLevel,unit:Creature):Point=>{
+const stationDevice=(level:WorldLevel,nodeId:string)=>level.devices.find(device=>device.weightNodes?.includes(nodeId));
+const stationPosition=(run:WorldRun,level:WorldLevel,unit:Creature):Point=>{
   const node=nodeFor(level,unit.nodeId),capacity=node.capacity??3;
-  return {x:node.x+((unit.formationSlot??unit.id%capacity)-(capacity-1)/2)*46*geometryScale(level),y:node.y};
+  const definition=stationDevice(level,node.id),anchor=definition?getDeviceAnchor(run,definition):node;
+  return {x:anchor.x+((unit.formationSlot??unit.id%capacity)-(capacity-1)/2)*46*geometryScale(level),y:anchor.y};
 };
+
+function nodePosition(run:WorldRun,level:WorldLevel,id:string):Point {
+  const node=nodeFor(level,id),definition=stationDevice(level,id);
+  return definition?getDeviceAnchor(run,definition):{x:node.x,y:node.y};
+}
+
+/** Preserve the authored curve in an endpoint-relative frame as supports move. */
+function reframePoint(point:Point,oldFrom:Point,oldTo:Point,newFrom:Point,newTo:Point):Point {
+  const dx=oldTo.x-oldFrom.x,dy=oldTo.y-oldFrom.y,length=Math.hypot(dx,dy)||1;
+  const along=((point.x-oldFrom.x)*dx+(point.y-oldFrom.y)*dy)/(length*length);
+  const across=((point.x-oldFrom.x)*-dy+(point.y-oldFrom.y)*dx)/length;
+  const nx=newTo.x-newFrom.x,ny=newTo.y-newFrom.y,newLength=Math.hypot(nx,ny)||1;
+  return {x:newFrom.x+nx*along-ny/newLength*across,y:newFrom.y+ny*along+nx/newLength*across};
+}
+
+export function getDrawingEndpoints(run:WorldRun,level:WorldLevel,drawing:DrawingDefinition):{from:Point;to:Point} {
+  const edge=level.edges.find(edge=>edge.drawingId===drawing.id);
+  if(!edge)return {from:{...drawing.from},to:{...drawing.to}};
+  const from=nodeFor(level,edge.from),to=nodeFor(level,edge.to),a=nodePosition(run,level,from.id),b=nodePosition(run,level,to.id);
+  return {from:reframePoint(drawing.from,from,to,a,b),to:reframePoint(drawing.to,from,to,a,b)};
+}
 
 export const pathLength=(points:Point[]):number=>points.slice(1).reduce((sum,point,index)=>sum+distance(points[index],point),0);
 export function pointAlongPath(points:Point[],at:number):Point&{direction:-1|1} {
@@ -52,17 +76,28 @@ export function pointAlongPath(points:Point[],at:number):Point&{direction:-1|1} 
 }
 
 /** Includes a fixed approach/tail when a drawn span is only part of an edge. */
-export function getEdgePath(run:WorldRun,level:WorldLevel,edge:RouteEdge):Point[] {
+function getEdgeBasePath(run:WorldRun,level:WorldLevel,edge:RouteEdge):Point[] {
   level=getActiveAct(level,run);
   const drawing=edge.drawingId?level.drawings.find(item=>item.id===edge.drawingId):undefined;
   const built=edge.drawingId?run.drawings[edge.drawingId]:undefined;
-  if(!drawing||!built)return edge.path;
-  const points=copyPoints(built.points),from=nodeFor(level,edge.from),to=nodeFor(level,edge.to);
-  if(distance(from,points[0])>1)points.unshift({x:from.x,y:from.y});
-  const tailIndex=edge.path.findIndex(point=>distance(point,drawing.to)<2);
-  if(tailIndex>=0)points.push(...copyPoints(edge.path.slice(tailIndex+1)));
-  if(distance(points[points.length-1],to)>1)points.push({x:to.x,y:to.y});
-  return points;
+  const from=nodeFor(level,edge.from),to=nodeFor(level,edge.to),points=drawing&&built?copyPoints(built.points):copyPoints(edge.path);
+  if(drawing&&built){
+    if(distance(from,points[0])>1)points.unshift({x:from.x,y:from.y});
+    const tailIndex=edge.path.findIndex(point=>distance(point,drawing.to)<2);
+    if(tailIndex>=0)points.push(...copyPoints(edge.path.slice(tailIndex+1)));
+    if(distance(points[points.length-1],to)>1)points.push({x:to.x,y:to.y});
+  }
+  const a=nodePosition(run,level,from.id),b=nodePosition(run,level,to.id);
+  if(distance(a,from)<1e-9&&distance(b,to)<1e-9)return points;
+  return points.map(point=>reframePoint(point,from,to,a,b));
+}
+
+export function getEdgeSupportPaths(run:WorldRun,level:WorldLevel,edge:RouteEdge):Point[][] {
+  return getSupportPaths(run,level,edge,getEdgeBasePath(run,level,edge));
+}
+
+export function getEdgePath(run:WorldRun,level:WorldLevel,edge:RouteEdge):Point[] {
+  return getEdgeSupportPaths(run,level,edge).flat();
 }
 
 export function createRun(level:WorldLevel):WorldRun {
@@ -74,10 +109,13 @@ function createActRun(world:WorldLevel,actIndex:number,actResults:ActResult[]):W
   const source=nodeFor(level,level.spawn);
   const previous=actResults.find(result=>result.index===actIndex-1);
   const lostIds=new Set(previous?.lostIds??[]);
+  const devices=Object.fromEntries(level.devices.map(device=>{
+    const state={mode:device.initialMode,progress:0,load:0};initializeMechanism(device,state);return [device.id,state];
+  }));
   return {
-    version:3,geometryRevision:level.revision??3,autoCheckpointId:null,levelId:level.id,actIndex,actResults:copyActResults(actResults),phase:'ready',time:0,speed:1,
+    version:3,mechanicsRevision:MECHANICS_REVISION,geometryRevision:level.revision??3,autoCheckpointId:null,levelId:level.id,actIndex,actResults:copyActResults(actResults),phase:'ready',time:0,speed:1,
     units:Array.from({length:level.total},(_,id)=>({id,x:source.x,y:lostIds.has(id)?level.height+300:source.y,state:lostIds.has(id)?'lost':'queued',direction:1,nodeId:source.id,edgeId:null,distance:0,walkTime:0,waitTime:0,savedAt:null,lostAt:lostIds.has(id)?0:null,fallVelocity:0,returning:false,returnEdges:[],formationSlot:null,variant:(id*7)%5})),
-    devices:Object.fromEntries(level.devices.map(device=>[device.id,{mode:device.initialMode,progress:0,load:0}])),
+    devices,
     drawings:{},spawned:lostIds.size,saved:0,lost:lostIds.size,nextSpawn:0,accumulator:0,edits:0,retries:0,visits:{},passages:{},
     activeStroke:null,history:[],events:[],message:'Prépare le chemin, puis libère la troupe.',checkpoint:null,
   };
@@ -104,7 +142,8 @@ const emit=(run:WorldRun,event:GameEvent)=>{run.events.push(event);if(run.events
  */
 function committedCleat(run:WorldRun,level:WorldLevel,definition:DeviceDefinition):boolean {
   return definition.kind==='latch'&&level.edges.some(edge=>(run.passages[edge.id]?.length??0)>0
-    &&edge.gates?.some(gate=>gate.deviceId===definition.id&&(gate.mode===1||(gate.minProgress??0)>0)));
+    &&(edge.gates?.some(gate=>gate.deviceId===definition.id&&(gate.mode===1||(gate.minProgress??0)>0))
+      ||(!!definition.powerDeviceId&&edge.mechanism?.drivers.includes(definition.powerDeviceId))));
 }
 
 function activeOnDrawing(run:WorldRun,level:WorldLevel,id:string):boolean {
@@ -201,6 +240,7 @@ export function applyAction(run:WorldRun,level:WorldLevel,action:GameAction):Act
     const blocked=deviceActionReason(run,level,definition,next);
     if(blocked)return result(run,false,blocked);
     remember(run);state.mode=next;state.released=0;
+    if(definition.kind==='wind'&&definition.mechanics)state.receivedForce=windTransfer(definition,state);
     emit(run,{type:'device',x:definition.x,y:definition.y,deviceId:definition.id});
     rememberGestureCheckpoint(run,level);
     return result(run,true,`${definition.label} : ${definition.modes[next]}.`);
@@ -213,15 +253,17 @@ export function beginStroke(run:WorldRun,level:WorldLevel,point:Point):ActionRes
   if(run.phase==='won'||run.phase==='lost')return result(run,false,'Le stage est terminé.');
   let match:{definition:DrawingDefinition;reversed:boolean;distance:number}|null=null;
   for(const definition of level.drawings){
+    const endpoints=getDrawingEndpoints(run,level,definition);
     for(const reversed of [false,true]){
-      const d=distance(point,reversed?definition.to:definition.from);
+      const d=distance(point,reversed?endpoints.to:endpoints.from);
       const unbuilt=!run.drawings[definition.id],previousUnbuilt=match?!run.drawings[match.definition.id]:false;
       if(d<=ANCHOR_RADIUS&&(!match||(unbuilt&&!previousUnbuilt)||(unbuilt===previousUnbuilt&&d<match.distance)))match={definition,reversed,distance:d};
     }
   }
   if(!match)return result(run,false,'Commence ton trait sur un petit appui lumineux.');
   if(activeOnDrawing(run,level,match.definition.id))return result(run,false,'Attends que le trait soit libre pour le redessiner.');
-  run.activeStroke={drawingId:match.definition.id,points:[{...(match.reversed?match.definition.to:match.definition.from)}],reversed:match.reversed};
+  const endpoints=getDrawingEndpoints(run,level,match.definition);
+  run.activeStroke={drawingId:match.definition.id,points:[{...(match.reversed?endpoints.to:endpoints.from)}],reversed:match.reversed};
   return result(run,true,match.definition.hint,{drawingId:match.definition.id});
 }
 
@@ -237,7 +279,7 @@ export function appendStroke(run:WorldRun,level:WorldLevel,point:Point):void {
   if(movement>=30){
     let best:{id:string;reversed:boolean;score:number}|null=null;
     for(const definition of level.drawings)for(const reversed of [false,true]){
-      const anchor=reversed?definition.to:definition.from,target=reversed?definition.from:definition.to;
+      const endpoints=getDrawingEndpoints(run,level,definition),anchor=reversed?endpoints.to:endpoints.from,target=reversed?endpoints.from:endpoints.to;
       if(distance(anchor,start)>=2||activeOnDrawing(run,level,definition.id))continue;
       const reach=distance(start,target),score=((bounded.x-start.x)*(target.x-start.x)+(bounded.y-start.y)*(target.y-start.y))/(movement*reach);
       if(score>.3&&(!best||score>best.score))best={id:definition.id,reversed,score};
@@ -272,16 +314,19 @@ export function finishStroke(run:WorldRun,level:WorldLevel):ActionResult {
   // destination, rather than definition order, selects the intended span.
   const first=stroke.points[0],last=stroke.points[stroke.points.length-1];
   const destinations=level.drawings.flatMap(definition=>[false,true].flatMap(reversed=>{
-    const start=reversed?definition.to:definition.from,end=reversed?definition.from:definition.to;
+    const endpoints=getDrawingEndpoints(run,level,definition),start=reversed?endpoints.to:endpoints.from,end=reversed?endpoints.from:endpoints.to;
     return distance(first,start)<2&&distance(last,end)<=ANCHOR_RADIUS+12?[{definition,reversed,distance:distance(last,end)}]:[];
   })).sort((a,b)=>a.distance-b.distance);
   if(destinations[0]){stroke.drawingId=destinations[0].definition.id;stroke.reversed=destinations[0].reversed;}
   const definition=level.drawings.find(item=>item.id===stroke.drawingId)!;
+  const endpoints=getDrawingEndpoints(run,level,definition);
   const points=stroke.reversed?copyPoints(stroke.points).reverse():copyPoints(stroke.points);
-  if(points.length<2||pathLength(points)<distance(definition.from,definition.to)*.55)return result(run,false,'Prolonge le trait jusqu’au second appui.');
-  if(distance(points[0],definition.from)>ANCHOR_RADIUS||distance(points[points.length-1],definition.to)>ANCHOR_RADIUS+12)return result(run,false,'Le trait doit rejoindre les deux appuis. Tu peux les approcher largement.');
-  points[0]={...definition.from};points[points.length-1]={...definition.to};
-  const stable=simplify(points,3.5),inkLength=pathLength(stable);
+  if(points.length<2||pathLength(points)<distance(endpoints.from,endpoints.to)*.55)return result(run,false,'Prolonge le trait jusqu’au second appui.');
+  if(distance(points[0],endpoints.from)>ANCHOR_RADIUS||distance(points[points.length-1],endpoints.to)>ANCHOR_RADIUS+12)return result(run,false,'Le trait doit rejoindre les deux appuis. Tu peux les approcher largement.');
+  points[0]={...endpoints.from};points[points.length-1]={...endpoints.to};
+  const normalized=points.map(point=>reframePoint(point,endpoints.from,endpoints.to,definition.from,definition.to));
+  normalized[0]={...definition.from};normalized[normalized.length-1]={...definition.to};
+  const stable=simplify(normalized,3.5),inkLength=pathLength(stable);
   if(inkLength>definition.inkLimit)return result(run,false,'Ce trait est trop long. Essaie un chemin plus direct.');
   const alreadyUsed=Object.entries(run.drawings).reduce((sum,[id,route])=>sum+(id===definition.id?0:route.inkLength),0);
   if(level.inkBudget!==undefined&&alreadyUsed+inkLength>level.inkBudget+.01)return result(run,false,`Il reste ${Math.max(0,Math.floor(level.inkBudget-alreadyUsed))} unités d’encre. Efface un passage libre avec la gomme pour récupérer son encre.`);
@@ -296,6 +341,12 @@ export function cancelStroke(run:WorldRun):void {run.activeStroke=null;}
 
 export function getPendulumPosition(definition:DeviceDefinition,time:number,run?:WorldRun):Point&{angle:number} {
   const pivot=definition.pivot??{x:definition.x,y:definition.y};
+  if(definition.mechanics&&run?.devices[definition.id]){
+    const brake=definition.lockDeviceId?run.devices[definition.lockDeviceId]:undefined;
+    const motion=predictPendulum(definition,run.devices[definition.id],Math.max(0,time-run.time),brake?.mode===1);
+    const length=definition.length??190;
+    return {x:pivot.x+Math.sin(motion.angle)*length,y:pivot.y+Math.cos(motion.angle)*length,angle:motion.angle};
+  }
   const freeAngle=Math.sin(time/(definition.duration??7)*Math.PI*2+(definition.phase??0))*.95;
   const brake=definition.lockDeviceId&&run?.devices[definition.lockDeviceId];
   const held=brake&&brake.mode===1?brake.progress:0;
@@ -305,10 +356,18 @@ export function getPendulumPosition(definition:DeviceDefinition,time:number,run?
 }
 
 function updateDevices(run:WorldRun,level:WorldLevel,dt:number):void {
+  const anchors=new Map(level.devices.filter(device=>device.mechanics&&device.weightNodes?.length).map(device=>[device.id,getDeviceAnchor(run,device)]));
   for(const definition of level.devices){
     const state=run.devices[definition.id];
-    state.load=definition.weightNodes?run.units.filter(unit=>definition.weightNodes!.includes(unit.nodeId)&&unit.edgeId===null&&unit.state==='waiting'&&distance(unit,stationPosition(level,unit))<=geometryScale(level)).length
+    state.load=definition.weightNodes?run.units.filter(unit=>definition.weightNodes!.includes(unit.nodeId)&&unit.edgeId===null&&unit.state==='waiting'&&distance(unit,stationPosition(run,level,unit))<=geometryScale(level)).length
       :definition.kind==='lift'?run.units.filter(unit=>unit.state==='riding'&&edgeFor(level,unit.edgeId)?.deviceId===definition.id).length:0;
+    if(definition.mechanics){
+      if(definition.kind==='pendulum')continue;
+      if(definition.kind==='lift'&&state.progress<.02&&run.units.some(unit=>unit.state==='riding'&&edgeFor(level,unit.edgeId)?.deviceId===definition.id&&unit.distance<1)){state.velocity=0;continue;}
+      const oldMode=state.mode;advanceMechanism(run,level,definition,dt);
+      if(state.mode!==oldMode)emit(run,{type:'device',deviceId:definition.id,x:definition.x,y:definition.y});
+      continue;
+    }
     let target=state.mode>0?1:0;
     if(definition.kind==='counterweight')target=state.mode===1||state.load>=(definition.requiredLoad??1)?1:0;
     if(definition.kind==='wind')target=state.mode===1||(definition.lockDeviceId&&run.devices[definition.lockDeviceId]?.mode===1)?1:0;
@@ -318,26 +377,36 @@ function updateDevices(run:WorldRun,level:WorldLevel,dt:number):void {
     const delta=dt/(definition.duration??.35);
     state.progress=target>state.progress?Math.min(target,state.progress+delta):Math.max(target,state.progress-delta);
   }
+  for(const definition of level.devices)if(definition.mechanics&&definition.kind==='pendulum')advanceMechanism(run,level,definition,dt);
+  for(const definition of level.devices){
+    const before=anchors.get(definition.id);if(!before)continue;
+    const after=getDeviceAnchor(run,definition),dx=after.x-before.x,dy=after.y-before.y;
+    if(!dx&&!dy)continue;
+    for(const unit of run.units)if(definition.weightNodes?.includes(unit.nodeId)&&unit.edgeId===null&&unit.state==='waiting'){
+      unit.x+=dx;unit.y+=dy;
+    }
+  }
 }
 
-function routePrepared(run:WorldRun,edge:RouteEdge,unit:Creature):boolean {
+function routePrepared(run:WorldRun,level:WorldLevel,edge:RouteEdge,unit:Creature):boolean {
   if(edge.route&&run.devices[edge.route.deviceId]?.mode!==edge.route.mode)return false;
   if(edge.drawingId&&!run.drawings[edge.drawingId])return false;
   if(!gatesSatisfied(run,edge.gates))return false;
+  if(!supportReady(run,level,edge))return false;
   if(edge.maxPassages!==undefined&&!run.passages[edge.id]?.includes(unit.id)&&(run.passages[edge.id]?.length??0)>=edge.maxPassages)return false;
   return true;
 }
 function canEnter(run:WorldRun,level:WorldLevel,edge:RouteEdge,unit:Creature):boolean {
-  if(!routePrepared(run,edge,unit))return false;
+  if(!routePrepared(run,level,edge,unit))return false;
   const destination=nodeFor(level,edge.to);
-  if(destination.kind==='weight'&&destination.capacity){
+  if(stationDevice(level,destination.id)&&destination.capacity){
     const count=run.units.filter(other=>other.id!==unit.id&&!['queued','lost','saved'].includes(other.state)
       &&((other.nodeId===destination.id&&other.edgeId===null)||(!other.returning&&edgeFor(level,other.edgeId)?.to===destination.id))).length;
     if(count>=destination.capacity)return false;
   }
   if(edge.kind==='lift'){
     const state=run.devices[edge.deviceId!];
-    if(!state||state.progress>.018||state.mode!==0)return false;
+    if(!state||state.progress>.018||state.mode!==0||Math.abs(state.velocity??0)>.035)return false;
     if(run.units.filter(other=>other.edgeId===edge.id&&other.state==='riding').length>=(edge.capacity??3))return false;
   }else if(run.units.some(other=>other.id!==unit.id&&other.edgeId===edge.id&&!other.returning&&!['lost','saved'].includes(other.state)&&other.distance<SPACING*geometryScale(level)))return false;
   return true;
@@ -346,11 +415,13 @@ function canEnter(run:WorldRun,level:WorldLevel,edge:RouteEdge,unit:Creature):bo
 function depart(run:WorldRun,level:WorldLevel,unit:Creature,nodeId:string):boolean {
   const node=nodeFor(level,nodeId);
   if(node.kind==='weight'&&run.devices[node.deviceId!]?.mode!==1)return false;
+  const station=stationDevice(level,nodeId);
+  if(station?.mechanics&&station.kind==='gate'&&(run.devices[station.id].mode!==1||run.devices[station.id].progress<.999))return false;
   const options=level.edges.filter(edge=>edge.from===nodeId).sort((a,b)=>(b.priority??0)-(a.priority??0));
   const next=options.find(edge=>canEnter(run,level,edge,unit));
   if(!next)return false;
   const destination=nodeFor(level,next.to);
-  if(next.kind==='lift'||destination.kind==='weight'){
+  if(next.kind==='lift'||stationDevice(level,destination.id)){
     const capacity=next.kind==='lift'?(next.capacity??3):(destination.capacity??3);
     const occupied=new Set(run.units.filter(other=>other!==unit&&!other.returning&&!['queued','saved','lost'].includes(other.state)
       &&(next.kind==='lift'?other.edgeId===next.id:(other.edgeId===null&&other.nodeId===destination.id)||edgeFor(level,other.edgeId)?.to===destination.id))
@@ -409,10 +480,12 @@ function returnPath(run:WorldRun,level:WorldLevel,nodeId:string,incomingId:strin
 }
 
 function recallStranded(run:WorldRun,level:WorldLevel,unit:Creature,nodeId:string):boolean {
-  // A prepared exit with a queue or a travelling lift is not a dead end.
-  // Recalling at a merge would otherwise send a companion along a branch it
-  // never used simply because that other branch's selector has changed.
-  if(level.edges.some(edge=>edge.from===nodeId&&routePrepared(run,edge,unit)))return false;
+  // A prepared ordinary exit keeps its queue. A full or absent lift may let
+  // its waiting passengers return to their own changed upstream junction;
+  // otherwise an autonomous lift could retain every missing counterweight.
+  // returnPath still requires a real previously used route and changed fork.
+  if(level.edges.some(edge=>edge.from===nodeId&&routePrepared(run,level,edge,unit)
+    &&(edge.kind!=='lift'||canEnter(run,level,edge,unit))))return false;
   const incoming=edgeFor(level,unit.edgeId);
   const edges=returnPath(run,level,nodeId,incoming?.to===nodeId?incoming.id:null,unit.id);
   if(!edges?.length)return false;
@@ -463,7 +536,8 @@ function arrive(run:WorldRun,level:WorldLevel,unit:Creature,edge:RouteEdge):void
   if(!visitors.includes(unit.id)){
     visitors.push(unit.id);
     const trigger=node.arrivalTrigger;
-    if(trigger&&visitors.length>=trigger.minVisitors){
+    const triggerDevice=trigger?deviceFor(level,trigger.deviceId):undefined;
+    if(trigger&&visitors.length>=trigger.minVisitors&&!(triggerDevice?.mechanics&&triggerDevice.weightNodes?.length)){
       const state=run.devices[trigger.deviceId];
       if(state&&state.mode!==trigger.mode){state.mode=trigger.mode;emit(run,{type:'device',deviceId:trigger.deviceId,x:node.x,y:node.y});
         run.message=`${deviceFor(level,trigger.deviceId)?.label??'Le relais'} est activé par les éclaireurs.`;}
@@ -473,7 +547,7 @@ function arrive(run:WorldRun,level:WorldLevel,unit:Creature,edge:RouteEdge):void
     unit.state='saved';unit.savedAt=run.time;unit.edgeId=null;unit.nodeId=node.id;unit.x=node.x;unit.y=node.y;run.saved++;
     emit(run,{type:'saved',x:unit.x,y:unit.y,unitId:unit.id});return;
   }
-  if(node.kind==='weight'){
+  if(stationDevice(level,node.id)){
     unit.nodeId=node.id;unit.edgeId=null;unit.state='waiting';unit.waitTime=0;
     emit(run,{type:'wait',x:unit.x,y:unit.y,unitId:unit.id});return;
   }
@@ -507,8 +581,9 @@ function simulateStep(run:WorldRun,level:WorldLevel,dt:number):void {
     }
     if(unit.edgeId===null){
       const node=nodeFor(level,unit.nodeId);
-      if(node.kind==='weight'&&run.devices[node.deviceId!]?.mode===0){
-        const target=stationPosition(level,unit),gap=distance(unit,target),step=Math.min(gap,level.pace*dt);
+      const station=stationDevice(level,node.id);
+      if(station){
+        const target=stationPosition(run,level,unit),gap=distance(unit,target),step=Math.min(gap,level.pace*dt);
         if(gap>geometryScale(level)){
           unit.direction=target.x>=unit.x?1:-1;unit.x+=(target.x-unit.x)*step/gap;unit.y+=(target.y-unit.y)*step/gap;
           unit.walkTime+=step/level.pace;unit.waitTime=0;continue;
@@ -537,7 +612,7 @@ function simulateStep(run:WorldRun,level:WorldLevel,dt:number):void {
         unit.x=slotX;unit.y=platformY;unit.distance=1;
       }
       unit.waitTime+=dt;
-      if(state.progress>=.995&&state.mode===1){
+      if(state.progress>=.995&&state.mode===1&&Math.abs(state.velocity??0)<.035){
         const to=nodeFor(level,edge.to);
         // The next edge walks the few remaining centimetres from the lift
         // platform to the fixed landing, keeping its real point of contact.
@@ -598,7 +673,7 @@ export function updateRun(run:WorldRun,level:WorldLevel,dt:number):GameEvent[] {
 
 /** A checkpoint is a flat snapshot: never recursively embed earlier checkpoints. */
 function snapshotCore(run:RunSnapshot):RunSnapshot {
-  return {version:3,geometryRevision:run.geometryRevision??3,migratedInkLimit:run.migratedInkLimit,autoCheckpointId:run.autoCheckpointId??null,levelId:run.levelId,actIndex:run.actIndex??0,actResults:copyActResults(run.actResults??[]),phase:run.phase,time:run.time,speed:run.speed,
+  return {version:3,mechanicsRevision:run.mechanicsRevision??MECHANICS_REVISION,geometryRevision:run.geometryRevision??3,migratedInkLimit:run.migratedInkLimit,autoCheckpointId:run.autoCheckpointId??null,levelId:run.levelId,actIndex:run.actIndex??0,actResults:copyActResults(run.actResults??[]),phase:run.phase,time:run.time,speed:run.speed,
     units:run.units.map(unit=>({...unit,returning:unit.returning===true,returnEdges:[...(unit.returnEdges??[])]})),devices:Object.fromEntries(Object.entries(run.devices).map(([id,state])=>[id,{...state}])),
     drawings:copyDrawings(run.drawings),spawned:run.spawned,saved:run.saved,lost:run.lost,nextSpawn:run.nextSpawn,accumulator:run.accumulator,edits:run.edits,retries:run.retries,
     visits:copyVisits(run.visits??{}),passages:copyVisits(run.passages??{}),checkpoint:null};
@@ -643,6 +718,24 @@ function remainingHazardCollides(run:WorldRun,level:WorldLevel,unit:Creature):bo
   return false;
 }
 
+/** The old sinusoidal apparatus has an exactly recoverable pose and velocity.
+ * Keep that state when moving it into the inertial pivot, including a brake
+ * which had already parked it. Other old mechanisms have no velocity record. */
+function restoreLegacyMechanics(run:WorldRun,level:WorldLevel,time:number):void {
+  for(const definition of level.devices){
+    if(!definition.mechanics)continue;
+    const state=run.devices[definition.id];state.velocity=0;state.rotorVelocity=0;
+    if(definition.weightNodes?.length)state.anchorOffset=-(definition.mechanics.travel??88)*state.progress;
+    if(definition.kind!=='pendulum'){initializeMechanism(definition,state,time);continue;}
+    const phase=time/(definition.duration??7)*Math.PI*2+(definition.phase??0);
+    const brake=definition.lockDeviceId?run.devices[definition.lockDeviceId]:undefined;
+    const held=brake?.mode===1?brake.progress:0;
+    state.angle=Math.sin(phase)*.95*(1-held)+.95*held;
+    state.angularVelocity=Math.cos(phase)*.95*Math.PI*2/(definition.duration??7)*(1-held);
+    initializeMechanism(definition,state,time);
+  }
+}
+
 /** Reproject a validated earlier journey onto authored artwork. The topology
  * and identities stay intact; only distances and physical locations change.
  */
@@ -654,6 +747,7 @@ function migrateGeometry(raw:Record<string,unknown>,level:WorldLevel):Record<str
   if(!oldRun)return null;
   const migrated:WorldRun={...oldRun,geometryRevision:level.revision??3,drawings:{},units:[],
     devices:Object.fromEntries(Object.entries(oldRun.devices).map(([id,state])=>[id,{...state}]))};
+  if(raw.mechanicsRevision===undefined)restoreLegacyMechanics(migrated,level,oldRun.time);
   for(const [id,route] of Object.entries(oldRun.drawings)){
     const oldDrawing=oldLevel.drawings.find(drawing=>drawing.id===id),drawing=level.drawings.find(candidate=>candidate.id===id);
     if(!oldDrawing||!drawing)return null;
@@ -726,6 +820,7 @@ export function restoreRun(raw:unknown,level:WorldLevel,restoreCheckpoint=true):
   }
   if(raw.version!==3||!Number.isInteger(raw.actIndex)||finite(raw.actIndex)<0||finite(raw.actIndex)>=getActCount(world))return null;
   const actIndex=finite(raw.actIndex);
+  const legacyMechanics=raw.mechanicsRevision===undefined;
   level=getActiveAct(world,{actIndex});
   const revision=raw.geometryRevision??3;
   if(revision!==(level.revision??3)){
@@ -749,8 +844,23 @@ export function restoreRun(raw:unknown,level:WorldLevel,restoreCheckpoint=true):
   const run=createActRun(world,actIndex,actResults);
   if(isRecord(raw.devices))for(const definition of level.devices){
     const candidate=raw.devices[definition.id];
-    if(isRecord(candidate))run.devices[definition.id]={mode:clamp(Math.floor(finite(candidate.mode,definition.initialMode)),0,definition.modes.length-1),progress:clamp(finite(candidate.progress),0,1),load:0,released:Math.max(0,Math.floor(finite(candidate.released)))};
+    if(isRecord(candidate)){
+      const state=run.devices[definition.id]={mode:clamp(Math.floor(finite(candidate.mode,definition.initialMode)),0,definition.modes.length-1),progress:clamp(finite(candidate.progress),0,1),load:0,released:Math.max(0,Math.floor(finite(candidate.released)))} as typeof run.devices[string];
+      if(definition.mechanics){
+        state.velocity=clamp(finite(candidate.velocity),-4,4);state.rotorAngle=clamp(finite(candidate.rotorAngle),-1e6,1e6);
+        state.rotorVelocity=clamp(finite(candidate.rotorVelocity),-200,200);state.receivedForce=clamp(finite(candidate.receivedForce),0,1e6);
+        const travel=definition.mechanics.travel??88;
+        state.anchorOffset=clamp(finite(candidate.anchorOffset,legacyMechanics&&definition.weightNodes?.length?-travel*state.progress:0),-Math.max(200,travel),Math.max(200,travel));
+        if(definition.kind==='pendulum'){
+          state.angle=typeof candidate.angle==='number'&&Number.isFinite(candidate.angle)?clamp(candidate.angle,-Math.PI*2,Math.PI*2)
+            :Math.sin(finite(raw.time)/(definition.duration??7)*Math.PI*2+(definition.phase??0))*.95;
+          state.angularVelocity=clamp(finite(candidate.angularVelocity),-12,12);
+        }
+        initializeMechanism(definition,state,finite(raw.time));
+      }
+    }
   }
+  if(legacyMechanics)restoreLegacyMechanics(run,level,finite(raw.time));
   if(isRecord(raw.drawings))for(const definition of level.drawings){
     const candidate=raw.drawings[definition.id];
     if(!isRecord(candidate)||!Array.isArray(candidate.points)||candidate.points.length<2||candidate.points.length>700)continue;
@@ -829,7 +939,7 @@ export function restoreRun(raw:unknown,level:WorldLevel,restoreCheckpoint=true):
   // Earlier saves allowed Undo to unfasten a cleat after the troupe had used
   // its bridge. Restore only that already-earned support, preserving every
   // position, drawing, selector and unsolved mechanism in the saved journey.
-  for(const definition of level.devices)if(committedCleat(run,level,definition)){
+  for(const definition of level.devices)if(legacyMechanics&&committedCleat(run,level,definition)){
     const state=run.devices[definition.id];state.mode=1;state.progress=1;
     const power=definition.powerDeviceId?deviceFor(level,definition.powerDeviceId):undefined;
     if(power?.kind==='wind'&&power.lockDeviceId===definition.id)run.devices[power.id].progress=1;
@@ -860,6 +970,11 @@ function gateReason(run:WorldRun,level:WorldLevel,gate:Gate):string {
 function deviceActionReason(run:WorldRun,level:WorldLevel,definition:DeviceDefinition,next:number):string {
   const state=run.devices[definition.id];
   if(definition.playerControlled===false){
+    if(definition.mechanics&&definition.weightNodes?.length){
+      if(state.mode===1&&state.progress>=.999)return 'Le cliquet retient le câble ; les compagnons peuvent quitter la pédale.';
+      if(state.mode===1)return 'Le frein est armé. Sa retenue attend que le balancier s’écarte du passage.';
+      return state.load>=(definition.requiredLoad??2)?'Le poids des compagnons enfonce la pédale et tire le câble.':`${state.load}/${definition.requiredLoad??2} compagnons sur la pédale.`;
+    }
     const node=level.nodes.find(node=>node.id===definition.activationNodeId),target=node?.arrivalTrigger?.minVisitors??1;
     const count=node?(run.visits[node.id]?.length??0):0;
     return count<target?`${Math.min(count,target)}/${target} éclaireurs arrivés à la borne. Ce mécanisme est actionné par leur passage.`:'La borne a été actionnée par les éclaireurs.';
@@ -868,6 +983,15 @@ function deviceActionReason(run:WorldRun,level:WorldLevel,definition:DeviceDefin
   if(next===state.mode)return '';
   if(next===0&&committedCleat(run,level,definition))return 'Le taquet maintient le passage emprunté par la troupe. Son cran reste engagé.';
   if(definition.kind==='counterweight'&&next===1&&state.load<(definition.requiredLoad??1))return `${state.load}/${definition.requiredLoad??1} porteurs. Envoie les compagnons manquants avant de verrouiller.`;
+  if(definition.mechanics&&definition.kind==='counterweight'&&next===1&&(state.progress<.999||Math.abs(state.velocity??0)>.035))return 'Le poids fait encore descendre le plateau. Attends la butée avant d’engager le cran.';
+  if(definition.kind==='latch'&&next===1&&definition.powerDeviceId){
+    const power=deviceFor(level,definition.powerDeviceId),source=run.devices[definition.powerDeviceId];
+    if(power?.mechanics&&(source.progress<.999||Math.abs(source.velocity??0)>.035))return 'La roue remonte encore le pont. Attends que le câble atteigne sa butée avant de le retenir.';
+  }
+  if(next===0&&(definition.kind==='counterweight'||definition.kind==='latch')){
+    const driver=definition.kind==='latch'?definition.powerDeviceId:definition.id;
+    if(driver&&level.edges.some(edge=>edge.mechanism?.drivers.includes(driver)&&run.units.some(unit=>unit.edgeId===edge.id&&!['queued','saved','lost'].includes(unit.state))))return 'Le câble soutient un pont occupé. Laisse les compagnons rejoindre le palier avant de libérer le cran.';
+  }
   if(definition.kind==='counterweight'&&next===0&&state.load<(definition.requiredLoad??1)
     &&level.edges.some(edge=>edge.maxPassages!==undefined&&(definition.weightNodes??[]).includes(edge.to)&&(run.passages[edge.id]?.length??0)>=edge.maxPassages)){
     return 'Les porteurs ont quitté le plateau. Le cran reste verrouillé pour conserver le passage du reste de la troupe.';
@@ -880,7 +1004,7 @@ function deviceActionReason(run:WorldRun,level:WorldLevel,definition:DeviceDefin
 
 function counterweightWaitingReason(run:WorldRun,level:WorldLevel,definition:DeviceDefinition):string {
   const state=run.devices[definition.id],required=definition.requiredLoad??1;
-  if(state.mode===0)return state.load>=required?'Le plateau est chargé, mais son cran est encore libre.':`${state.load}/${required} porteurs sont installés sur le plateau.`;
+  if(state.mode===0)return state.load>=required?(definition.mechanics&&state.progress<.999?'Le poids des porteurs abaisse le plateau et relève le pont.':'Le plateau est en butée. Engage son cran pour retenir le câble.'):`${state.load}/${required} porteurs sont installés sur le plateau.`;
   const stations=new Set(definition.weightNodes??[]);
   if(!run.units.some(unit=>stations.has(unit.nodeId)&&unit.edgeId===null&&unit.state==='waiting'))return 'Le cran reste engagé pour soutenir la passerelle.';
   const exits=level.edges.filter(edge=>stations.has(edge.from));
@@ -908,7 +1032,7 @@ export function getDeviceStatus(run:WorldRun,level:WorldLevel,id:string):DeviceS
   const nextMode=Array.from({length:Math.max(0,definition.modes.length-1)},(_,offset)=>(state.mode+offset+1)%definition.modes.length).find(mode=>modes[mode].enabled)??null;
   let stateLabel=definition.modes[state.mode],reason=definition.description;
   if(definition.kind==='counterweight'&&definition.modes.length>1){
-    stateLabel=state.mode===1?'Cran verrouillé':`${state.load}/${definition.requiredLoad??1} porteurs`;
+    stateLabel=state.mode===1?'Câble retenu':state.load>=(definition.requiredLoad??1)&&state.progress<.999?'Le plateau descend':`${state.load}/${definition.requiredLoad??1} porteurs`;
     reason=counterweightWaitingReason(run,level,definition);
   }else if(definition.kind==='lift'){
     const capacity=level.edges.find(edge=>edge.deviceId===id&&edge.kind==='lift')?.capacity??3;
@@ -918,12 +1042,18 @@ export function getDeviceStatus(run:WorldRun,level:WorldLevel,id:string):DeviceS
     reason=missing?gateReason(run,level,missing):moving?'Laisse l’ascenseur rejoindre son palier.':state.progress>=.98?(state.load?'Les passagers quittent le palier.':'Redescends chercher le groupe suivant.'):state.load?`${state.load} passager(s) à bord. Tu peux faire monter l’ascenseur.`:'Les compagnons montent à bord quand ils atteignent le palier.';
   }else if(definition.kind==='splitter'){
     reason=`Les prochains compagnons prennent « ${stateLabel} ». Ceux qui sont bloqués sur une branche peuvent revenir à pied.`;
+  }else if(definition.kind==='wind'&&definition.mechanics){
+    const locked=definition.lockDeviceId?run.devices[definition.lockDeviceId]?.mode===1:definition.mechanics.automaticRatchet&&state.progress>=.999;
+    stateLabel=state.mode===1?'Le souffle entraîne la roue':'Souffle arrêté';
+    reason=locked?'Le taquet retient le câble. Le pont reste au palier, même sans souffle.':state.mode===1?
+      ((state.receivedForce??0)>0?'La roue remonte le pont par son treuil.':'La roue est hors du souffle ; le treuil ne reçoit aucune force.'):
+      state.progress>0?'Le câble n’est pas retenu : la charge redescend.':'Le pont attend la force de la roue.';
   }else if(definition.kind==='wind'&&definition.modes.length>2){
     reason=state.mode===1?(state.progress>=.96?'Le moulin est en haut. Bloque son taquet avant de détourner le vent.':'Le moulin soulève le support de la passerelle.'):state.mode===2?'Le passage est à l’abri. Un taquet bloqué conserve la hauteur du moulin.':'Le vent gêne le chemin : choisis où le diriger.';
   }
   if(definition.playerControlled===false){
-    const node=level.nodes.find(node=>node.id===definition.activationNodeId),target=node?.arrivalTrigger?.minVisitors??1,count=node?(run.visits[node.id]?.length??0):0;
-    stateLabel=count<target?`${Math.min(count,target)}/${target} éclaireurs`:state.progress<.99?'Mécanisme en mouvement':definition.modes[state.mode];
+    const node=level.nodes.find(node=>node.id===definition.activationNodeId),target=definition.requiredLoad??node?.arrivalTrigger?.minVisitors??1,count=definition.mechanics&&definition.weightNodes?.length?state.load:node?(run.visits[node.id]?.length??0):0;
+    stateLabel=state.mode===1&&state.progress>=.999?'Câble retenu':count<target?`${Math.min(count,target)}/${target} sur la pédale`:state.progress<.99?'La pédale descend':definition.modes[state.mode];
     reason=deviceActionReason(run,level,definition,state.mode);
   }
   if(definition.autoCloseAfter){
@@ -952,11 +1082,12 @@ export function getWaitingReason(run:WorldRun,level:WorldLevel,unit:Creature,bri
   }
   if(current&&unit.distance<pathLength(getEdgePath(run,level,current))-.1)return brief?'Un compagnon attend devant.':'La troupe attend son tour sur le chemin.';
   const nodeId=current?(unit.returning?current.from:current.to):unit.nodeId,node=nodeFor(level,nodeId);
-  if(node.kind==='weight'&&node.deviceId)return getDeviceStatus(run,level,node.deviceId).reason;
+  const station=stationDevice(level,nodeId);if(station)return getDeviceStatus(run,level,station.id).reason;
   const options=level.edges.filter(edge=>edge.from===nodeId&&(!edge.route||run.devices[edge.route.deviceId]?.mode===edge.route.mode));
   for(const edge of options){
     if(edge.maxPassages!==undefined&&(run.passages[edge.id]?.length??0)>=edge.maxPassages)return brief?'Ce chemin a déjà son groupe.':'Les éclaireurs sont passés. Oriente maintenant le reste vers l’autre chemin.';
     if(edge.drawingId&&!run.drawings[edge.drawingId])return brief?'Il manque un passage devant la troupe.':`Dessine « ${level.drawings.find(drawing=>drawing.id===edge.drawingId)?.label??'le passage'} » entre ses deux appuis.`;
+    if(!supportReady(run,level,edge))return edge.mechanism?.drivers.length===2?'Les deux demi-ponts doivent rejoindre le palier. Charge et retiens chaque câble.':'Le pont n’a pas encore rejoint son palier. Son câble doit finir de le relever.';
     const missing=edge.gates?.find(gate=>!gateSatisfied(run,gate));
     if(missing){
       const device=deviceFor(level,missing.deviceId);

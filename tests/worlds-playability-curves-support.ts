@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
-import {appendStroke,applyAction,beginStroke,createRun,finishStroke,pathLength,restoreRun,saveRun,updateRun} from '../lib/worlds/engine';
+import {appendStroke,applyAction,beginStroke,createRun,finishStroke,getDeviceStatus,pathLength,restoreRun,saveRun,updateRun} from '../lib/worlds/engine';
 import type {ExpeditionNetwork} from '../lib/worlds/levels';
 import type {DrawingDefinition,Point,WorldLevel,WorldRun} from '../lib/worlds/types';
 import {reachedRun} from './worlds-playability-support';
+import {drawingGesture} from './worlds-expedition-walkthrough';
 
 export type HandCurve='arch'|'bends';
 
@@ -38,7 +39,7 @@ export function handPoints(definition:DrawingDefinition,level:WorldLevel,shape:H
 
 export function drawHandCurve(run:WorldRun,level:WorldLevel,id:string,shape:HandCurve,reverse=false,duration=0):void {
   const definition=level.drawings.find(drawing=>drawing.id===id)!;
-  const points=handPoints(definition,level,shape,reverse);
+  const points=drawingGesture(run,level,definition,handPoints(definition,level,shape,reverse));
   const started=beginStroke(run,level,points[0]);assert(started.ok,`${id}: ${started.message}`);
   for(const point of points.slice(1)){
     appendStroke(run,level,point);
@@ -78,7 +79,7 @@ export function prepareLocalWeights(level:WorldLevel,network:ExpeditionNetwork,s
 export function operateLocalWeights(run:WorldRun,level:WorldLevel,network:ExpeditionNetwork):void {
   for(const [index,id] of network.weights.entries()){
     const definition=level.devices.find(device=>device.id===id)!,state=run.devices[id];
-    if(state.mode===0&&state.load>=definition.requiredLoad!)assert(applyAction(run,level,{type:'device',id,mode:1}).ok);
+    if(state.mode===0&&state.load>=definition.requiredLoad!&&getDeviceStatus(run,level,id).modes[1].enabled)assert(applyAction(run,level,{type:'device',id,mode:1}).ok);
     const fork=network.forks[index],mode=state.mode===1?0:1;
     if(run.devices[fork].mode!==mode)assert(applyAction(run,level,{type:'device',id:fork,mode}).ok);
   }

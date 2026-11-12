@@ -4,7 +4,7 @@ import {getMusicBar,midiFrequency,musicBarDuration,MUSIC_PROFILES} from '../lib/
 import {getSoundPlacement,soundVolume} from '../lib/worlds/audio-space';
 import type {WorldId} from '../lib/worlds/types';
 
-test('all music phrases schedule finite, bounded notes with a sustained harmonic accompaniment',()=>{
+test('all music phrases schedule finite, bounded notes with bass, rhythm and a quiet harmonic voice',()=>{
   for(const world of ['boucles','plis','veilleurs'] as WorldId[]){
     const instruments=new Set<string>();
     for(let bar=0;bar<64;bar++){
@@ -42,6 +42,35 @@ test('themes have different tempos and phrases, with a written response and stab
     assert(getMusicBar(world,0)[0].velocity>0,'scheduling must not mutate the authored score');
   }
   assert.equal(midiFrequency(69),440);
+});
+
+test('the three new major themes have articulated melodies, a light pulse and breathing cadences',()=>{
+  const leadRhythms=new Set<string>();
+  for(const world of ['boucles','plis','veilleurs'] as WorldId[]){
+    const profile=MUSIC_PROFILES[world];
+    assert.equal(profile.minor,false,'the workshop should sound playful rather than ominous');
+    assert(profile.tempo>=100&&profile.tempo<=130,'a walking pulse leaves time to think');
+    leadRhythms.add(JSON.stringify(getMusicBar(world,0).filter(note=>note.instrument===profile.lead).map(note=>note.beat)));
+    for(let bar=0;bar<32;bar++){
+      const notes=getMusicBar(world,bar),lead=notes.filter(note=>note.instrument===profile.lead);
+      assert(lead.length>=3&&lead.length<=9,'the written melody must carry a phrase without a dense arpeggio stream');
+      assert(lead.some(note=>note.duration<.7));
+      assert(lead.every(note=>note.beat+note.duration<=profile.beats+.01),'the reply must leave the next bar audible');
+      assert(notes.some(note=>note.instrument==='kick'&&note.beat===0));
+      assert(notes.some(note=>note.instrument==='woodblock'));
+      assert(notes.some(note=>note.instrument==='brush'));
+      assert(notes.filter(note=>note.instrument==='bass').every(note=>note.duration<1));
+      assert(notes.filter(note=>note.instrument==='pluck').every(note=>note.duration<.5));
+      assert(notes.filter(note=>note.instrument==='strings').length<=2,'sustained notes must not swamp the new rhythm');
+      assert(notes.length<=32,'one bar remains inside the scheduler’s bounded event work');
+    }
+    for(const cadence of [7,15]){
+      const pulse=(bar:number)=>getMusicBar(world,bar).filter(note=>['kick','woodblock','brush','pluck'].includes(note.instrument));
+      assert(pulse(cadence).length<pulse(cadence-1).length,'each sentence leaves a lighter cadence');
+      assert(pulse(cadence).every(note=>note.beat<2),'the cadence leaves a genuine rest');
+    }
+  }
+  assert.equal(leadRhythms.size,3,'the worlds have distinct rhythmic identities');
 });
 
 test('sound follows the visible world and fades out before distant mechanisms can be heard',()=>{
@@ -185,5 +214,28 @@ test('hidden pages discard events and restart one musical bar without a backlog'
     assert(context.sources.length-count<=18,'returning should schedule one look-ahead window, not ten minutes of notes');
     audio.dispose();
     assert([...document.listeners.values(),...window.listeners.values()].every(callbacks=>callbacks.size===0));
+  });
+});
+
+test('the full lively arrangement stays below the voice budget and its percussion obeys the music bus',async()=>{
+  for(const world of ['boucles','plis','veilleurs'] as WorldId[])await audioBrowser(async audio=>{
+    audio.setWorld(world);await audio.unlock();
+    const context=AudioContextFixture.instances[0];
+    const internals=audio as unknown as {scheduleMusic:()=>void;voices:Set<{bus:string;sources:AudioNodeFixture[]}>};
+    let maximum=0;
+    for(let elapsed=0;elapsed<musicBarDuration(world)*32;elapsed+=.05){
+      context.advance(.05);internals.scheduleMusic();
+      maximum=Math.max(maximum,[...internals.voices].filter(voice=>voice.bus==='music').length);
+    }
+    assert(maximum<=24,`${world}: ${maximum} simultaneous voices would leave too little headroom`);
+    assert(context.sources.some(source=>source.buffer!==null),'the real scheduler must play the new soft brush part');
+    const musicalSources=[...internals.voices].filter(voice=>voice.bus==='music').flatMap(voice=>voice.sources);
+    assert(musicalSources.length>0);
+    audio.setMusicVolume(0);context.advance(.2);
+    assert(musicalSources.every(source=>source.ended),'music mute includes live and future percussion');
+    const silent=context.sources.length;internals.scheduleMusic();assert.equal(context.sources.length,silent);
+    audio.play('device');assert(context.sources.length>silent,'muting the arrangement must retain game sound effects');
+    audio.setActive(false);context.advance(.5);
+    assert([...internals.voices].length===0,'pausing cancels the complete new arrangement and effects');
   });
 });

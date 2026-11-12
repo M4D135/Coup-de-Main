@@ -1,5 +1,6 @@
 import {hitTestWorld,type WorldHit} from './renderer';
 import {deviceBody} from './renderer-mechanisms';
+import {getDrawingEndpoints} from './engine';
 import type {Point,WorldLevel,WorldRun} from './types';
 
 export type PlayTarget=Exclude<WorldHit,null>|{kind:'companion';id:number}|null;
@@ -14,7 +15,7 @@ export function hitTestPlayTarget(level:WorldLevel,run:WorldRun,point:Point,scal
     .filter(unit=>unit.distance<=Math.max(radius,height*.48)).sort((a,b)=>a.distance-b.distance)[0];
   if(!companion)return hit;
   if(hit?.kind==='drawing'){
-    const anchor=level.drawings.find(drawing=>drawing.id===hit.id)?.[hit.end];
+    const drawing=level.drawings.find(drawing=>drawing.id===hit.id),anchor=drawing?getDrawingEndpoints(run,level,drawing)[hit.end]:undefined;
     if(anchor&&Math.hypot(point.x-anchor.x,point.y-anchor.y)<=radius*.45)return hit;
   }else if(hit?.kind==='device'){
     const device=level.devices.find(device=>device.id===hit.id)!;

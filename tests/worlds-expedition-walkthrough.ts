@@ -1,15 +1,26 @@
 import assert from 'node:assert/strict';
-import {appendStroke,applyAction,beginStroke,finishStroke,gateSatisfied,getEdgePath,getPendulumPosition,pathLength,pointAlongPath,updateRun} from '../lib/worlds/engine';
+import {appendStroke,applyAction,beginStroke,finishStroke,gateSatisfied,getDeviceStatus,getDrawingEndpoints,getEdgePath,getPendulumPosition,pathLength,pointAlongPath,updateRun} from '../lib/worlds/engine';
 import {WORLD_NETWORKS,type ExpeditionNetwork} from '../lib/worlds/levels';
-import type {WorldLevel,WorldRun} from '../lib/worlds/types';
+import type {DrawingDefinition,Point,WorldLevel,WorldRun} from '../lib/worlds/types';
+
+/** Draw with the same visible moving endpoints as the player. Curvature stays
+ * authored in the support's local frame; the engine stores that local curve. */
+export function drawingGesture(run:WorldRun,level:WorldLevel,definition:DrawingDefinition,points:Point[]=definition.suggested):Point[]{
+  const endpoints=getDrawingEndpoints(run,level,definition),dx=definition.to.x-definition.from.x,dy=definition.to.y-definition.from.y;
+  const length=Math.hypot(dx,dy)||1,nx=endpoints.to.x-endpoints.from.x,ny=endpoints.to.y-endpoints.from.y,nextLength=Math.hypot(nx,ny)||1;
+  return points.map(point=>{
+    const x=point.x-definition.from.x,y=point.y-definition.from.y,t=(x*dx+y*dy)/(length*length),cross=(x*-dy+y*dx)/length;
+    return {x:endpoints.from.x+nx*t-ny/nextLength*cross,y:endpoints.from.y+ny*t+nx/nextLength*cross};
+  });
+}
 
 export function drawExpedition(run:WorldRun,level:WorldLevel,id:string):boolean {
   if(run.drawings[id])return true;
   const definition=level.drawings.find(drawing=>drawing.id===id)!;
   if(Object.values(run.drawings).reduce((sum,drawing)=>sum+drawing.inkLength,0)+pathLength(definition.suggested)>(level.inkBudget??Infinity))return false;
-  const result=beginStroke(run,level,definition.from);assert(result.ok,result.message);
+  const points=drawingGesture(run,level,definition),result=beginStroke(run,level,points[0]);assert(result.ok,result.message);
   // Shared supports are selected by the completed gesture, not its first dot.
-  for(const point of definition.suggested.slice(1))appendStroke(run,level,point);
+  for(const point of points.slice(1))appendStroke(run,level,point);
   const finished=finishStroke(run,level);assert(finished.ok,finished.message);assert.equal(finished.drawingId,id);return true;
 }
 function mode(run:WorldRun,level:WorldLevel,id:string,value:number):void {
@@ -72,23 +83,19 @@ export function expeditionController(run:WorldRun,level:WorldLevel):()=>void {
       if(network.kind==='scout'){
         const route=level.edges.find(edge=>edge.route?.deviceId===network.forks[0]&&edge.maxPassages===2)!;
         mode(run,level,network.forks[0],(run.passages[route.id]?.length??0)<2?1:0);
-        if(network.wind)mode(run,level,network.wind,run.devices[network.relay].mode?0:1);
       }else for(let index=0;index<network.weights.length;index++){
         const id=network.weights[index],definition=level.devices.find(device=>device.id===id)!;
-        if(run.devices[id].load>=definition.requiredLoad!)mode(run,level,id,1);
+        if(run.devices[id].load>=definition.requiredLoad!&&getDeviceStatus(run,level,id).modes[1].enabled)mode(run,level,id,1);
         mode(run,level,network.forks[index],run.devices[id].mode===1?0:1);
       }
-      if(network.wind&&network.kind==='double')mode(run,level,network.wind,run.devices[network.weights[1]].mode?0:1);
+      // Wind drives a visible support. Keeping it on must never forbid walking.
+      if(network.wind)mode(run,level,network.wind,1);
       if(network.wind&&network.cleat){
-        if(run.devices[network.cleat].mode!==1){
-          mode(run,level,network.wind,1);
-          if(run.devices[network.wind].progress>=.98)mode(run,level,network.cleat,1);
-        }
-        if(run.devices[network.cleat].mode===1)mode(run,level,network.wind,0);
+        if(getDeviceStatus(run,level,network.cleat).modes[1].enabled)mode(run,level,network.cleat,1);
       }
       if(network.lift){
         const id=network.lift,state=run.devices[id],definition=level.devices.find(device=>device.id===id)!;
-        if(definition.gates?.every(gate=>gateSatisfied(run,gate))){
+        if((definition.gates??[]).every(gate=>gateSatisfied(run,gate))){
           if(state.mode===0&&state.progress<=.01&&state.load>0){
             if(!carryingSince.has(id))carryingSince.set(id,run.time);
             if(state.load===3||run.time-carryingSince.get(id)!>4)mode(run,level,id,1);

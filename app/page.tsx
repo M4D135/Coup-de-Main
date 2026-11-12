@@ -2,8 +2,8 @@
 
 import {useCallback,useEffect,useRef,useState,type PointerEvent as ReactPointerEvent,type ReactNode} from 'react';
 import {ArrowLeft,ArrowRight,Eraser,Flag,Hand,Home,LocateFixed,Maximize2,Music2,Pause,Pencil,Play,RotateCcw,Settings2,ShieldCheck,Sparkles,Star,Undo2,Users,Volume2,VolumeX,X} from 'lucide-react';
-import {WORLD_LEVELS} from '../lib/worlds/levels';
-import {createRun,updateRun,applyAction,beginStroke,appendStroke,finishStroke,cancelStroke,saveRun,restoreRun,getRunSummary,getJourneySummary,getDeviceStatus,getStageProgress,isJourneyComplete} from '../lib/worlds/engine';
+import {WORLD_LEVELS,WORLD_NETWORKS} from '../lib/worlds/levels';
+import {createRun,updateRun,applyAction,beginStroke,appendStroke,finishStroke,cancelStroke,saveRun,restoreRun,getRunSummary,getJourneySummary,getDeviceStatus,getStageProgress,isJourneyComplete,getDrawingEndpoints} from '../lib/worlds/engine';
 import {loadWorldAssets,renderWorld,hitTestDrawing,type WorldAssets} from '../lib/worlds/renderer';
 import {reactCompanion} from '../lib/worlds/renderer-characters';
 import {hitTestPlayTarget,tappedPlatform,type PlayTarget} from '../lib/worlds/interaction';
@@ -48,6 +48,16 @@ const makeView=(run:WorldRun,level:WorldLevel)=>({
 
 function SoundSlider({label,icon,value,onChange}:{label:string;icon:ReactNode;value:number;onChange:(value:number)=>void}){
   return <label className="sound-slider"><span>{icon}{label}<small>{value}%</small></span><input aria-label={label} type="range" min="0" max="100" value={value} onChange={event=>onChange(Number(event.target.value))}/></label>;
+}
+
+function tableauClue(level:WorldLevel,index:number):string {
+  const network=WORLD_NETWORKS[level.id][index];
+  if(!network)return 'Relie les appuis avec ton crayon et observe le chemin des compagnons.';
+  if(network.kind==='hazard')return 'Observe le balancier et ouvre le portillon pour un éclaireur à la fois. De l’autre côté, deux compagnons appuient sur la pédale : elle arme le frein, qui retient le poids à l’écart du chemin.';
+  if(network.kind==='double')return 'Chaque plateau tire sur son demi-pont. Répartis les porteurs sur les deux plateaux, attends que les tabliers rejoignent leurs appuis et bloque les crans. Les porteurs repartent par les traits de retour.';
+  if(network.kind==='scout')return `${network.wind?'Le souffle entraîne la petite roue, puis le câble relève le passage du bas. ':''}Deux éclaireurs rejoignent la pédale de l’autre côté. Leur poids relève le grand pont ; le cliquet le retient pour le reste de la troupe.`;
+  if(network.wind)return `Suis le souffle jusqu’à la roue, puis le câble jusqu’au pont. Laisse le pont monter et bloque son taquet pour le retenir.${network.lift?' La nacelle monte ensuite grâce à sa propre manivelle.':''}`;
+  return `${network.lift?'La manivelle hisse la nacelle ; redescends-la à vide pour les suivants. ':''}Le poids des porteurs fait descendre le plateau et relève le pont par le câble. Bloque son cran en fin de course, puis dessine aussi le chemin de retour des porteurs.`;
 }
 
 export default function HomePage(){
@@ -237,7 +247,7 @@ export default function HomePage(){
     const wp=worldPoint(p),run=runRef.current,hit=erasing?null:hitTestPlayTarget(level,run,wp,cameraRef.current.scale);
     const c=cameraRef.current,radius=24/c.scale;
     const gesture:Gesture={id:event.pointerId,kind:'pending',start:p,panX:c.overflowX?-c.x/c.overflowX:0,panY:latest.current.panY,hit,eraseId:erasing?hitTestDrawing(level,run,wp,radius):null};gestureRef.current=gesture;
-    if(!erasing&&hit?.kind==='drawing'){const d=level.drawings.find(item=>item.id===hit.id),endpoint=d?.[hit.end];if(endpoint&&beginStroke(run,level,endpoint).ok){gesture.kind='draw';pointerRef.current=p;setDrawing(true);handRef.current=endpoint;lastStrokeRef.current={point:endpoint,at:performance.now()};audioRef.current?.beginPencil();}}
+    if(!erasing&&hit?.kind==='drawing'){const d=level.drawings.find(item=>item.id===hit.id),endpoint=d?getDrawingEndpoints(run,level,d)[hit.end]:undefined;if(endpoint&&beginStroke(run,level,endpoint).ok){gesture.kind='draw';pointerRef.current=p;setDrawing(true);handRef.current=endpoint;lastStrokeRef.current={point:endpoint,at:performance.now()};audioRef.current?.beginPencil();}}
   };
   const pointerMove=(event:ReactPointerEvent<HTMLCanvasElement>)=>{
     const p=localPoint(event),wp=worldPoint(p);hoverRef.current=wp;if(!pointersRef.current.has(event.pointerId))return;pointersRef.current.set(event.pointerId,p);const g=gestureRef.current;if(!g)return;event.preventDefault();
@@ -337,7 +347,7 @@ export default function HomePage(){
           <SoundSlider label="Petites voix" icon={<Users size={18}/>} value={voices} onChange={value=>{unlock();setVoices(value);}}/>
         </div>
         <label className="motion-control"><span>Mouvements doux</span><input type="checkbox" checked={reduced||systemReduced} disabled={systemReduced} onChange={()=>setReduced(value=>!value)}/></label>
-        {screen==='play'&&<div className="pause-actions"><button onClick={retry}><Flag size={18}/><span>Dernier souvenir</span></button><button onClick={()=>setPanel('restart')}><RotateCcw size={18}/><span>Recommencer</span></button><button onClick={goHome}><Home size={18}/><span>Les mondes</span></button></div>}
+        {screen==='play'&&<><details className="mechanical-help"><summary>Les mécanismes de ce tableau</summary><p>{tableauClue(level,tableauIndex)}</p><small>Un pont bouge encore ? Attends que ses extrémités rejoignent les appuis. Touche un compagnon qui attend pour connaître son obstacle.</small></details><div className="pause-actions"><button onClick={retry}><Flag size={18}/><span>Dernier souvenir</span></button><button onClick={()=>setPanel('restart')}><RotateCcw size={18}/><span>Recommencer</span></button><button onClick={goHome}><Home size={18}/><span>Les mondes</span></button></div></>}
       </>}
     </dialog>
     {!storageOk&&hydrated&&<span className="save-warning"><ShieldCheck size={14}/>Sauvegarde indisponible dans ce navigateur.</span>}

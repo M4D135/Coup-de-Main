@@ -78,7 +78,8 @@ export class WorldAudio {
       this.room.connect(this.roomReturn);this.roomReturn.connect(master);
       for(const bus of ['music','effects','voices'] as const){
         this.buses[bus].gain.value=0;this.buses[bus].connect(master);
-        const send=context.createGain();send.gain.value=bus==='music'?.32:bus==='voices'?.14:.08;
+        // Keep the new short notes crisp; ambience must not smear the rhythm.
+        const send=context.createGain();send.gain.value=bus==='music'?.15:bus==='voices'?.14:.08;
         this.buses[bus].connect(send);send.connect(this.room);
       }
       this.room.buffer=this.impulse(this.world);
@@ -227,7 +228,7 @@ export class WorldAudio {
   }
   private wave(name:'felt'|'reed'|'voice'):PeriodicWave{
     const cached=this.waves.get(name);if(cached)return cached;
-    const harmonics=name==='felt'?[0,1,.27,.11,.065,.035,.015]:name==='reed'?[0,1,.09,.18,.04,.045,.012]:[0,1,.48,.29,.19,.13,.09,.055,.035];
+    const harmonics=name==='felt'?[0,1,.34,.14,.07,.025,.01]:name==='reed'?[0,1,.12,.20,.035,.035,.008]:[0,1,.48,.29,.19,.13,.09,.055,.035];
     const wave=this.context!.createPeriodicWave(new Float32Array(harmonics.length),new Float32Array(harmonics));
     this.waves.set(name,wave);return wave;
   }
@@ -307,11 +308,29 @@ export class WorldAudio {
     if(instrument==='air'){
       this.noise(duration,.018*velocity,this.world==='plis'?1050:this.world==='veilleurs'?410:730,{gain:1,pan},delay,'soft',bus,.42);return;
     }
+    if(instrument==='brush'){
+      this.noise(Math.min(.1,duration),.032*velocity,1850,{gain:1,pan},delay,'pink',bus,.4);return;
+    }
+    if(instrument==='woodblock'||instrument==='kick'){
+      const kick=instrument==='kick',length=kick?.17:.13;
+      const voice=this.createVoice(bus,length,delay,{gain:1,pan},1);if(!voice)return;
+      this.envelope(voice,(kick?.12:.066)*velocity,.004,kick?.025:.012,kick?.12:.095,true);
+      if(kick){
+        const body=this.oscillator(voice,94,'sine');
+        body.frequency.exponentialRampToValueAtTime(46,voice.at+.11);
+      }else{
+        const frequency=midiFrequency(note)*1.55;
+        const body=this.oscillator(voice,frequency,'sine',.8);
+        body.frequency.exponentialRampToValueAtTime(frequency*.94,voice.at+.065);
+        this.oscillator(voice,frequency*1.47,'sine',.24,0,voice.at+.085);
+      }
+      return;
+    }
     const frequency=midiFrequency(note),sustained=instrument==='strings'||instrument==='reed'||instrument==='bass';
-    const tail=instrument==='strings'?1.3:instrument==='celesta'?1.05:instrument==='reed'?.22:.38;
+    const tail=instrument==='strings'?.7:instrument==='celesta'?.3:instrument==='reed'?.09:instrument==='bass'?.1:.18;
     const voice=this.createVoice(bus,duration+tail+.08,delay,{gain:1,pan},instrument==='strings'?0:instrument==='bass'?1:3);if(!voice)return;
-    const peak=(instrument==='strings'?.026:instrument==='bass'?.105:instrument==='felt'?.105:instrument==='reed'?.07:instrument==='celesta'?.078:.067)*velocity;
-    const attack=instrument==='strings'?.58:instrument==='reed'?.095:instrument==='bass'?.04:.007;
+    const peak=(instrument==='strings'?.022:instrument==='bass'?.085:instrument==='felt'?.098:instrument==='reed'?.065:instrument==='celesta'?.069:.052)*velocity;
+    const attack=instrument==='strings'?.3:instrument==='reed'?.025:instrument==='bass'?.012:.006;
     this.envelope(voice,peak,attack,Math.max(.02,duration-attack),tail,!sustained);
     if(instrument==='strings'){
       const a=this.oscillator(voice,frequency,'triangle',.68,-3.8);
@@ -319,12 +338,13 @@ export class WorldAudio {
       a.frequency.linearRampToValueAtTime(frequency*1.0015,voice.at+duration);
     }else if(instrument==='celesta'){
       this.oscillator(voice,frequency,'sine');
-      this.oscillator(voice,frequency*2.756,'sine',.17,1.2,voice.at+Math.min(duration+.5,2));
-      this.oscillator(voice,frequency*5.404,'sine',.035,-1.1,voice.at+.65);
+      // Harmonic toy-piano overtones read as a tune rather than alarm chimes.
+      this.oscillator(voice,frequency*2.005,'sine',.14,1.2,voice.at+Math.min(duration+.18,.7));
+      this.oscillator(voice,frequency*3.99,'sine',.025,-1.1,voice.at+.22);
     }else if(instrument==='reed'){
       const oscillator=this.oscillator(voice,frequency,'reed');
       const curve=new Float32Array(48);
-      for(let i=0;i<curve.length;i++){const t=i/(curve.length-1);curve[i]=frequency*(1+Math.sin(t*duration*32)*.0023*Math.min(1,t*5));}
+      for(let i=0;i<curve.length;i++){const t=i/(curve.length-1);curve[i]=frequency*(1+Math.sin(t*duration*31)*.0018*Math.min(1,t*3));}
       oscillator.frequency.cancelScheduledValues(voice.at);
       oscillator.frequency.setValueCurveAtTime(curve,voice.at,Math.max(.12,duration));
     }else if(instrument==='bass'){

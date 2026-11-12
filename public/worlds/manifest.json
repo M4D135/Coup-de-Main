@@ -1,13 +1,13 @@
 {
   "project": "Coup de Main",
-  "version": "3.1.3",
+  "version": "3.2.0",
   "updated_at": "2026-11-12",
   "provenance": {
     "references": "Three artworks supplied and approved by the user. The art files retain exactly the same decoded pixels as the uploaded references; only PNG RGB/RGBA encoding differs.",
     "playable_assets": "The three original clean scene plates, character atlases and prop atlases are retained unchanged. Each clean scene is restored as the first complete tableau of its world. Twelve new complete AI-generated illustrations extend the worlds; interactive characters, mechanisms and player strokes are rendered separately.",
     "generator_prompts": "Historic scene, sprite and prop prompts are not present in this checkout and are not reconstructed. Prompts and references for the twelve new tableaux are preserved in the two documentation files listed below.",
     "fidelity": "The original artwork pixels are preserved in the art files. Clean scene plates, sprites and animated gameplay are adaptations, not pixel-identical copies of the reference screenshots.",
-    "audio": "Original procedural Web Audio scores, formant-based character voices and material effects. Three authored 16-bar themes with answering phrases, harmony and evolving arrangement; no downloaded music or third-party audio samples.",
+    "audio": "Original procedural Web Audio scores, formant-based character voices and material effects. Three cheerful 32-bar themes (16-bar melody plus separately composed response) with bouncing bass, short plucked chords and gentle percussion; no downloaded music or third-party audio samples.",
     "tableau_prompts": [
       "../../docs/art-plis-prompts.json",
       "../../docs/art-tableaux-prompts.json"

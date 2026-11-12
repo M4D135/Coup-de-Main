@@ -1,10 +1,12 @@
-import {gateSatisfied,getDeviceStatus,getPendulumPosition} from './engine';
+import {gateSatisfied,getDeviceStatus,getPendulumPosition,getEdgeSupportPaths} from './engine';
 import type {WorldAssets,RenderOptions} from './renderer';
 import type {DeviceDefinition,Point,WorldLevel,WorldRun} from './types';
 import {visiblePoint,type WorldBounds} from './renderer-landscape';
-import {brass,clamp,mix,pointAt,prop,rope,trace} from './renderer-primitives';
-import {authoredCounterweight,authoredLift,authoredWind} from './renderer-authored';
+import {brass,clamp,mix,pointAt,prop,rope} from './renderer-primitives';
+import {authoredCounterweight,authoredLift,authoredWind,windDrumAnchor} from './renderer-authored';
 import {drawWindFlow} from './wind-visuals';
+import {getDeviceAnchor} from './mechanics';
+import {tableauIndex} from './tableaux';
 
 const fanMotion=new WeakMap<WorldRun,Map<string,{angle:number;speed:number;time:number}>>();
 
@@ -17,14 +19,10 @@ function fanAngle(run:WorldRun,device:DeviceDefinition,reduced:boolean):number {
   previous.time=run.time;fans.set(device.id,previous);return previous.angle;
 }
 
-function loadCentre(level:WorldLevel,device:DeviceDefinition):Point {
-  return device.low??level.nodes.find(node=>device.weightNodes?.includes(node.id))??device;
-}
-
 export function deviceBody(level:WorldLevel,run:WorldRun,device:DeviceDefinition):{point:Point;width:number;height:number} {
   if(level.id==='plis'&&device.id==='s0:wind')return {point:{x:1100,y:720},width:260,height:440};
-  if(device.kind==='lift'&&device.low&&device.high)return {point:pointAt(device.low,device.high,run.devices[device.id]?.progress??0),width:device.width??144,height:110};
-  if(device.kind==='counterweight')return {point:loadCentre(level,device),width:device.width??240,height:65};
+  if(device.kind==='lift'&&device.low&&device.high)return {point:getDeviceAnchor(run,device),width:device.width??144,height:110};
+  if(device.kind==='counterweight')return {point:getDeviceAnchor(run,device),width:device.width??240,height:65};
   if(device.kind==='wind')return {point:{x:device.x,y:device.y+75},width:device.width??170,height:170};
   return {point:device,width:device.kind==='splitter'?88:58,height:58};
 }
@@ -63,22 +61,71 @@ function pips(context:CanvasRenderingContext2D,point:Point,total:number,filled:n
   context.restore();
 }
 
+function pulley(context:CanvasRenderingContext2D,level:WorldLevel,at:Point,radius:number,angle:number,held=false){
+  context.save();context.translate(at.x,at.y);context.rotate(angle);
+  context.fillStyle=level.id==='veilleurs'?'#573a22':'#c79c64';context.strokeStyle=level.id==='boucles'?level.palette.ink:'#76512d';context.lineWidth=3;
+  context.beginPath();context.arc(0,0,radius,0,Math.PI*2);context.fill();context.stroke();
+  context.strokeStyle=level.id==='veilleurs'?'#dcad61':'#f4deb3';context.lineWidth=2;
+  for(let i=0;i<6;i++){const a=i*Math.PI/3;context.beginPath();context.moveTo(Math.cos(a)*radius*.27,Math.sin(a)*radius*.27);context.lineTo(Math.cos(a)*radius*.82,Math.sin(a)*radius*.82);context.stroke();}
+  brass(context,0,0,radius*.23,level.id);context.restore();
+  if(held){
+    context.save();context.strokeStyle=level.id==='veilleurs'?'#f0cc82':level.palette.ink;context.lineWidth=5;context.lineCap='round';
+    context.beginPath();context.moveTo(at.x+radius+10,at.y-radius);context.lineTo(at.x+radius*.65,at.y-radius*.38);context.stroke();context.restore();
+  }
+}
+
 /** Short physical cords stay inside their illustrated room. Distant
  * dependencies are represented by the matching latched objects, never wires
  * running across the sky or across a page boundary. */
 export function drawMechanicalConnections(context:CanvasRenderingContext2D,level:WorldLevel,run:WorldRun,bounds:WorldBounds,_time:number,_reduced:boolean) {
-  context.save();context.lineCap='round';
-  for(const device of level.devices){
-    if(device.id.startsWith('s0:')||!visiblePoint(device,bounds,100))continue;
-    if(device.kind!=='latch'||!device.powerDeviceId)continue;
-    const source=level.devices.find(d=>d.id===device.powerDeviceId);if(!source||!visiblePoint(source,bounds,100))continue;
-    if(Math.abs(source.x-device.x)>650)continue;
-    const midpoint=(source.x+device.x)/2;
-    context.beginPath();context.moveTo(source.x,source.y+35);context.quadraticCurveTo(midpoint,Math.max(source.y,device.y)+75,device.x,device.y);
-    context.strokeStyle=level.id==='veilleurs'?'#6f4b2c':level.id==='boucles'?'#243956':'#bba078';context.lineWidth=4;context.globalAlpha=.8;context.stroke();
-    context.strokeStyle='#e5c58f';context.lineWidth=1.5;context.stroke();
+  const drums=new Set<string>();
+  for(const edge of level.edges){
+    if(!edge.mechanism||!edge.drawingId)continue;
+    const built=!!run.drawings[edge.drawingId];
+    const paths=getEdgeSupportPaths(run,level,edge);
+    for(const [index,id]of edge.mechanism.drivers.entries()){
+      const driver=level.devices.find(device=>device.id===id),path=paths[index]??paths[0];
+      if(!driver||!path?.length)continue;
+      const state=run.devices[id],hinge=index===0?path[0]:path.at(-1)!,tip=index===0?path.at(-1)!:path[0];
+      if(!visiblePoint(hinge,bounds,160)&&!visiblePoint(tip,bounds,160))continue;
+      if(tableauIndex(driver.x)!==tableauIndex(hinge.x))continue;
+      const drum=driver.kind==='wind'?windDrumAnchor(level,driver):driver.kind==='counterweight'?driver.pivot??{x:driver.x,y:driver.y-180}:driver;
+      // Each guide is bolted to a bank. It never floats above the middle of a
+      // gap; the two halves of a double bridge have separate real attachments.
+      const bank=edge.mechanism.drivers.length>1?hinge:edge.path.at(-1)??hinge;
+      const guide={x:bank.x,y:bank.y-140};
+      timber(context,bank,guide,9,level);brass(context,bank.x,bank.y,10,level.id);
+      rope(context,drum,guide,level.id,3);if(built)rope(context,guide,tip,level.id,3);
+      pulley(context,level,guide,17,-state.progress*4);
+      brass(context,hinge.x,hinge.y,13,level.id);
+      if(!drums.has(id)){
+        drums.add(id);
+        if(driver.kind==='wind'&&driver.mechanics?.wind){
+          const target=driver.mechanics.wind.target,elbow={x:drum.x,y:target.y};
+          rope(context,{x:target.x,y:target.y-9},{x:elbow.x,y:elbow.y-9},level.id,3);
+          rope(context,{x:target.x,y:target.y+9},{x:elbow.x,y:elbow.y+9},level.id,3);
+          if(Math.abs(drum.y-target.y)>20){rope(context,{x:elbow.x-9,y:elbow.y},{x:drum.x-9,y:drum.y},level.id,3);rope(context,{x:elbow.x+9,y:elbow.y},{x:drum.x+9,y:drum.y},level.id,3);pulley(context,level,elbow,20,state.rotorAngle??0);}
+        }
+        pulley(context,level,drum,28,state.rotorAngle??state.progress*Math.PI*3,state.mode===1&&driver.kind==='counterweight'||!!driver.lockDeviceId&&run.devices[driver.lockDeviceId]?.mode===1);
+      }
+    }
   }
-  context.restore();
+  for(const device of level.devices){
+    if(device.kind==='lift'&&device.pivot&&device.mechanics&&visiblePoint(device,bounds,160)){
+      const anchor=getDeviceAnchor(run,device),offset=(device.width??270)*.4,head=device.pivot;
+      // Separate haul/return strands and a real drum lead from the crank to
+      // the cabin. Their moving lengths follow the exact passenger anchor.
+      rope(context,{x:device.x+45,y:device.y},{x:head.x+25,y:head.y},level.id,3);
+      rope(context,{x:head.x-25,y:head.y},{x:anchor.x-offset,y:anchor.y-95},level.id,3);
+      pulley(context,level,head,30,run.devices[device.id].rotorAngle??run.devices[device.id].progress*8);
+    }
+    if(device.kind==='pendulum'&&device.lockDeviceId&&visiblePoint(device.pivot??device,bounds,200)){
+      const brake=level.devices.find(candidate=>candidate.id===device.lockDeviceId);if(!brake?.mechanics)continue;
+      const anchor=getDeviceAnchor(run,brake),pivot=device.pivot??device,state=run.devices[brake.id];
+      rope(context,{x:anchor.x+65,y:anchor.y+22},{x:pivot.x+32,y:pivot.y+8},level.id,2.5);
+      pulley(context,level,pivot,31,run.devices[device.id].angle??0,state.mode===1);
+    }
+  }
 }
 
 function fan(context:CanvasRenderingContext2D,level:WorldLevel,run:WorldRun,assets:WorldAssets,device:DeviceDefinition,rotation:number,reduced:boolean) {
@@ -127,6 +174,30 @@ function pendulum(context:CanvasRenderingContext2D,level:WorldLevel,run:WorldRun
 function control(context:CanvasRenderingContext2D,level:WorldLevel,run:WorldRun,assets:WorldAssets,device:DeviceDefinition,time:number,reduced:boolean) {
   const state=run.devices[device.id],automatic=device.playerControlled===false;
   if(device.kind==='wind'||device.kind==='pendulum')return;
+  if(automatic){
+    const driven=!!device.weightNodes?.length||level.edges.some(edge=>edge.mechanism?.drivers.includes(device.id));
+    const node=level.nodes.find(node=>node.id===device.activationNodeId),at=device.weightNodes?.length?getDeviceAnchor(run,device):node??device;
+    context.save();
+    if(driven){
+      // A stiff two-place pressure plate bears the visitors on their actual
+      // walking surface. Its pawl stores their work in a visible ratchet.
+      const width=190;
+      context.fillStyle=level.id==='veilleurs'?'#64442b':'#b18a5b';context.strokeStyle=level.id==='boucles'?level.palette.ink:'#795737';context.lineWidth=3;
+      context.beginPath();context.roundRect(at.x-width/2,at.y,width,15,5);context.fill();context.stroke();
+      for(const side of [-1,1]){
+        const x=at.x+side*53;context.beginPath();context.moveTo(x,at.y+16);context.lineTo(x-9,at.y+23);context.lineTo(x+9,at.y+30);context.lineTo(x,at.y+37);context.stroke();
+      }
+      pulley(context,level,{x:at.x+width/2+18,y:at.y+24},19,state.progress*Math.PI*.8,state.progress>.98);
+      pips(context,{x:at.x,y:at.y+47},device.requiredLoad??node?.arrivalTrigger?.minVisitors??2,state.load,level,1);
+    }else{
+      // Arrival markers record a visit; they do not pretend to power machinery.
+      context.strokeStyle=level.id==='boucles'?level.palette.ink:'#9c7849';context.lineWidth=3;
+      context.beginPath();context.moveTo(at.x,at.y);context.lineTo(at.x,at.y-52);context.stroke();
+      context.fillStyle=state.progress>.9?level.palette.accent:level.id==='veilleurs'?'#6e583e':'#e2caa1';
+      context.beginPath();context.moveTo(at.x,at.y-52);context.lineTo(at.x+27,at.y-46);context.lineTo(at.x,at.y-36);context.closePath();context.fill();
+    }
+    context.restore();return;
+  }
   context.save();context.translate(device.x,device.y);
   if(device.kind==='splitter'){
     const routes=level.edges.filter(edge=>edge.route?.deviceId===device.id),chosen=routes.find(edge=>edge.route?.mode===state.mode),points=chosen?.path;
@@ -135,11 +206,15 @@ function control(context:CanvasRenderingContext2D,level:WorldLevel,run:WorldRun,
     context.rotate(angle);context.fillStyle=level.id==='veilleurs'?'#ad7849':level.id==='plis'?'#f4debb':'#eabe68';context.strokeStyle=level.id==='veilleurs'?'#61452c':level.palette.ink;context.lineWidth=2;
     context.beginPath();context.moveTo(-36,-12);context.lineTo(22,-12);context.lineTo(44,0);context.lineTo(22,12);context.lineTo(-36,12);context.closePath();context.fill();context.stroke();
     context.strokeStyle=level.palette.accent;context.lineWidth=3;context.beginPath();context.moveTo(-20,0);context.lineTo(23,0);context.moveTo(16,-5);context.lineTo(24,0);context.lineTo(16,5);context.stroke();brass(context,0,0,6,level.id);
-  }else if(automatic){
-    context.fillStyle=level.id==='veilleurs'?'#51402c':'#d9c39d';context.strokeStyle=level.id==='boucles'?level.palette.ink:'#7e6342';context.lineWidth=2;
-    context.beginPath();context.moveTo(0,-27);context.lineTo(23,-4);context.lineTo(17,25);context.lineTo(-17,25);context.lineTo(-23,-4);context.closePath();context.fill();context.stroke();
-    context.fillStyle=state.progress>.9?level.palette.accent:level.id==='veilleurs'?'#352933':'#a9a69a';
-    if(state.progress>.9){context.shadowColor=level.palette.accent;context.shadowBlur=12;}context.beginPath();context.arc(0,-3,9,0,Math.PI*2);context.fill();context.shadowBlur=0;
+  }else if(device.kind==='lift'){
+    const a=state.progress*Math.PI*4;
+    brass(context,0,0,27,level.id);context.strokeStyle=level.id==='veilleurs'?'#d5aa64':level.palette.ink;context.lineWidth=6;context.lineCap='round';
+    context.beginPath();context.moveTo(0,0);context.lineTo(Math.cos(a)*37,Math.sin(a)*37);context.stroke();brass(context,Math.cos(a)*37,Math.sin(a)*37,8,level.id);
+  }else if(device.kind==='latch'){
+    const engaged=state.mode===1;
+    pulley(context,level,{x:0,y:0},23,0,engaged);
+    context.strokeStyle=level.id==='veilleurs'?'#e1b667':level.palette.ink;context.lineWidth=6;context.lineCap='round';
+    context.beginPath();context.moveTo(35,-35);context.lineTo(engaged?16:38,engaged?-12:-48);context.stroke();brass(context,35,-35,7,level.id);
   }else if(level.id==='veilleurs'&&assets.props&&device.kind!=='gate'){
     prop(context,assets,3,0,0,65,(state.mode?-.55:.35)+(reduced?0:Math.sin(time*2)*.009),.49);
   }else{
@@ -153,6 +228,7 @@ function control(context:CanvasRenderingContext2D,level:WorldLevel,run:WorldRun,
 function barriers(context:CanvasRenderingContext2D,level:WorldLevel,run:WorldRun,bounds:WorldBounds) {
   const seen=new Set<string>();
   for(const edge of level.edges){
+    if(edge.mechanism)continue;
     if(!edge.gates?.length||!edge.path[0]||!visiblePoint(edge.path[0],bounds))continue;
     const p=edge.path[0],key=`${p.x}:${p.y}`;if(seen.has(key))continue;seen.add(key);
     const open=edge.gates.every(gate=>gateSatisfied(run,gate));
@@ -181,13 +257,10 @@ export function drawMechanisms(context:CanvasRenderingContext2D,level:WorldLevel
     control(context,level,run,assets,device,time,reduced);
     const status=getDeviceStatus(run,level,device.id);
     if(device.kind==='counterweight'&&(device.requiredLoad??0)>0){
-      const center=loadCentre(level,device);pips(context,{x:center.x,y:center.y+22/bounds.scale},device.requiredLoad!,status.load,level,bounds.scale);
+      const center=getDeviceAnchor(run,device);pips(context,{x:center.x,y:center.y+22/bounds.scale},device.requiredLoad!,status.load,level,bounds.scale);
     }else if(device.kind==='lift'){
       const capacity=level.edges.find(edge=>edge.deviceId===device.id&&edge.kind==='lift')?.capacity??3;
       pips(context,{x:body.point.x,y:body.point.y+19/bounds.scale},capacity,status.load,level,bounds.scale);
-    }else if(device.activationNodeId){
-      const node=level.nodes.find(item=>item.id===device.activationNodeId),required=node?.arrivalTrigger?.minVisitors??2;
-      pips(context,{x:device.x,y:device.y+35/bounds.scale},required,run.visits[device.activationNodeId]?.length??0,level,bounds.scale);
     }else if(device.kind==='splitter'){
       const branch=level.edges.find(edge=>edge.route?.deviceId===device.id&&edge.route?.mode===state.mode&&edge.maxPassages!==undefined);
       if(branch)pips(context,{x:device.x,y:device.y+24/bounds.scale},branch.maxPassages!,run.passages[branch.id]?.length??0,level,bounds.scale);

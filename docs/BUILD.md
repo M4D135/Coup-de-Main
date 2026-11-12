@@ -1,4 +1,4 @@
-# Coup de Main — Compilation autonome de la version 3.1.3
+# Coup de Main — Compilation autonome de la version 3.2.0
 
 [Dépôt public Coup de Main](https://github.com/M4D135/Coup-de-Main)
 
@@ -62,6 +62,10 @@ La sauvegarde V3 conserve le parcours continu, les dessins, les réglages et le 
 
 Le format V3 est conservé avec une révision de géométrie distincte. La reprise d’une partie 3.0 compatible reprojette ses unités sur les mêmes chemins et ses dessins entre les nouveaux appuis ; elle conserve les identités, les pertes, les arrivées, les réglages et les souvenirs compatibles. Un trait déjà construit dont la reprojection dépasse la nouvelle réserve n’est pas supprimé pour cette seule raison : le montant existant est enregistré pour la reprise, sans ouvrir un nouveau budget de construction.
 
+Depuis la version 3.2.0, `mechanicsRevision: 1` identifie aussi l’état du moteur mécanique, indépendamment de `geometryRevision`. La sauvegarde conserve la vitesse des mécanismes, l’angle et la vitesse des roues, la force reçue, l’angle et la vitesse angulaire des pendules, ainsi que le décalage éventuel de leurs appuis. Une reprise de cette révision conserve ces valeurs ; elle ne redémarre pas les mécanismes en mouvement depuis le repos.
+
+Une ancienne sauvegarde V3 dépourvue de `mechanicsRevision` reste reconnue. Les mécanismes en translation, dont l’ancien format ne décrivait pas la vitesse, reprennent avec une vitesse nulle. Pour les plateaux, un décalage d’appui conserve leur position enregistrée et les pieds des compagnons : introduire la course mécanique ne les déplace pas instantanément de sa hauteur. Les pendules retrouvent leur angle **et leur vitesse angulaire** calculables à partir du temps, de la phase et de la période de l’ancien mouvement ; un balancier au centre ne devient donc pas artificiellement immobile. Un frein déjà engagé conserve la pose retenue. Les reprises compatibles gardent les identités, les dessins, les pertes et les retenues acquises ; elles ne résolvent pas les mécanismes encore incomplets. Les anciennes sauvegardes bloquées conservées comme fixtures font partie des régressions de cette livraison.
+
 Les sauvegardes V1/V2 sont reconnues mais ne transposent pas leurs positions dans ce parcours différent ; le jeu explique le nouveau départ. Les résultats historiques ne sont pas présentés comme des parcours V3 déjà terminés.
 
 Les taquets déjà utilisés restent engagés, y compris après annulation. La restauration peut rétablir un tel appui uniquement lorsque le registre des passages prouve qu’il a servi. Les traits occupés ou réservés à un retour sont protégés ; une ancienne reprise ayant perdu un pont de retour replace le compagnon en attente sur sa rive.
@@ -85,7 +89,27 @@ Avant livraison, vérifier également dans le navigateur :
 - Les trois volumes, la coupure générale, le déverrouillage audio et le retour d’un onglet masqué.
 - L’absence d’erreurs de console et le chargement correct des images dans le build web et le HTML autonome.
 
-### Résultats de la livraison 3.1.3
+### Résultats de la livraison 3.2.0
+
+La suite complète du projet de création réussit **393 tests sur 393**. La vérification TypeScript réussit également. Ces résultats concernent les sources du projet de création ; la vérification de l’export autonome est distincte.
+
+Les parcours automatisés des **trois mondes et de leurs quinze tableaux** se terminent à **12 compagnons sauvés sur 12**, sans perte ni recommencement. Le contrôleur séquentiel agit uniquement sur le tableau courant, dessine de vraies courbes et recharge une sauvegarde à chaque frontière. Les scénarios de perturbation, les reprises des anciennes sauvegardes réellement bloquées et les doubles balances restent vérifiés avec la nouvelle mécanique. Un parcours comportant deux collisions volontairement provoquées termine à **10/12**, sans perte supplémentaire. La nuance de file devant la porte suivante à la sortie du premier tableau des Veilleurs, documentée en 3.1.2, reste explicitement contrôlée : aucun porteur n’y demeure isolé et aucun souvenir n’est accordé avant la réunion réelle.
+
+Les tests mécaniques vérifient la direction et la portée du souffle, le travail progressif de la roue réceptrice, l’inertie après coupure, la retenue du taquet et la nécessité d’atteindre la butée avant son engagement. Ils contrôlent la descente des plateaux sous leur charge, le contact des deux demi-ponts, les deux occupants réels des pédales, la montée plus lente d’une nacelle chargée et sa descente lorsque le câble est déroulé. Le frein du pendule ne peut retenir qu’un angle sûr effectivement atteint ; une session prolongée conserve une oscillation exploitable. Les tests de reprise vérifient les états mécaniques enregistrés et la migration des pendules anciens, y compris au centre et avec un frein déjà engagé.
+
+Deux scénarios ciblés éprouvent les nacelles autonomes du premier tableau des Veilleurs et du quatrième tableau des Boucles sans charger leur contrepoids. La file supérieure accueille six compagnons et la nacelle trois ; trois restent sur le chemin inférieur. Après changement d’aiguillage et descente réelle de la nacelle chargée, deux compagnons reviennent à pied charger le plateau, puis les douze finissent le monde. Les positions des passagers pendant la descente sont vérifiées. Ces essais ne prétendent pas démontrer un réembarquement depuis le palier supérieur : la récupération observée utilise le chemin inférieur réellement disponible.
+
+Les tests Canvas suivent les mêmes appuis mobiles que la marche et le dessin. Ils contrôlent notamment l’arrivée du souffle sur une roue locale distincte, le déplacement des plateaux et de leurs points de tracé, l’ancrage de la nacelle, la sélection des véritables demi-ponts par la Gomme et la pause des animations. Les dépendances de mécanismes restent dans leur propre tableau. Les tests de parcours gardent les ventilateurs en marche pendant les traversées : le souffle qui relève un support ne devient pas une interdiction de marcher.
+
+Dans le navigateur, **le premier tableau des Petits Plis a été joué manuellement** : les douze attendaient devant le pont abaissé ; actionner le ventilateur a entraîné la roue réceptrice, le câble et le tablier ; les douze ont ensuite traversé avec le ventilateur toujours en marche. Le taquet a maintenu le support après coupure du souffle. L’inspection du cinquième tableau des Petits Plis confirme l’absence de ventilateur et la présence de deux demi-ponts articulés distincts, commandés par leurs deux contrepoids.
+
+L’accueil, le menu de pause, l’aide et les trois réglages de volume ont été examinés dans des cadres de navigateur **375 × 812** et **844 × 390**. Les commandes musicales ont été manipulées. Les trois nouvelles partitions et le cycle de vie audio sont couverts par les tests, avec un faux contexte Web Audio pour le scheduler et les sources ; **aucune écoute subjective des trois thèmes n’est revendiquée** pour cette validation.
+
+Les quinze tableaux parcourus intégralement ci-dessus sont des simulations automatisées. Les essais manuels de cette livraison portent sur le premier tableau des Petits Plis, les inspections de mécanismes et les contrôles d’interface décrits ici. Ils ne constituent ni quinze parcours manuels, ni un essai sur iPhone physique, ni une preuve d’absence de tout état imprévu.
+
+L’export autonome 3.2.0 a reçu une installation neuve avec `npm ci --ignore-scripts` (**48 paquets**). `npm run check` réussit : TypeScript, **236 tests sur 236**, aucun ignoré, puis compilation Vite. Le HTML autonome embarque les mêmes **25 images** que le paquet web. Ce compte rendu final est recopié dans l’export et ses empreintes sont recalculées ; aucun code validé n’est modifié. Les captures de contrôle restent dans le projet de création.
+
+### Résultats de la livraison précédente 3.1.3
 
 La suite complète du projet de création réussit **374 tests sur 374**, sans échec ni test ignoré. La vérification TypeScript réussit. Les neuf nouvelles régressions concernent les ventilateurs ; les parcours séquentiels des quinze tableaux et les sauvegardes auparavant bloquées restent validés. Les trois mondes simulés se terminent à **12 sauvés sur 12**, sans recommencement.
 
@@ -172,7 +196,7 @@ npm run public:export -- /chemin/absolu/vers/un-dossier-vide
 
 Le premier script produit `work/public-dist/`. L’exporteur suit les imports actifs de l’interface et des tests publics, puis copie une liste explicite de scripts, documents, prompts de génération et médias. Les fichiers intermédiaires `*-tableau-*.png` ne sont pas exportés : seuls les douze tableaux finaux WebP sont retenus. Il refuse de remplacer un dossier non vide.
 
-Le paquet ne contient ni historique Git, identité d’hébergement, variables d’environnement, connecteurs, ancien moteur, médias audio historiques ni archives de création. Les anciennes sources restent dans leurs projets et historiques. `PUBLIC-MANIFEST.json` énumère les fichiers, tailles et SHA-256. Son champ `version` désigne le format du manifeste ; `gameVersion` reprend **3.1.3**, comme le package, le lock et le manifeste des médias.
+Le paquet ne contient ni historique Git, identité d’hébergement, variables d’environnement, connecteurs, ancien moteur, médias audio historiques ni archives de création. Les anciennes sources restent dans leurs projets et historiques. `PUBLIC-MANIFEST.json` énumère les fichiers, tailles et SHA-256. Son champ `version` désigne le format du manifeste ; `gameVersion` reprend **3.2.0**, comme le package, le lock et le manifeste des médias.
 
 Dans un export neuf, `npm ci && npm run check` vérifie la distribution publique. L’export et le build locaux ne publient ni release ni site à eux seuls.
 

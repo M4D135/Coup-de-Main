@@ -13,7 +13,7 @@ export function companionFeedback(run:WorldRun,level:WorldLevel,unit:Creature):s
 /** A crank's position and the passage it holds are two different facts. */
 export function deviceFeedback(run:WorldRun,level:WorldLevel,id:string):string {
   const status=getDeviceStatus(run,level,id),device=level.devices.find(device=>device.id===id);
-  const message=device?.kind==='counterweight'
+  const message=device&&['counterweight','wind','lift','latch'].includes(device.kind)
     ?`${status.stateLabel}. ${status.reason}`
     :`${status.label} · ${status.stateLabel}`;
   return withPause(run,message);

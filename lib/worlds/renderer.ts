@@ -6,6 +6,7 @@ import {deviceBody,drawMechanicalConnections,drawMechanisms} from './renderer-me
 import {bridge,clamp} from './renderer-primitives';
 import type {ActiveStroke,Point,WorldId,WorldLevel,WorldRun} from './types';
 import {tableauAsset,TABLEAU_WIDTH,TABLEAU_HEIGHT} from './tableaux';
+import {getDrawingEndpoints,getEdgeSupportPaths} from './engine';
 
 type Cell={x:number;y:number;width:number;height:number;centerX:number;baseline:number;bodyHeight:number;bodyWidth:number};
 type Atlas={image:HTMLImageElement;cells:Cell[];referenceHeight:number};
@@ -85,7 +86,8 @@ export function hitTestWorld(level:WorldLevel,run:WorldRun,point:Point,minRadius
   const candidates:{distance:number;hit:Exclude<WorldHit,null>}[]=[];
   for(const drawing of level.drawings){
     if(run.drawings[drawing.id])continue;
-    for(const end of ['from','to'] as const){const distance=Math.hypot(drawing[end].x-point.x,drawing[end].y-point.y);
+    const endpoints=getDrawingEndpoints(run,level,drawing);
+    for(const end of ['from','to'] as const){const distance=Math.hypot(endpoints[end].x-point.x,endpoints[end].y-point.y);
       if(distance<=radius)candidates.push({distance,hit:{kind:'drawing',id:drawing.id,end}});
     }
   }
@@ -105,10 +107,13 @@ function segmentDistance(point:Point,a:Point,b:Point):number {
 }
 
 /** Direct erasing targets the visible stroke; eligibility stays in the engine. */
-export function hitTestDrawing(_level:WorldLevel,run:WorldRun,point:Point,tolerance=12):string|null {
+export function hitTestDrawing(level:WorldLevel,run:WorldRun,point:Point,tolerance=12):string|null {
   let nearest:string|null=null,distance=Number.isFinite(tolerance)&&tolerance>0?tolerance:12;
-  for(const [id,drawing] of Object.entries(run.drawings))for(let i=1;i<drawing.points.length;i++){
-    const candidate=segmentDistance(point,drawing.points[i-1],drawing.points[i]);if(candidate<=distance){distance=candidate;nearest=id;}
+  for(const [id,drawing] of Object.entries(run.drawings)){
+    const edge=level.edges.find(edge=>edge.drawingId===id),paths=edge?getEdgeSupportPaths(run,level,edge):[drawing.points];
+    for(const points of paths)for(let i=1;i<points.length;i++){
+      const candidate=segmentDistance(point,points[i-1],points[i]);if(candidate<=distance){distance=candidate;nearest=id;}
+    }
   }
   return nearest;
 }
@@ -119,8 +124,9 @@ function drawAnchors(context:CanvasRenderingContext2D,level:WorldLevel,run:World
   const anchors=new Map<string,{point:Point;selected:boolean;destination:boolean}>();
   for(const drawing of level.drawings){
     if(run.drawings[drawing.id]&&drawing.id!==active?.drawingId)continue;
+    const endpoints=getDrawingEndpoints(run,level,drawing);
     for(const end of ['from','to'] as const){
-      const point=drawing[end],key=`${point.x}:${point.y}`,destination=active?.drawingId===drawing.id&&end===(active.reversed?'from':'to'),previous=anchors.get(key);
+      const point=endpoints[end],key=`${point.x}:${point.y}`,destination=active?.drawingId===drawing.id&&end===(active.reversed?'from':'to'),previous=anchors.get(key);
       anchors.set(key,{point,selected:previous?.selected||focused===drawing.id,destination:previous?.destination||destination});
     }
   }
@@ -140,7 +146,7 @@ function drawAnchors(context:CanvasRenderingContext2D,level:WorldLevel,run:World
   if(active){
     const drawing=level.drawings.find(item=>item.id===active.drawingId),tip=active.points.at(-1);
     if(drawing&&tip){
-      const target=active.reversed?drawing.from:drawing.to;
+      const endpoints=getDrawingEndpoints(run,level,drawing),target=active.reversed?endpoints.from:endpoints.to;
       context.save();context.globalAlpha=.19;context.strokeStyle=level.palette.accent;context.lineWidth=1.2/scale;context.setLineDash([2/scale,8/scale]);
       context.beginPath();context.moveTo(tip.x,tip.y);context.lineTo(target.x,target.y);context.stroke();context.restore();
       const viewport=options.viewport;
@@ -181,8 +187,9 @@ export function renderWorld(context:CanvasRenderingContext2D,level:WorldLevel,ru
   const goal=level.nodes.find(node=>node.id===level.goal);
   if(goal&&visiblePoint(goal,bounds,200))drawPortal(context,level,assets,goal,true,time);
   drawMechanisms(context,level,run,assets,bounds,time,options);
-  for(const drawing of Object.values(run.drawings)){
-    if(drawing.points.some((p,i)=>visiblePoint(p,bounds,20)||i>0&&Math.min(p.x,drawing.points[i-1].x)<=bounds.right&&Math.max(p.x,drawing.points[i-1].x)>=bounds.left))bridge(context,level,drawing.points);
+  for(const [id,drawing] of Object.entries(run.drawings)){
+    const edge=level.edges.find(edge=>edge.drawingId===id),paths=edge?getEdgeSupportPaths(run,level,edge):[drawing.points];
+    for(const points of paths)if(points.some((p,i)=>visiblePoint(p,bounds,20)||i>0&&Math.min(p.x,points[i-1].x)<=bounds.right&&Math.max(p.x,points[i-1].x)>=bounds.left))bridge(context,level,points);
   }
   const active=options.activeStroke??run.activeStroke;if(active)bridge(context,level,active.points,true);
   drawCompanions(context,level,run,assets,bounds,time,reduced);

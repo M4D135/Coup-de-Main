@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {appendStroke,applyAction,beginStroke,createRun,finishStroke,getEdgePath,getPendulumPosition,pathLength,pointAlongPath,restoreRun,saveRun,updateRun} from '../lib/worlds/engine';
 import {WORLD_NETWORKS,type ExpeditionNetwork} from '../lib/worlds/levels';
 import type {Creature,RunSnapshot,WorldLevel,WorldRun} from '../lib/worlds/types';
-import {expeditionController,solveExpedition} from './worlds-expedition-walkthrough';
+import {drawingGesture,expeditionController,solveExpedition} from './worlds-expedition-walkthrough';
 
 const reached=new Map<string,Map<string,RunSnapshot>>();
 
@@ -67,7 +67,7 @@ export function reloadPlaying(run:WorldRun,level:WorldLevel):WorldRun {
 export function exploratoryStroke(run:WorldRun,level:WorldLevel,id:string,reverse=false):boolean {
   if(run.drawings[id])return false;
   const definition=level.drawings.find(drawing=>drawing.id===id)!;
-  const points=definition.suggested.map(point=>({...point}));if(reverse)points.reverse();
+  const points=drawingGesture(run,level,definition);if(reverse)points.reverse();
   if(!beginStroke(run,level,points[0]).ok)return false;
   for(const point of points.slice(1))appendStroke(run,level,point);
   return finishStroke(run,level).ok;

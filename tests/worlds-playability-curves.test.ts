@@ -33,7 +33,7 @@ for(const scenario of cases)for(const shape of ['arch','bends'] as HandCurve[])t
   const saved=new Set<string>();
   let nextDecision=run.time+1.35,decision=0;
   const until=run.time+180;
-  while(run.time<until&&!localTroupeIsTogether(run,level,network)){
+  while(run.phase==='playing'&&run.time<until&&!localTroupeIsTogether(run,level,network)){
     if(!saved.has('partial')&&network.weights.some(id=>run.devices[id].mode===0&&run.devices[id].load>0&&run.devices[id].load<level.devices.find(device=>device.id===id)!.requiredLoad!)){
       run=reloadHandRun(run,level);saved.add('partial');
     }
@@ -59,7 +59,7 @@ for(const scenario of cases)test(`${scenario.world}/${scenario.network}: late re
   const level=WORLD_LEVELS.find(level=>level.id===scenario.world)!,network=WORLD_NETWORKS[scenario.world].find(network=>network.id===scenario.network)!;
   let run=prepareLocalWeights(level,network,'bends',true),nextDecision=run.time+1.2;
   const until=run.time+160;
-  while(run.time<until&&run.devices[network.relay].progress<.98){
+  while(run.phase==='playing'&&run.time<until&&run.devices[network.relay].progress<.98){
     if(run.time>=nextDecision){operateLocalWeights(run,level,network);nextDecision=run.time+1.1;}
     humanWait(run,level,.21);
   }
@@ -92,7 +92,7 @@ for(const speed of [1,2] as const)test(`Boucles first tableau: curved paths surv
   }
   let nextDecision=run.time+1.25;
   const until=run.time+180;
-  while(run.time<until&&!localTroupeIsTogether(run,level,network)){
+  while(run.phase==='playing'&&run.time<until&&!localTroupeIsTogether(run,level,network)){
     if(run.time>=nextDecision){operateLocalWeights(run,level,network);nextDecision=run.time+1.25;}
     humanWait(run,level,.23);
   }

@@ -13,7 +13,9 @@ function loadedPlateau():WorldRun {
   for(const id of WORLD_NETWORKS.boucles[0].drawings)drawExpedition(run,level,id);
   applyAction(run,level,{type:'device',id:'s0:fork',mode:1});applyAction(run,level,{type:'start'});
   for(let frame=0;frame<500&&run.devices['s0:balance'].load<3;frame++)updateRun(run,level,.1);
-  assert.equal(run.devices['s0:balance'].load,3);return run;
+  assert.equal(run.devices['s0:balance'].load,3);
+  for(let frame=0;frame<500&&!getDeviceStatus(run,level,'s0:balance').modes[1].enabled;frame++)updateRun(run,level,.1);
+  assert(getDeviceStatus(run,level,'s0:balance').modes[1].enabled,'the loaded plate must reach its physical stop');return run;
 }
 
 for(const speed of [1,2] as const)test(`rapid junction changes and Undo release returning porter reservations at speed ${speed}`,()=>{
@@ -55,13 +57,13 @@ test('clicking or undoing an occupied counterweight cannot drop its support; cha
   solveExpedition(run,level,600);assert.equal(run.saved,12);assert.equal(run.lost,0);assert.equal(run.retries,0);
 });
 
-test('three retained porters report their local relay, then the missing return span, without solving either for the player',()=>{
+test('three porters report their missing physical return and never wait for a distant relay',()=>{
   const run=loadedPlateau();applyAction(run,level,{type:'device',id:'s0:balance',mode:1});applyAction(run,level,{type:'device',id:'s0:fork',mode:0});
   assert(applyAction(run,level,{type:'erase',id:'s0:return-thread'}).ok);
   const porters=run.units.filter(unit=>unit.nodeId==='s0:pan'&&unit.edgeId===null);assert.equal(porters.length,3);
   assert.equal(run.devices['s0:relay'].mode,0);assert.equal(run.devices['s2:relay'].mode,0);
   const before=JSON.stringify(saveRun(run)),reason=getDeviceStatus(run,level,'s0:balance').reason;
-  assert.equal(reason,'La borne attend encore des compagnons.');assert.doesNotMatch(reason,/peuvent sortir|Dessine|Oriente|Choisis/);
+  assert.match(reason,/passage de retour/);assert.doesNotMatch(reason,/borne|relais/);
   assert.equal(getWaitingReason(run,level,porters[0],true),reason);assert.equal(JSON.stringify(saveRun(run)),before);
   for(let frame=0;frame<600&&run.devices['s0:relay'].progress<.98;frame++)updateRun(run,level,.1);
   assert(run.devices['s0:relay'].progress>=.98);assert.equal(run.devices['s2:relay'].mode,0);

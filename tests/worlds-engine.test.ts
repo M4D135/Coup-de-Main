@@ -1,9 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {WORLD_LEVELS} from './fixtures/worlds-v2';
-import {ANCHOR_RADIUS,appendStroke,applyAction,beginStroke,createRun,finishStroke,getActiveAct,getEdgePath,getPendulumPosition,getRunSummary,pathLength,restoreRun,saveRun,updateRun} from '../lib/worlds/engine';
+import {ANCHOR_RADIUS,appendStroke,applyAction,beginStroke,createRun,finishStroke,getActiveAct,getDrawingEndpoints,getEdgePath,getPendulumPosition,getRunSummary,pathLength,restoreRun,saveRun,updateRun} from '../lib/worlds/engine';
+import {getDeviceAnchor} from '../lib/worlds/mechanics';
 import type {WorldLevel,WorldRun} from '../lib/worlds/types';
 import {solveCurrentAct} from './worlds-walkthrough';
+import {drawingGesture} from './worlds-expedition-walkthrough';
 
 function tick(run:WorldRun,level:WorldLevel,seconds:number,dt=1/60){for(let t=0;t<seconds-1e-9;t+=dt)updateRun(run,level,Math.min(dt,seconds-t));}
 function waitFor(run:WorldRun,level:WorldLevel,predicate:()=>boolean,limit=120){
@@ -232,9 +234,18 @@ test('retry returns to the last player gesture and does not silently auto-start 
 
 test('drawn approaches and fixed tails meet the physical platforms; pendulum renderer shares collision math',()=>{
   const [boucles,,veilleurs]=WORLD_LEVELS,b=createRun(boucles),v=createRun(veilleurs);
-  draw(b,boucles,'cradle-return');draw(v,veilleurs,'balance-return');
+  for(const [run,level,id] of [[b,boucles,'cradle-return'],[v,veilleurs,'balance-return']] as const){
+    const definition=level.drawings.find(drawing=>drawing.id===id)!,points=drawingGesture(run,level,definition);
+    assert(beginStroke(run,level,points[0]).ok);
+    for(const point of points.slice(1))appendStroke(run,level,point);
+    const result=finishStroke(run,level);assert(result.ok,result.message);
+  }
   const low=getEdgePath(b,boucles,boucles.edges.find(edge=>edge.id==='weight-return')!);
-  assert.deepEqual(low[0],{x:800,y:666});assert.deepEqual(low[1],{x:860,y:666});
+  const balance=boucles.devices.find(device=>device.id==='balance')!;
+  assert.deepEqual(low[0],getDeviceAnchor(b,balance),'the fixed approach starts on the real pan, whose centre differs from the old logical node');
+  const endpoints=getDrawingEndpoints(b,boucles,boucles.drawings.find(drawing=>drawing.id==='cradle-return')!);
+  assert(Math.hypot(low[1].x-endpoints.from.x,low[1].y-endpoints.from.y)<1e-7,'the fixed approach meets the visible drawing support');
+  assert(Math.hypot(low.at(-1)!.x-endpoints.to.x,low.at(-1)!.y-endpoints.to.y)<1e-7);
   const high=getEdgePath(v,veilleurs,veilleurs.edges.find(edge=>edge.id==='pan-return')!);
   assert.deepEqual(high[0],{x:590,y:360});assert.deepEqual(high.at(-1),{x:950,y:400});assert(pathLength(high)>300);
   const pendulum=getActiveAct(veilleurs,{actIndex:1}).devices.find(device=>device.id==='pendulum')!;

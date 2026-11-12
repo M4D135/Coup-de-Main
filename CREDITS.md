@@ -35,13 +35,13 @@ La main photographique est une image générée provenant d’une itération ant
 
 ## Musiques originales
 
-Les trois partitions de [`lib/worlds/audio-score.ts`](lib/worlds/audio-score.ts) ont été écrites pour cette version. Chaque thème comprend seize mesures, une phrase de réponse, une progression harmonique, une basse et un accompagnement. L’arrangement, les voicings et les nuances évoluent sur plusieurs cycles.
+Les trois partitions de [`lib/worlds/audio-score.ts`](lib/worlds/audio-score.ts) ont été écrites pour cette version. Chaque thème comprend 32 mesures : seize mesures mélodiques et seize mesures de réponse originales, une progression harmonique, une basse alternée, des accords pincés et des percussions douces. La version 3.2.0 adopte des mélodies majeures plus joyeuses, des attaques courtes et une réverbération musicale réduite.
 
 | Monde | Palette sonore synthétique |
 | --- | --- |
-| Les Boucles | Piano doux à trois temps, cordes, basse et touches pincées |
-| Petits Plis | Flûte, cordes pincées, basse et souffle discret |
-| Les Veilleurs | Célesta, harmonies mineures, cordes et résonances d’atelier |
+| Les Boucles | Piano bondissant en ré majeur, 116 BPM, basse alternée et bois doux |
+| Petits Plis | Flûte en sol majeur, 124 BPM, accords à contretemps et brosses discrètes |
+| Les Veilleurs | Piano jouet en fa majeur, 108 BPM, swing léger et percussions de bois |
 
 Ces noms décrivent des timbres synthétisés ; aucun enregistrement d’instrument ni morceau existant n’est chargé. Les oscillateurs, enveloppes, harmoniques, filtres et réverbérations procédurales sont créés localement par [`lib/worlds/audio.ts`](lib/worlds/audio.ts).
 

@@ -82,3 +82,9 @@
   .page-arrow{width:44px;height:44px}.waiting-group{top:calc(50% + 29px);min-height:44px}.play-count{padding:5px 10px;font-size:19px}.play-count em{font-size:6px}.place-page{font-size:9px}
   .game-toast{bottom:124px}.stroke-ink{bottom:125px}
 }
+
+.mechanical-help{margin-top:17px;border-top:1px solid var(--line);padding-top:14px;text-align:left}
+.mechanical-help summary{cursor:pointer;font-size:12px;color:var(--ink);line-height:1.5}
+.mechanical-help p{font-size:12px;line-height:1.7;margin:12px 0 9px;color:var(--ink)}
+.mechanical-help small{display:block;font-size:10px;line-height:1.65;color:var(--dim)}
+@media(max-height:550px) and (orientation:landscape){.mechanical-help{margin-top:10px;padding-top:10px}.mechanical-help p{font-size:11px}}

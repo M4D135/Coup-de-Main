@@ -2,6 +2,38 @@
 
 Les sources et les fichiers prêts à jouer sont publiés dans le [dépôt Coup de Main](https://github.com/M4D135/Coup-de-Main).
 
+## [3.2.0]
+
+### Des causes mécaniques visibles
+
+- Les passages articulés suivent une géométrie commune au rendu, à la marche et aux contrôles de contact. Un pont se traverse quand ses extrémités se rejoignent et que son mouvement s’est stabilisé.
+- Le souffle possède une source, une direction, une portée et une roue réceptrice. La force reçue entraîne le treuil et le câble du pont ; une roue derrière le ventilateur ou hors de son faisceau ne reçoit aucune force.
+- Les sources, déflecteurs, récepteurs, poulies et câbles sont représentés dans leur propre tableau. Les anciens verrouillages à distance entre tableaux ont été retirés.
+- Les plateaux descendent sous la charge des porteurs, avec accélération, inertie et amortissement. Les compagnons, les appuis tactiles et les dessins suivent leur déplacement. Les deux balances commandent deux demi-ponts distincts.
+- Les nacelles sont hissées par une manivelle visible. Leur charge agit sur le mouvement ; les passagers embarquent et débarquent aux paliers.
+- Les éclaireurs appuient réellement à deux sur une pédale. Son câble actionne un pont ou arme la retenue d’un balancier. Le frein dissipe le mouvement et retient le poids à un angle sûr, sans le déplacer artificiellement.
+- Un cran bloque une position effectivement atteinte. Les porteurs quittent leur plateau dès que leur retour est construit et le cran engagé, sans attendre une borne sur une autre route.
+- Le ventilateur artificiel du dernier tableau des Petits Plis a été retiré : les deux contrepoids entraînent directement les deux tabliers par le treuil existant.
+
+### Trois nouvelles musiques joyeuses
+
+- Trois partitions originales de 32 mesures, avec thèmes et réponses distincts : piano bondissant des Boucles à 116 BPM, flûte légère des Petits Plis à 124 BPM et piano jouet des Veilleurs à 108 BPM.
+- Mélodies majeures, basses alternées, accords pincés, contretemps et percussions de bois ou brosses douces. Les Veilleurs quittent leur ancienne ambiance lente en mineur pour un swing léger.
+- Attaques plus courtes, réverbération musicale réduite et respirations en fin de phrase. Les trois volumes et la coupure générale restent indépendants.
+
+### Reprise et compréhension
+
+- La sauvegarde V3 conserve une révision mécanique distincte, les vitesses et les poses utiles. Les parties compatibles antérieures conservent leurs compagnons, leurs dessins et leurs retenues.
+- Les messages d’attente expliquent le contact manquant ou le mécanisme en mouvement. Le menu de pause décrit la chaîne mécanique du tableau courant.
+- Les quinze illustrations complètes, les personnages et leurs atlas sont conservés. Le modèle reste celui de mécanismes 2D guidés et de chemins dessinés, avec des forces et contraintes explicites.
+- Les vérifications mécaniques, les parcours et les essais de navigateur de cette livraison sont détaillés dans `docs/BUILD.md`.
+
+### Validation de la livraison
+
+- La suite complète du projet de création réussit 393 tests sur 393 et la vérification TypeScript passe. Les trois mondes et leurs quinze tableaux sont terminés automatiquement à 12/12 ; les reprises anciennes, les courbes, les contrôles locaux et les récupérations après mauvais aiguillage sont conservés.
+- Le premier tableau des Petits Plis a été parcouru manuellement dans le navigateur : les douze traversent avec le ventilateur en marche et le taquet retient le pont une fois le souffle coupé. Le menu, l’aide et les trois volumes sont accessibles aux formats 375 × 812 et 844 × 390.
+- Ces essais d’interface ne sont pas présentés comme quinze parcours manuels ou une écoute subjective des musiques. La validation de l’export autonome est distincte de celle des sources du projet de création.
+
 ## [3.1.3]
 
 ### Ventilateurs raccordés à leur état réel

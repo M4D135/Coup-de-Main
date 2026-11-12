@@ -1,6 +1,6 @@
 # Coup de Main
 
-**Version 3.1.3 · Un crayon. Trois mondes. Douze compagnons à guider.**
+**Version 3.2.0 · Un crayon. Trois mondes. Douze compagnons à guider.**
 
 [Sources et versions publiques](https://github.com/M4D135/Coup-de-Main)
 
@@ -8,15 +8,15 @@ Coup de Main est un jeu de réflexion en français. Les compagnons avancent seul
 
 | Monde | Voyage | Matière et ambiance |
 | --- | --- | --- |
-| **Les Boucles** | Le grand fil | Papier crème, encre bleu nuit, entraide et équilibres ; piano doux et cordes |
-| **Petits Plis** | Le pays des vents | Origamis, souffles, moulins et passages de papier ; flûte et cordes pincées |
-| **Les Veilleurs** | La longue veille | Atelier de bois et de laiton, transports et balanciers ; célesta et harmonies nocturnes |
+| **Les Boucles** | Le grand fil | Papier crème, encre bleu nuit, entraide et équilibres ; piano bondissant en ré majeur |
+| **Petits Plis** | Le pays des vents | Origamis, souffles, moulins et passages de papier ; flûte légère, contretemps et cordes pincées |
+| **Les Veilleurs** | La longue veille | Atelier de bois et de laiton, transports et balanciers ; piano jouet, swing et percussions de bois |
 
-Les trois mondes sont accessibles dès l’accueil. Chacun commence avec **12 compagnons** et se termine au refuge du cinquième tableau. Les réseaux associent des actions locales à des effets plus loin sur le parcours : observer la troupe et explorer le décor fait partie du jeu.
+Les trois mondes sont accessibles dès l’accueil. Chacun commence avec **12 compagnons** et se termine au refuge du cinquième tableau. Les mécanismes sont locaux à chaque tableau : une roue entraîne un treuil, un câble relève un pont, un plateau descend sous le poids des compagnons. La troupe passe lorsque les appuis se rejoignent. Observer les cordes et les objets en mouvement fait partie du jeu.
 
 ## Les gestes
 
-- **Toucher un mécanisme** pour agir. Son état, ses mouvements et ses repères dans le décor montrent le résultat. Certains relais sont activés automatiquement par l’arrivée des compagnons.
+- **Toucher un mécanisme** pour agir. Son état, ses mouvements et ses repères dans le décor montrent le résultat. Les pédales sont actionnées par le poids des compagnons qui s’y tiennent.
 - **Tracer depuis un appui** jusqu’à son partenaire pour construire un passage. Le dessin peut commencer des deux côtés ; sa géométrie devient le chemin parcouru.
 - **Glisser le décor** pour explorer le tableau. Pincer avec deux doigts ou utiliser la molette pour zoomer. Les flèches et les cinq petits repères tournent les pages ; un glissement prolongé au bord fait de même.
 - **Retrouver les compagnons** grâce aux petites pastilles latérales signalant les groupes en attente hors champ, ou au bouton de recentrage.
@@ -39,6 +39,16 @@ Le monde dispose d’une réserve d’encre commune, visible sur la jauge du cra
 | Tableau précédent / suivant | Page précédente / Page suivante |
 | Ouvrir ou fermer la pause | Échap |
 
+## Comprendre les mécanismes
+
+- **Vent** : le souffle a une direction et une portée. Il doit atteindre la roue réceptrice pour fournir la force qui enroule le câble du pont. Le taquet retient le pont quand le souffle s’arrête. Le vent n’autorise pas directement la marche des personnages.
+- **Contrepoids** : les porteurs font réellement descendre leur plateau. Le câble relève le tablier ; un cran retient la position avant leur départ. Deux balances entraînent deux demi-ponts distincts.
+- **Nacelles** : une manivelle fournit la force de montée. La charge agit sur l’accélération, les compagnons suivent le plateau, et les entrées et sorties se font aux paliers.
+- **Éclaireurs** : deux compagnons appuient ensemble sur une pédale. Un câble ou une tringle relie cette pédale au pont ou à la retenue du balancier.
+- **Balanciers** : gravité et inertie gouvernent le mouvement. Le frein attend que le poids s’écarte du passage puis le retient, sans le tirer vers une position arbitraire.
+
+Il s’agit d’une simulation 2D de mécanismes guidés : courses, charnières et câbles ont des contraintes définies. Les personnages continuent de suivre les chemins dessinés ; le jeu n’est pas un bac à sable de corps libres. Le menu de pause explique la chaîne mécanique du tableau courant.
+
 ## Souvenirs et progression
 
 Tourner une page conserve la troupe et l’état du voyage. Le titre montre le tableau courant sur cinq ; le compteur **Au refuge** apparaît à la dernière page ou dès qu’un compagnon est sauvé. Lorsque tous les survivants ont franchi un repère de fin de réseau, le jeu conserve automatiquement un **souvenir**. Le menu de pause permet de revenir à ce point avec l’état de la troupe, des dessins et des mécanismes qui y a été enregistré.
@@ -49,7 +59,7 @@ Un taquet qui a déjà soutenu le passage de la troupe reste engagé : une annul
 
 La version 3.1.1 répare aussi les parties où un compagnon revenu à un aiguillage occupait encore son ancien chemin : il libère ce passage au chargement, sans changer de position ni résoudre le mécanisme. Les autres compagnons peuvent alors terminer leur retour.
 
-La version 3.1.2 corrige les balances qui retenaient leurs porteurs malgré la borne locale allumée : leur libération dépend désormais de cette borne visible, du cran verrouillé et du passage de retour tracé. Aucune action dans le tableau suivant n’est nécessaire. Une partie déjà enregistrée dans cette situation reprend avec ses personnages, ses tracés et ses réglages.
+Depuis la version 3.2.0, les porteurs repartent dès que leur plateau est retenu par son cran et que leur passage de retour est tracé. Une borne d’arrivée ne commande plus leur sortie. Les sauvegardes compatibles gardent leurs personnages, leurs tracés et leurs réglages ; les nouveaux états mécaniques sont conservés lors des reprises suivantes.
 
 Les étoiles dépendent uniquement du nombre de compagnons arrivés au refuge :
 
@@ -65,7 +75,7 @@ Les parties, meilleurs résultats et réglages sont enregistrés localement. Le 
 
 ## Musiques, matières et petites voix
 
-Chaque monde possède une musique originale, composée de phrases mélodiques, d’une réponse, d’harmonies, de basses et de textures discrètes. Les arrangements et les nuances évoluent au fil du voyage. Les timbres sont synthétisés localement avec Web Audio.
+Chaque monde possède une nouvelle musique originale et joyeuse de 32 mesures : une mélodie de 16 mesures suivie d’une réponse distincte. Basses courtes alternées, accords pincés, petits contretemps et percussions douces donnent leur rythme aux trois voyages. Les Boucles jouent à 116 BPM, les Petits Plis à 124 BPM et les Veilleurs à 108 BPM. Les timbres sont synthétisés localement avec Web Audio.
 
 Les pas, le crayon, le papier, le bois et les mécanismes ont leurs propres matières sonores. Les compagnons réagissent par de petites voix originales à leur départ, à une hésitation, à une arrivée ou à la réunion finale. Leur registre varie avec leur identité ; aucun enregistrement de voix ou morceau de musique extérieur n’est utilisé.
 

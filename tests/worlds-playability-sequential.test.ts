@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {applyAction,createRun,gateSatisfied,getEdgePath,pathLength,saveRun} from '../lib/worlds/engine';
+import {applyAction,createRun,gateSatisfied,getDeviceStatus,getEdgePath,pathLength,saveRun} from '../lib/worlds/engine';
 import {WORLD_LEVELS,WORLD_NETWORKS,type ExpeditionNetwork} from '../lib/worlds/levels';
 import type {WorldLevel,WorldRun} from '../lib/worlds/types';
 import {safeHazardRelease} from './worlds-expedition-walkthrough';
@@ -20,24 +20,19 @@ function tableauController(level:WorldLevel,network:ExpeditionNetwork):(run:Worl
     if(network.kind==='scout'){
       const feeding=level.edges.find(edge=>edge.route?.deviceId===network.forks[0]&&edge.maxPassages===2)!;
       set(run,network.forks[0],(run.passages[feeding.id]?.length??0)<2?1:0);
-      if(network.wind)set(run,network.wind,run.devices[network.relay].mode?0:1);
     }
     for(const [index,id] of network.weights.entries()){
       const definition=level.devices.find(device=>device.id===id)!,state=run.devices[id];
-      if(state.mode===0&&state.load>=definition.requiredLoad!)set(run,id,1);
+      if(state.mode===0&&state.load>=definition.requiredLoad!&&getDeviceStatus(run,level,id).modes[1].enabled)set(run,id,1);
       set(run,network.forks[index],state.mode===1?0:1);
     }
-    if(network.kind==='double'&&network.wind)set(run,network.wind,run.devices[network.weights[1]].mode?0:1);
+    if(network.wind)set(run,network.wind,1);
     if(network.wind&&network.cleat){
-      if(run.devices[network.cleat].mode===0){
-        set(run,network.wind,1);
-        if(run.devices[network.wind].progress>=.98)set(run,network.cleat,1);
-      }
-      if(run.devices[network.cleat].mode===1)set(run,network.wind,0);
+      if(getDeviceStatus(run,level,network.cleat).modes[1].enabled)set(run,network.cleat,1);
     }
     if(network.lift){
       const id=network.lift,state=run.devices[id],definition=level.devices.find(device=>device.id===id)!;
-      if(definition.gates?.every(gate=>gateSatisfied(run,gate))){
+      if((definition.gates??[]).every(gate=>gateSatisfied(run,gate))){
         if(state.mode===0&&state.progress<.02&&state.load>0){
           if(!boardingSince.has(id))boardingSince.set(id,run.time);
           if(state.load>=3||run.time-boardingSince.get(id)!>4.7)set(run,id,1);

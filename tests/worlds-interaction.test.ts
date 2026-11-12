@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {WORLD_LEVELS,WORLD_NETWORKS} from '../lib/worlds/levels';
-import {applyAction,createRun,getWaitingReason,saveRun,updateRun} from '../lib/worlds/engine';
+import {applyAction,createRun,getDeviceStatus,getDrawingEndpoints,getWaitingReason,saveRun,updateRun} from '../lib/worlds/engine';
 import {getExpeditionView,panAroundPoint} from '../lib/worlds/camera';
 import {hitTestPlayTarget,tappedPlatform} from '../lib/worlds/interaction';
 import {deviceBody} from '../lib/worlds/renderer-mechanisms';
@@ -14,6 +14,10 @@ function waitingPorters(){
   applyAction(run,level,{type:'start'});
   for(let i=0;i<400&&run.devices['s0:balance'].load<3;i++)updateRun(run,level,.1);
   assert.equal(run.devices['s0:balance'].load,3);
+  // Loading the pan starts its travel; the player must wait for contact before
+  // the crank can retain the cable. Use the same availability as the control.
+  for(let i=0;i<200&&!getDeviceStatus(run,level,'s0:balance').modes[1].enabled;i++)updateRun(run,level,.1);
+  assert(getDeviceStatus(run,level,'s0:balance').modes[1].enabled,'the loaded pan must reach its physical stop');
   assert(applyAction(run,level,{type:'device',id:'s0:balance'}).ok);
   assert(applyAction(run,level,{type:'erase',id:'s0:return-thread'}).ok);
   assert(applyAction(run,level,{type:'device',id:'s0:fork'}).ok);
@@ -37,6 +41,7 @@ for(const [width,height] of [[393,700],[375,812],[320,568],[844,390]]){
     }
     assert.deepEqual(hitTestPlayTarget(level,run,balance,view.scale),{kind:'device',id:balance.id});
     const panBody=deviceBody(level,run,balance);
+    assert(porters.every(unit=>Math.abs(unit.y-panBody.point.y)<1),'all three porters keep their feet on the lowered pan');
     for(const direction of [-1,1]){
       const rim={x:panBody.point.x+direction*panBody.width/2,y:panBody.point.y};
       assert.equal(tappedPlatform(level,run,rim,view.scale),balance.id);
@@ -49,9 +54,11 @@ test('a visible bridge support stays drawable when a companion is standing on it
   const {level,run}=waitingPorters(),pan=level.nodes.find(node=>node.id==='s0:pan')!;
   const drawing=level.drawings.find(drawing=>drawing.from.x===pan.x&&drawing.from.y===pan.y)!;
   assert(drawing);assert.equal(run.drawings[drawing.id],undefined);
+  const {from}=getDrawingEndpoints(run,level,drawing);
+  assert(from.y>drawing.from.y,'the drawable support follows the physically lowered pan');
   for(const scale of [.315,.45,1]){
-    assert.deepEqual(hitTestPlayTarget(level,run,drawing.from,scale),{kind:'drawing',id:drawing.id,end:'from'});
-    assert.equal(tappedPlatform(level,run,drawing.from,scale),'s0:balance','a tap operates the pan; a drag from the same support remains a drawing');
+    assert.deepEqual(hitTestPlayTarget(level,run,from,scale),{kind:'drawing',id:drawing.id,end:'from'});
+    assert.equal(tappedPlatform(level,run,from,scale),'s0:balance','a tap operates the pan; a drag from the same support remains a drawing');
   }
 });
 

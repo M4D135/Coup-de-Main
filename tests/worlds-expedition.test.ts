@@ -2,8 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {WORLD_LEVELS,WORLD_NETWORKS} from '../lib/worlds/levels';
 import {TABLEAU_HEIGHT} from '../lib/worlds/tableaux';
-import {appendStroke,applyAction,beginStroke,finishStroke,createRun,getActCount,getJourneySummary,getStageProgress,restoreRun,saveRun,updateRun} from '../lib/worlds/engine';
+import {appendStroke,applyAction,beginStroke,finishStroke,createRun,getActCount,getDeviceStatus,getJourneySummary,getStageProgress,restoreRun,saveRun,updateRun} from '../lib/worlds/engine';
 import {drawExpedition,expeditionController,solveExpedition} from './worlds-expedition-walkthrough';
+import {reachedRun,releaseOneAtBadTime} from './worlds-playability-support';
 
 for(const level of WORLD_LEVELS)test(`${level.name}: one continuous expedition reunites all twelve through five linked networks`,t=>{
   const run=createRun(level),report=solveExpedition(run,level);
@@ -13,11 +14,16 @@ for(const level of WORLD_LEVELS)test(`${level.name}: one continuous expedition r
   assert(Object.values(run.passages).some(ids=>ids.length===2));
   assert.equal(applyAction(run,level,{type:'advanceAct'}).ok,false);
   for(const network of WORLD_NETWORKS[level.id])assert.equal(run.visits[network.end]?.length,12);
+  for(const network of WORLD_NETWORKS[level.id])if(network.wind){
+    const driven=level.edges.find(edge=>edge.mechanism?.drivers.includes(network.wind!));assert(driven);
+    assert.equal(run.devices[network.wind].mode,1,'leaving a fan on must not forbid a companion from walking');
+    assert.equal(run.passages[driven.id]?.length,network.kind==='scout'?2:12,'the troupe really crossed the wind-driven support');
+  }
   const restored=restoreRun(JSON.parse(JSON.stringify(saveRun(run))),level);assert(restored);assert.equal(restored.saved,12);
   t.diagnostic(`Full solution: ${Math.round(report.time)}s simulation; ${report.decisions} gestures; peak ink ${Math.round(report.peakInk)}/${level.inkBudget}.`);
 });
 
-test('every expedition is ten physical sectors, all supporting paths meet nodes, and quotas have physical controls',()=>{
+test('every expedition has five locally powered tableaux, coherent paths and physical route controls',()=>{
   for(const level of WORLD_LEVELS){
     assert.equal(level.width,16000);assert.equal(level.height,TABLEAU_HEIGHT);assert.equal(level.sectors?.length,10);assert.equal(level.acts,undefined);
     assert.equal(level.hints.length,0);assert(level.devices.every(device=>device.modes.length<=2));
@@ -26,11 +32,18 @@ test('every expedition is ten physical sectors, all supporting paths meet nodes,
       assert.deepEqual(edge.path[0],{x:from.x,y:from.y});assert.deepEqual(edge.path.at(-1),{x:to.x,y:to.y});
       if(edge.drawingId){const drawing=level.drawings.find(d=>d.id===edge.drawingId)!;assert.deepEqual(drawing.from,edge.path[0]);assert.deepEqual(drawing.to,edge.path.at(-1));}
       if(edge.maxPassages!==undefined){assert(edge.route,'a finite route is visibly attached to a selector');assert(level.devices.some(d=>d.id===edge.route!.deviceId&&d.kind==='splitter'));}
+      for(const driver of edge.mechanism?.drivers??[]){
+        assert(level.devices.some(device=>device.id===driver),`${edge.id} needs a real physical driver`);
+        assert.equal(driver.split(':')[0],edge.id.split(':')[0],`${edge.id} must be driven inside its own tableau`);
+      }
     }
-    const links=level.edges.flatMap(edge=>edge.gates??[]).filter(gate=>{
-      const device=level.devices.find(d=>d.id===gate.deviceId)!;
-      return level.edges.some(edge=>edge.gates?.includes(gate)&&Math.abs(edge.path[0].x-device.x)>2000);
-    });assert(links.length>0,'physical dependencies must cross sector boundaries');
+    for(const edge of level.edges)for(const gate of edge.gates??[]){
+      assert(level.devices.some(device=>device.id===gate.deviceId));
+      assert.equal(gate.deviceId.split(':')[0],edge.id.split(':')[0],`${edge.id} must not wait for an invisible mechanism in another tableau`);
+    }
+    for(const device of level.devices)for(const linked of [device.powerDeviceId,device.lockDeviceId,device.holdOpenDeviceId])if(linked){
+      assert.equal(linked.split(':')[0],device.id.split(':')[0],`${device.id} must keep its mechanical connections in the same tableau`);
+    }
     const totalInk=level.drawings.reduce((sum,d)=>sum+Math.hypot(d.to.x-d.from.x,d.to.y-d.from.y),0);
     assert(totalInk>level.inkBudget!,'the entire journey cannot be drawn before launch');
   }
@@ -50,7 +63,7 @@ test('one-sided routing cannot bypass weights, scouts, lifts or the two independ
 test('a physical souvenir survives subsequent edits, serialization, a bad route and a paused retry',()=>{
   const level=WORLD_LEVELS[0],run=createRun(level),control=expeditionController(run,level);
   control();applyAction(run,level,{type:'start'});
-  while(!run.autoCheckpointId&&run.time<700){control();updateRun(run,level,.1);}
+  while(run.phase==='playing'&&!run.autoCheckpointId&&run.time<700){control();updateRun(run,level,.1);}
   assert(run.autoCheckpointId);const checkpoint=JSON.stringify(run.checkpoint),checkpointTime=run.checkpoint!.time;
   const device=level.devices.find(d=>d.kind==='splitter'&&d.x>6500)!;
   assert(applyAction(run,level,{type:'device',id:device.id}).ok);
@@ -71,11 +84,11 @@ test('V1 and V2 saves reset safely into the continuous V3 graph',()=>{
   }
 });
 
-test('the visible first relay reunites every porter before any action in the following tableau',()=>{
+test('the first balance reaches its stop and reunites every porter before any action in the following tableau',()=>{
   const level=WORLD_LEVELS[0],run=createRun(level),network=WORLD_NETWORKS.boucles[0];
   for(const id of network.drawings)drawExpedition(run,level,id);
   assert(applyAction(run,level,{type:'device',id:'s0:fork'}).ok);applyAction(run,level,{type:'start'});
-  for(let i=0;i<400&&run.devices['s0:balance'].load<3;i++)updateRun(run,level,.1);
+  for(let i=0;i<600&&!getDeviceStatus(run,level,'s0:balance').modes[1].enabled;i++)updateRun(run,level,.1);
   assert.equal(run.devices['s0:balance'].load,3);assert(applyAction(run,level,{type:'device',id:'s0:balance'}).ok);
   assert(applyAction(run,level,{type:'device',id:'s0:fork'}).ok);
   assert.equal(run.units.filter(unit=>unit.nodeId==='s0:pan'&&unit.edgeId===null).length,3);
@@ -100,6 +113,54 @@ test('a troupe sent entirely to the unpowered main road can recover on foot in b
   }
 });
 
+for(const [world,prefix] of [['veilleurs','s0'],['boucles','s6']] as const)test(`${world}/${prefix}: an unweighted lift queue keeps two porters recoverable after a real descent`,()=>{
+  const level=WORLD_LEVELS.find(candidate=>candidate.id===world)!,network=WORLD_NETWORKS[world].find(candidate=>candidate.id===prefix)!;
+  const run=world==='veilleurs'?createRun(level):reachedRun(level,`${prefix}:entry`);
+  assert(applyAction(run,level,{type:'device',id:network.forks[0],mode:0}).ok);
+  for(const id of network.drawings)assert(drawExpedition(run,level,id));
+  if(run.phase!=='playing')assert(applyAction(run,level,{type:'start'}).ok);
+  const lift=run.devices[network.lift!],balance=run.devices[network.weights[0]];
+  let maximumAbove=0;
+  // Use only real treuil commands. Even repeated trips cannot put the whole
+  // troupe beyond the shaft while the raised bridge has no counterweight.
+  for(let frame=0;frame<1200;frame++){
+    if(lift.mode===0&&lift.progress<.001&&Math.abs(lift.velocity??0)<.035&&lift.load===3)
+      assert(applyAction(run,level,{type:'device',id:network.lift!,mode:1}).ok);
+    if(lift.mode===1&&lift.progress>=.999&&lift.load===0)
+      assert(applyAction(run,level,{type:'device',id:network.lift!,mode:0}).ok);
+    updateRun(run,level,.1);
+    assert.equal(balance.load,0,'the counterweight has never been loaded');
+    const above=run.units.filter(unit=>unit.edgeId===`${prefix}:upper-road`
+      ||unit.edgeId===`${prefix}:elevator`&&lift.progress>=.995).length;
+    maximumAbove=Math.max(maximumAbove,above);
+  }
+  assert.equal(maximumAbove,9,'the physical landing holds six and the full cradle holds three');
+  assert.equal(run.units.filter(unit=>unit.edgeId===`${prefix}:upper-road`).length,6);
+  const riders=run.units.filter(unit=>unit.edgeId===`${prefix}:elevator`),below=run.units.filter(unit=>unit.edgeId===`${prefix}:main-road`);
+  assert.equal(riders.length,3);assert.equal(below.length,3);assert.equal(lift.progress,1);assert.equal(lift.load,3);
+  assert.equal(run.passages[`${prefix}:main-road`].length,12,'every companion really chose the wrong branch');
+  assert.equal(run.passages[`${prefix}:elevator`].length,9,'the last three cannot enter a full cradle');
+  const definition=level.devices.find(device=>device.id===network.lift)!;
+  assert(riders.every(unit=>Math.abs(unit.y-definition.high!.y)<.01));
+  assert(applyAction(run,level,{type:'device',id:network.forks[0],mode:1}).ok);
+  assert(applyAction(run,level,{type:'device',id:network.lift!,mode:0}).ok);
+  let descendedThroughShaft=false;
+  for(let frame=0;frame<300&&!getDeviceStatus(run,level,network.weights[0]).modes[1].enabled;frame++){
+    updateRun(run,level,.1);
+    if(lift.progress>.05&&lift.progress<.95){
+      descendedThroughShaft=true;
+      const actualHeight=definition.low!.y+(definition.high!.y-definition.low!.y)*lift.progress;
+      assert(riders.every(unit=>unit.state==='riding'&&Math.abs(unit.y-actualHeight)<.01),'passengers stay on the moving cradle');
+    }
+  }
+  assert(descendedThroughShaft,'the descent is integrated rather than a jump between landings');
+  assert.equal(lift.progress,0);assert(riders.every(unit=>Math.abs(unit.y-definition.low!.y)<.01));
+  assert.equal(balance.load,2);assert(getDeviceStatus(run,level,network.weights[0]).modes[1].enabled);
+  const porters=run.units.filter(unit=>unit.nodeId===`${prefix}:pan`&&unit.edgeId===null);
+  assert.equal(porters.length,2);assert(porters.every(unit=>below.includes(unit)),'the two porters really returned along the lower road');
+  solveExpedition(run,level);assert.equal(run.saved,12);assert.equal(run.lost,0);assert.equal(run.retries,0);
+});
+
 test('three losses finish an impossible expedition promptly and its safe souvenir remains recoverable',()=>{
   const level=WORLD_LEVELS[2],run=createRun(level);applyAction(run,level,{type:'start'});
   const snapshotTime=run.checkpoint!.time;
@@ -116,8 +177,12 @@ test('each V3 balancier has a generous safe interval and a genuinely dangerous i
   for(const network of WORLD_NETWORKS.veilleurs)for(const hazard of network.hazards){
     const edge=level.edges.find(edge=>edge.id===hazard.edge)!,definition=level.devices.find(device=>device.id===hazard.pendulum)!;
     const crossAt=(time:number)=>{
-      const run=createRun(level);run.phase='playing';run.time=time;run.spawned=12;run.saved=11;
-      for(const unit of run.units){unit.state=unit.id===0?'walking':'saved';unit.nodeId=unit.id===0?edge.from:level.goal;unit.edgeId=unit.id===0?edge.id:null;}
+      const run=createRun(level);applyAction(run,level,{type:'start'});
+      // Integrate the pendulum to this observed phase; changing the clock alone
+      // would not change a real angle/angular-velocity state.
+      for(let elapsed=0;elapsed<time-1e-8;elapsed+=1/60)updateRun(run,level,Math.min(1/60,time-elapsed));
+      run.spawned=12;run.saved=11;
+      for(const unit of run.units){unit.state=unit.id===0?'walking':'saved';unit.nodeId=unit.id===0?edge.from:level.goal;unit.edgeId=unit.id===0?edge.id:null;unit.distance=0;unit.returning=false;unit.returnEdges=[];}
       Object.assign(run.units[0],edge.path[0]);
       for(let frame=0;frame<300&&run.units[0].edgeId===edge.id&&run.units[0].state!=='lost';frame++)updateRun(run,level,1/60);
       return run.units[0].state!=='lost';
@@ -148,9 +213,7 @@ test('ten survivors still solve the downstream double balances, lifts and final 
   for(let i=0;i<3000&&!waiting();i++){control();updateRun(run,level,.1);}
   assert(waiting());
   for(let expected=1;expected<=2;expected++){
-    for(let i=0;i<300&&!(waiting()&&run.time%12>=3&&run.time%12<3.2);i++)updateRun(run,level,.1);
-    assert(waiting());assert(applyAction(run,level,{type:'device',id:hazard.gate,mode:1}).ok);
-    for(let i=0;i<80&&run.lost<expected;i++)updateRun(run,level,.1);
+    releaseOneAtBadTime(run,level,hazard);
     assert.equal(run.lost,expected,'a bad observed timing must cause the actual collision');
   }
   solveExpedition(run,level);assert.equal(run.saved,10);assert.equal(run.lost,2);assert.equal(getJourneySummary(run,level).stars,1);

@@ -38,6 +38,9 @@ export interface RouteEdge {
   terrain?:'solid'|'platform';
   /** A clearly marked scout passage; reservations count before arrival. */
   maxPassages?:number;
+  /** A visible local linkage moves this supporting deck. Two drivers carry
+   * independent leaves which must physically meet before anyone can enter. */
+  mechanism?:{drivers:string[];restAngle:number};
 }
 
 export interface DeviceDefinition extends Point {
@@ -65,6 +68,16 @@ export interface DeviceDefinition extends Point {
   activationNodeId?:string;
   autoCloseAfter?:number;
   holdOpenDeviceId?:string;
+  mechanics?:{
+    travel?:number;
+    mass?:number;
+    driveForce?:number;
+    damping?:number;
+    /** Effective rotational inertia relative to a point mass on its rod. */
+    inertia?:number;
+    automaticRatchet?:boolean;
+    wind?:{source:Point;target:Point;direction:Point;range:number;cone:number;radius:number};
+  };
 }
 
 export interface DrawingDefinition {
@@ -191,6 +204,16 @@ export interface DeviceState {
   progress:number;
   load:number;
   released?:number;
+  /** Velocity is measured in normalized travel per second; rotor angles and
+   * pendulum angles are radians. Optional only for earlier V3 saves. */
+  velocity?:number;
+  rotorAngle?:number;
+  rotorVelocity?:number;
+  receivedForce?:number;
+  angle?:number;
+  angularVelocity?:number;
+  /** Preserves an earlier saved plate contact while adopting the new travel. */
+  anchorOffset?:number;
 }
 
 export interface DrawnRoute {
@@ -220,6 +243,7 @@ export type EditSnapshot = {
 
 export interface RunSnapshot {
   version:3;
+  mechanicsRevision?:number;
   /** Missing in the original continuous-world saves, whose geometry is 3. */
   geometryRevision?:number;
   /** Keeps already drawn spans if reprojection exceeds the new ink budget.

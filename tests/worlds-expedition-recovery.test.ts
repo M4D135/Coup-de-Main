@@ -88,6 +88,7 @@ test('a legacy save stranded at Le courant contraire restores only its already-u
   for(let i=0;i<2500&&!run.autoCheckpointId;i++){control();updateRun(run,level,.1);}
   assert.equal(run.autoCheckpointId,'s0:rest');
   const old=JSON.parse(JSON.stringify(saveRun(run)));
+  delete old.mechanicsRevision;
   old.devices['s0:cleat'].mode=0;old.devices['s0:cleat'].progress=0;old.devices['s0:wind'].progress=0;
   const restored=restoreRun(old,level);assert(restored);
   assert.equal(restored.devices['s0:cleat'].mode,1);
@@ -100,6 +101,21 @@ test('a legacy save stranded at Le courant contraire restores only its already-u
     assert.equal(restored.devices[definition.id].mode,run.devices[definition.id].mode,'no new puzzle is solved on load');
   }
   solveExpedition(restored,level);assert.equal(restored.saved,12);assert.equal(restored.lost,0);assert.equal(restored.retries,0);
+});
+
+test('a current save preserves an unlatched wind-driven crossing rather than fastening its cleat on load',()=>{
+  const level=WORLD_LEVELS[1],run=createRun(level);
+  for(const id of WORLD_NETWORKS.plis[0].drawings)drawExpedition(run,level,id);
+  applyAction(run,level,{type:'device',id:'s0:wind',mode:1});applyAction(run,level,{type:'start'});
+  for(let i=0;i<800&&!(run.passages['s0:wind-thread']?.length);i++)updateRun(run,level,.1);
+  assert(run.passages['s0:wind-thread']?.length,'the actual powered bridge has carried a companion');
+  assert.equal(run.devices['s0:cleat'].mode,0);
+  const restored=restoreRun(JSON.parse(JSON.stringify(saveRun(run))),level);assert(restored);
+  assert.equal(restored.devices['s0:cleat'].mode,0,'restoring cannot insert a retaining knot the player never engaged');
+  assert.equal(restored.devices['s0:wind'].mode,1);
+  assert.equal(restored.devices['s0:wind'].progress,run.devices['s0:wind'].progress);
+  assert.equal(restored.devices['s0:wind'].rotorAngle,run.devices['s0:wind'].rotorAngle);
+  assert.deepEqual(restored.units.map(unit=>[unit.id,unit.x,unit.y]),run.units.map(unit=>[unit.id,unit.x,unit.y]));
 });
 
 for(const seed of [2,5,6,8])test(`Petits Plis recovers after exploratory drawing, toggles, erasing and Undo (sequence ${seed})`,()=>{

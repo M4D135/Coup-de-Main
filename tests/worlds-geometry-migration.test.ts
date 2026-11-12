@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {WORLD_LEVELS,WORLD_NETWORKS} from '../lib/worlds/levels';
 import {appendStroke,applyAction,beginStroke,createRun,finishStroke,getEdgePath,pathLength,pointAlongPath,restoreRun,saveRun,updateRun} from '../lib/worlds/engine';
+import {getDeviceAnchor} from '../lib/worlds/mechanics';
 import type {Point,WorldLevel,WorldRun} from '../lib/worlds/types';
 import {drawExpedition,expeditionController,safeHazardRelease,solveExpedition} from './worlds-expedition-walkthrough';
 
@@ -27,7 +28,10 @@ function authoredLevel(source:WorldLevel):WorldLevel {
 }
 function legacySnapshot(run:WorldRun){
   const snapshot=JSON.parse(JSON.stringify(saveRun(run)));
-  const removeRevision=(value:Record<string,unknown>)=>{delete value.geometryRevision;if(value.checkpoint)removeRevision(value.checkpoint as Record<string,unknown>);};
+  const removeRevision=(value:Record<string,unknown>)=>{
+    delete value.geometryRevision;delete value.mechanicsRevision;
+    if(value.checkpoint)removeRevision(value.checkpoint as Record<string,unknown>);
+  };
   removeRevision(snapshot);return snapshot;
 }
 function assertProjectedPath(oldRun:WorldRun,oldLevel:WorldLevel,newRun:WorldRun,newLevel:WorldLevel,id:number):void {
@@ -65,7 +69,9 @@ test('an unlabelled V3 journey moves its existing curved bridge and walking comp
 
 test('a companion already walking back keeps its actual return path during geometry migration',()=>{
   const oldLevel=previousLevel(0),run=createRun(oldLevel);
-  for(const id of WORLD_NETWORKS.boucles[0].drawings)drawExpedition(run,oldLevel,id);
+  // The high span stays missing so the first route choice has a real reason to
+  // recall the troupe even though the new level no longer has a remote gate.
+  for(const id of WORLD_NETWORKS.boucles[0].drawings.filter(id=>id!=='s0:high-thread'))assert(drawExpedition(run,oldLevel,id));
   applyAction(run,oldLevel,{type:'start'});
   for(let i=0;i<600;i++)updateRun(run,oldLevel,.1);
   applyAction(run,oldLevel,{type:'device',id:'s0:fork',mode:1});
@@ -76,14 +82,23 @@ test('a companion already walking back keeps its actual return path during geome
 });
 
 test('a carried troupe remains on its moving lift and loaded helpers stay on their wider plateau',()=>{
-  const oldLevel=previousLevel(2),run=createRun(oldLevel),control=expeditionController(run,oldLevel);
-  control();applyAction(run,oldLevel,{type:'start'});
-  for(let i=0;i<1500;i++){
-    control();updateRun(run,oldLevel,.1);
-    if(run.devices['s0:lift'].progress>.35&&run.devices['s0:lift'].progress<.8&&run.units.some(unit=>unit.state==='riding'))break;
-  }
+  const oldLevel=previousLevel(2),run=createRun(oldLevel);
+  // Withhold the return drawing, as a player can, to retain two helpers on
+  // their pan while three other companions take the independently cranked lift.
+  for(const id of WORLD_NETWORKS.veilleurs[0].drawings.filter(id=>id!=='s0:return-thread'))assert(drawExpedition(run,oldLevel,id));
+  assert(applyAction(run,oldLevel,{type:'device',id:'s0:fork',mode:1}).ok);
+  applyAction(run,oldLevel,{type:'start'});
+  for(let i=0;i<1500&&run.devices['s0:balance'].load<2;i++)updateRun(run,oldLevel,.1);
+  assert.equal(run.devices['s0:balance'].load,2);
+  assert(applyAction(run,oldLevel,{type:'device',id:'s0:balance',mode:1}).ok);
+  assert(applyAction(run,oldLevel,{type:'device',id:'s0:fork',mode:0}).ok);
+  for(let i=0;i<1500&&run.devices['s0:lift'].load<3;i++)updateRun(run,oldLevel,.1);
+  assert.equal(run.devices['s0:lift'].load,3);
+  assert(applyAction(run,oldLevel,{type:'device',id:'s0:lift',mode:1}).ok);
+  for(let i=0;i<1500&&run.devices['s0:lift'].progress<=.35;i++)updateRun(run,oldLevel,.1);
+  assert(run.devices['s0:lift'].progress<.8);
   const riders=run.units.filter(unit=>unit.state==='riding'),porters=run.units.filter(unit=>unit.nodeId==='s0:pan'&&unit.edgeId===null);
-  assert(riders.length);assert.equal(porters.length,2);
+  assert.equal(riders.length,3);assert.equal(porters.length,2);
   const nextLevel=authoredLevel(oldLevel),restored=restoreRun(legacySnapshot(run),nextLevel);assert(restored);
   const lift=nextLevel.devices.find(device=>device.id==='s0:lift')!,progress=run.devices['s0:lift'].progress;
   for(const rider of riders){
@@ -94,6 +109,19 @@ test('a carried troupe remains on its moving lift and loaded helpers stay on the
   const oldPan=oldLevel.nodes.find(node=>node.id==='s0:pan')!,pan=nextLevel.nodes.find(node=>node.id==='s0:pan')!;
   for(const porter of porters){const next:WorldRun['units'][number]=restored.units[porter.id];assert.equal(next.x,pan.x+(porter.x-oldPan.x)*2);assert(Math.abs(next.y-pan.y)<=2);}
   assert.equal(restored.devices['s0:balance'].mode,1);assert.equal(restored.devices['s0:balance'].load,2);
+  // The production scene additionally introduces moving plates. A genuine V3
+  // save must preserve contact while that mechanism is initialized, too.
+  const current=WORLD_LEVELS[2],physical=restoreRun(legacySnapshot(run),current);assert(physical);
+  const physicalPan=current.devices.find(device=>device.id==='s0:balance')!,physicalLift=current.devices.find(device=>device.id==='s0:lift')!;
+  const assertContact=()=>{
+    for(const porter of porters)assert(Math.abs(physical.units[porter.id].y-getDeviceAnchor(physical,physicalPan).y)<1,'the migrated porter stands on the actual moving pan');
+    for(const rider of riders){
+      assert.equal(physical.units[rider.id].state,'riding');
+      assert(Math.abs(physical.units[rider.id].y-getDeviceAnchor(physical,physicalLift).y)<1,'the migrated rider stands on the actual moving lift');
+    }
+  };
+  assertContact();assert(applyAction(physical,current,{type:'start'}).ok);updateRun(physical,current,1/60);assertContact();
+  solveExpedition(physical,current);assert.equal(physical.saved,12);assert.equal(physical.lost,0);assert.equal(physical.retries,0);
 });
 
 test('the physical checkpoint is reprojected with the journey and retry keeps its earned progress',()=>{
